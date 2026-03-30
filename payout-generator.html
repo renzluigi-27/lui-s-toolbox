@@ -463,10 +463,12 @@ function parsePaymentSheet(raw) {
     // ── Group ID priority: Container → Contract No → Manual Check ──
     const noNumber = (s) => !s || s.toLowerCase() === 'no number' || s === '';
     let groupId;
-    if (!noNumber(container)) {
-      groupId = container;
+    if (!noNumber(contractNo) && !noNumber(container)) {
+      groupId = contractNo + '|' + container;
     } else if (!noNumber(contractNo)) {
       groupId = contractNo;
+    } else if (!noNumber(container)) {
+      groupId = container;
     } else {
       groupId = '__MANUAL_CHECK__';
     }
