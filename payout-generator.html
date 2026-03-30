@@ -653,7 +653,7 @@ const groupMap = {};
     // Determine if this groupId is container-based by checking rows
     const isContainerBased = meta.rows.some(r => r.container && r.container === gid);
 
-    if (isContainerBased && meta.contractNos.size > 1 && !new Set(['LGMU2266157', 'LGMU2279473', 'LGMU2272308', 'LGMU2271894']).has(gid)) {
+    if (isContainerBased && meta.contractNos.size > 1 && !new Set(['LGMU2266157', 'LGMU2279473', 'LGMU2272308', 'LGMU2271894', 'LGMU2276920', 'HKAU2024746']).has(gid)) {
       // Same container, different contracts → mismatch error
       mismatchFlags.push({
         container:    gid,
