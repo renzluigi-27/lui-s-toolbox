@@ -1,0 +1,294 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Toolbox by Renz Luigi</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
+      --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.25);
+      --text: #1a1a18; --text-muted: #5f5e5a; --text-hint: #888780;
+      --radius-md: 8px; --radius-lg: 12px;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a; --surface: #252523; --surface2: #2c2c2a;
+        --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.22);
+        --text: #f0ede6; --text-muted: #b4b2a9; --text-hint: #888780;
+      }
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1rem 4rem;
+    }
+
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  width: 100%;
+  max-width: 660px;
+}
+    header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    header p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 660px;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-hint);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── Tool card ── */
+    .tool-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.2rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .tool-card:hover {
+      border-color: var(--border-strong);
+      background: var(--surface2);
+    }
+
+    .tool-info { flex: 1; min-width: 0; }
+    .tool-name {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin-bottom: 3px;
+    }
+    .tool-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tool-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .tool-tag {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-hint);
+      background: var(--surface2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 3px 8px;
+      font-family: var(--font-mono);
+      white-space: nowrap;
+    }
+    .tool-arrow {
+      color: var(--text-hint);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    footer {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-hint);
+      line-height: 1.8;
+    }
+
+
+
+@media (prefers-color-scheme: dark) {
+  }
+
+
+
+
+
+  
+.changelog-box {
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 6px;
+  word-break: break-word;
+  white-space: normal;
+}
+.changelog-box .tool-desc {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Lui's Toolbox</h1>
+  <p>A collection of browser-based utilities — no data sent anywhere</p>
+</header>
+
+<div class="container">
+
+  <div class="section-label">Available</div>
+
+  <!-- ─── TOOL CARD: IBAN Checker ─────────────────────────────── -->
+  <a class="tool-card" href="iban-checker.html">
+    <div class="tool-info">
+      <div class="tool-name">IBAN Checker</div>
+      <div class="tool-desc">Validate UAE &amp; international IBANs — ISO 13616 checksum</div>
+    </div>
+    <div class="tool-meta">
+      <span class="tool-tag">validation</span>
+      <span class="tool-arrow">&#8594;</span>
+    </div>
+  </a>
+  <!-- ─── TOOL CARD: Payout Generator ────────────────────────────── -->
+<a class="tool-card" href="payout-generator.html">
+  <div class="tool-info">
+    <div class="tool-name">Payout Generator</div>
+    <div class="tool-desc">Generate monthly payout sheets from the payment info sheet — 15th &amp; EOM cycles</div>
+  </div>
+  <div class="tool-meta">
+    <span class="tool-tag">finance</span>
+    <span class="tool-arrow">&#8594;</span>
+  </div>
+</a>
+  <!-- ─── TOOL CARD: IP Deduction & Rental Validation ────────────────────────────── -->
+<a class="tool-card" href="ip-deduction-rental-validation.html">
+  <div class="tool-info">
+    <div class="tool-name">IP Deduction Tool</div>
+    <div class="tool-desc">Insurance deduction, return calculation, and installment validation</div>
+  </div>
+  <div class="tool-meta">
+    <span class="tool-tag">finance</span>
+    <span class="tool-arrow">&#8594;</span>
+  </div>
+</a>
+  <!-- ─── TOOL CARD: Email Matcher ────────────────────────────── -->
+  <a class="tool-card" href="email-matcher.html">
+    <div class="tool-info">
+      <div class="tool-name">Email Matcher</div>
+      <div class="tool-desc">Match client names to emails from a master sheet — CSV &amp; XLSX</div>
+    </div>
+    <div class="tool-meta">
+      <span class="tool-tag">matching</span>
+      <span class="tool-arrow">&#8594;</span>
+    </div>
+  </a>
+
+  <!--
+    ═══════════════════════════════════════════════════════════════
+    HOW TO ADD A NEW TOOL
+    ═══════════════════════════════════════════════════════════════
+
+    1. Copy the block below (between the dashes) and paste it
+       after the last <a class="tool-card"> block above.
+
+    2. Fill in:
+       · href       → path to the tool's HTML file
+                      e.g.  "my-new-tool/index.html"
+       · tool-name  → short display name
+       · tool-desc  → one-line description
+       · tool-tag   → one keyword label (validation / matching /
+                      lookup / export / etc.)
+
+    ── COPY FROM HERE ──────────────────────────────────────────
+
+  <a class="tool-card" href="TOOL-FOLDER/index.html">
+    <div class="tool-info">
+      <div class="tool-name">Tool Name</div>
+      <div class="tool-desc">Short description of what this tool does</div>
+    </div>
+    <div class="tool-meta">
+      <span class="tool-tag">tag</span>
+      <span class="tool-arrow">&#8594;</span>
+    </div>
+  </a>
+
+    ── COPY TO HERE ────────────────────────────────────────────
+  -->
+
+</div>
+
+
+<!-- ─── CHANGELOG ────────────────────────────── -->
+<div class="section-label" style="margin-top:2rem;">Changelog</div>
+
+<div class="tool-card" style="display:block;">
+  <div class="tool-info changelog-box">
+    <div class="tool-name">Version History</div>
+    <div class="tool-desc">
+	<strong>Version 1.6.1</strong> — Payout Generator improvements<br>
+    <div style="padding-left:1rem;">
+	  • Top 5 results for the preview instead of 100<br>
+	  • Fixed clients having other than 50-50 split income and deduction<br>
+	  </div><br>
+	<strong>Version 1.6</strong> — Payout Generator improvements<br>
+	<div style="padding-left:1rem;">
+      • Deductions now grouped by IBAN (falls back to account number if IBAN is invalid)<br>
+      • Insurance deductions labelled as IP (Y1/Y2/Y3 IP)<br>
+      • Y1 shown in notes only when alongside Y2 or Y3 — silent when alone<br>
+      • Note amounts now always match deduction column<br>
+      • First Payout Date shows only dates that triggered a deduction<br>
+      • HC pending shown as "HC pending next cycle" — amount applied on next cycle<br>
+      • Shared group flag only shown when a deduction was actually split<br>
+      • Known container errors are silently skipped</div><br>
+      <strong>Version 1.5</strong> — Updated IP Deduction Tool improvements<br>
+      <div style="padding-left:1rem;">
+      • Added return, deduction, and return after deduction calculation<br>
+      • Improved Excel output format</div><br>
+      <strong>Version 1.4</strong> — Payout Generator added<br><br>
+      <strong>Version 1.3</strong> — IP Deduction Tool added<br><br>
+      <strong>Version 1.2</strong> — Email Matcher tool added<br><br>
+      <strong>Version 1.1</strong> — IBAN Checker updated<br>
+      <div style="padding-left:1rem;">
+      • All GCC banks added<br>
+      • More international banks coming soon</div><br>
+      <strong>Version 1.0</strong> — IBAN Checker (UAE banks database only)
+    </div>
+  </div>
+</div>
+
+<footer>
+  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; &copy; Renz Luigi v1.6 2026
+</footer>
+
+</body>
+</html>

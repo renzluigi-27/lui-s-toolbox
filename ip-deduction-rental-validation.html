@@ -1,0 +1,331 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IP Deduction Tool</title>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
+  --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.25);
+  --text: #1a1a18; --text-muted: #5f5e5a; --text-hint: #888780;
+  --green-bg: #EAF3DE; --green-text: #3B6D11; --green-dot: #639922;
+  --red-bg: #FCEBEB; --red-text: #A32D2D; --red-dot: #E24B4A;
+  --warn-bg: #FFF4DC; --warn-text: #7A5000; --warn-dot: #E8A000;
+  --radius-md: 8px; --radius-lg: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1a; --surface: #252523; --surface2: #2c2c2a;
+    --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.22);
+    --text: #f0ede6; --text-muted: #b4b2a9; --text-hint: #888780;
+    --green-bg: #173404; --green-text: #C0DD97; --green-dot: #97C459;
+    --red-bg: #501313;   --red-text: #F7C1C1;   --red-dot: #F09595;
+    --warn-bg: #2e2100; --warn-text: #e8b84a; --warn-dot: #E8A000;
+  }
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3rem 1rem 4rem;
+}
+
+/* ── Back nav ── */
+.back-link {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--text-hint);
+  text-decoration: none;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s;
+}
+.back-link:hover { color: var(--text-muted); }
+
+header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+header h1 {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+header p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.container {
+  width: 100%;
+  max-width: 660px;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ── Upload zones ── */
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.upload-zone {
+  border: 0.5px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+.upload-zone:hover { border-color: #378ADD; background: var(--surface2); }
+.upload-zone.has-file {
+  border-style: solid;
+  border-color: var(--green-dot);
+  background: var(--green-bg);
+}
+
+.upload-zone-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+.upload-zone-hint  { font-size: 12px; color: var(--text-hint); }
+.upload-zone-filename {
+  font-size: 12px;
+  color: var(--green-text);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.file-input { display: none; }
+
+/* ── Run button ── */
+.run-btn {
+  width: 100%;
+  height: 42px;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--text);
+  color: var(--bg);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: opacity 0.15s;
+  font-family: var(--font-sans);
+}
+.run-btn:hover { opacity: 0.85; }
+.run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Results header bar ── */
+.results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.results-bar h2 {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.export-btn {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  background: var(--surface2);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: border-color 0.15s, background 0.15s;
+}
+.export-btn:hover {
+  border-color: var(--text-hint);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* ── Table ── */
+.table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border);
+  background: var(--surface);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  background: var(--surface2);
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+tbody td {
+  padding: 9px 12px;
+  border-bottom: 0.5px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--surface2); }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-hint);
+  font-size: 13px;
+}
+
+/* ── Status badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-family: var(--font-mono);
+}
+.badge-green { background: var(--green-bg); color: var(--green-text); }
+.badge-red   { background: var(--red-bg);   color: var(--red-text);   }
+.badge-warn  { background: var(--warn-bg);  color: var(--warn-text);  }
+.badge::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+footer {
+  margin-top: 3rem;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-hint);
+  line-height: 1.8;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <a class="back-link" href="index.html">&#8592; Back to Tools</a>
+</div>
+
+<header>
+  <h1>IP Deduction Tool</h1>
+  <p>Insurance deduction, return calculation, and installment validation — runs entirely offline</p>
+</header>
+
+<div class="container">
+
+  <div class="section-label">Upload Files</div>
+
+  <div class="card">
+    <div class="upload-grid">
+      <div class="upload-zone" onclick="document.getElementById('file1').click()" id="card1">
+        <div class="upload-zone-title">📋 Payment Info Sheet</div>
+        <div class="upload-zone-hint">Master historical data</div>
+        <div class="upload-zone-filename" id="name1"></div>
+      </div>
+      <input type="file" id="file1" class="file-input" accept=".xlsx,.xls,.csv">
+
+      <div class="upload-zone" onclick="document.getElementById('file2').click()" id="card2">
+        <div class="upload-zone-title">💰 Deduction List</div>
+        <div class="upload-zone-hint">Current cycle containers</div>
+        <div class="upload-zone-filename" id="name2"></div>
+      </div>
+      <input type="file" id="file2" class="file-input" accept=".xlsx,.xls,.csv">
+    </div>
+
+    <button class="run-btn" onclick="processFiles()">Export Result!</button>
+  </div>
+
+</div>
+
+<footer>
+  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; &copy; Renz Luigi 2026
+</footer>
+
+<script src="xlsx.full.min.js"></script>
+<script src="app.js"></script>
+
+<script>
+function validateFile(inputId, cardId, nameId, requiredName) {
+  const fileInput = document.getElementById(inputId);
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const nameBox = document.getElementById(nameId);
+  const card = document.getElementById(cardId);
+
+  if (file.name !== requiredName) {
+    nameBox.textContent = "✗ Wrong file name";
+    nameBox.style.color = "#E24B4A";
+    card.classList.remove("has-file");
+    fileInput.value = "";
+    return;
+  }
+
+  card.classList.add("has-file");
+  nameBox.textContent = "✓ " + file.name;
+  nameBox.style.color = "#639922";
+}
+
+document.getElementById('file1').addEventListener('change', function() {
+  validateFile("file1", "card1", "name1", "payment info sheet.xlsx");
+});
+
+document.getElementById('file2').addEventListener('change', function() {
+  validateFile("file2", "card2", "name2", "deduction list.xlsx");
+});
+</script>
+
+</body>
+</html>

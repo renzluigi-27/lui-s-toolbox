@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IBAN Checker — UAE & International</title>
+  <style>
+.back-link {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--text-hint);
+  text-decoration: none;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s;
+}
+.back-link:hover { color: var(--text-muted); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
+      --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.25);
+      --text: #1a1a18; --text-muted: #5f5e5a; --text-hint: #888780;
+      --green-bg: #EAF3DE; --green-text: #3B6D11; --green-dot: #639922;
+      --red-bg: #FCEBEB; --red-text: #A32D2D; --red-dot: #E24B4A;
+      --radius-md: 8px; --radius-lg: 12px;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1a; --surface: #252523; --surface2: #2c2c2a;
+        --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.22);
+        --text: #f0ede6; --text-muted: #b4b2a9; --text-hint: #888780;
+        --green-bg: #173404; --green-text: #C0DD97; --green-dot: #97C459;
+        --red-bg: #501313; --red-text: #F7C1C1; --red-dot: #F09595;
+      }
+    }
+    body { font-family: var(--font-sans); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 3rem 1rem 4rem; }
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
+    header p { font-size: 14px; color: var(--text-muted); }
+    .container { width: 100%; max-width: 660px; }
+    .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1rem; }
+    .input-row { display: flex; gap: 8px; margin-bottom: 0.5rem; }
+    input[type="text"] { flex: 1; font-family: var(--font-mono); font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; background: var(--surface2); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); padding: 0 14px; height: 44px; color: var(--text); outline: none; transition: border-color 0.15s; }
+    input[type="text"]:focus { border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
+    input[type="text"]::placeholder { color: var(--text-hint); font-size: 13px; letter-spacing: 0; }
+    button { padding: 0 20px; height: 44px; font-size: 14px; font-weight: 500; font-family: var(--font-sans); white-space: nowrap; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-md); cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    button:hover { opacity: 0.85; } button:active { transform: scale(0.97); }
+    .hint { font-size: 12px; color: var(--text-hint); margin-top: 6px; }
+    #result { display: none; margin-top: 1.5rem; }
+    .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--border); flex-wrap: wrap; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 12px; border-radius: var(--radius-md); flex-shrink: 0; }
+    .badge-valid { background: var(--green-bg); color: var(--green-text); }
+    .badge-invalid { background: var(--red-bg); color: var(--red-text); }
+    .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .badge-valid .badge-dot { background: var(--green-dot); }
+    .badge-invalid .badge-dot { background: var(--red-dot); }
+    .iban-formatted { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: 0.06em; word-break: break-all; }
+    .error-msg { font-size: 13px; color: var(--red-text); background: var(--red-bg); padding: 8px 12px; border-radius: var(--radius-md); margin-bottom: 0.75rem; display: none; }
+    .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { background: var(--surface2); border-radius: var(--radius-md); padding: 0.75rem 1rem; }
+    .field.full { grid-column: 1 / -1; }
+    .field-label { font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .field-value { font-size: 14px; color: var(--text); font-weight: 500; line-height: 1.4; }
+    .field-value.mono { font-family: var(--font-mono); }
+    .examples { margin-top: 1.5rem; }
+    .examples h3 { font-size: 12px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+    .example-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .example-chip { font-family: var(--font-mono); font-size: 12px; background: var(--surface2); border: 0.5px solid var(--border); border-radius: var(--radius-md); padding: 5px 10px; cursor: pointer; color: var(--text-muted); transition: border-color 0.15s, color 0.15s; }
+    .example-chip:hover { border-color: var(--border-strong); color: var(--text); }
+    footer { margin-top: 3rem; text-align: center; font-size: 12px; color: var(--text-hint); line-height: 1.8; }
+    @media (max-width: 480px) { .fields { grid-template-columns: 1fr; } .field.full { grid-column: 1; } header h1 { font-size: 20px; } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>IBAN Checker</h1>
+  <p>Validate UAE &amp; international IBANs — runs entirely in your browser, no data sent anywhere</p>
+</header>
+
+<div class="container">
+<a class="back-link" href="index.html">&#8592; Back to Tools</a>
+  <div class="card">
+    <div class="input-row">
+      <input type="text" id="ibanInput" placeholder="Enter IBAN  e.g. AE070331234567890123456" maxlength="34" />
+      <button onclick="checkIBAN()">Validate</button>
+    </div>
+    <div class="hint">Press Enter or click Validate · All formats supported · ISO 13616 checksum</div>
+    <div id="result">
+      <div class="status-row">
+        <span id="statusBadge" class="badge"></span>
+        <span id="ibanFormatted" class="iban-formatted"></span>
+      </div>
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="detailFields" class="fields"></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  UAE bank registry sourced from the official CBUAE routing code list &nbsp;·&nbsp; 50+ UAE banks covered &nbsp;·&nbsp; ISO 13616 mod-97 validation &nbsp;·&nbsp; &copy; Renz Luigi 2026
+</footer>
+<script src="banks.js"></script>
+<script>
+
+const WORKER_URL = 'https://renzluigi.pages.dev/api/iban';
+
+
+
+function mod97(iban) {
+  const reordered = iban.slice(4) + iban.slice(0, 4);
+  const numeric = reordered.split('').map(c => {
+    const code = c.charCodeAt(0);
+    return code >= 65 && code <= 90 ? (code - 55).toString() : c;
+  }).join('');
+  let rem = 0;
+  for (let i = 0; i < numeric.length; i++) rem = (rem * 10 + parseInt(numeric[i])) % 97;
+  return rem;
+}
+
+function formatIBAN(iban) { return iban.replace(/(.{4})/g, '$1 ').trim(); }
+
+function field(label, value, mono, full) {
+  return `<div class="field${full ? ' full' : ''}"><div class="field-label">${label}</div><div class="field-value${mono ? ' mono' : ''}">${value}</div></div>`;
+}
+
+function checkIBAN() {
+  const raw = document.getElementById('ibanInput').value.replace(/[\s\u200E\u200F\u200B\uFEFF]/g, '').toUpperCase();
+  const resultDiv = document.getElementById('result');
+  const badge = document.getElementById('statusBadge');
+  const ibanFmt = document.getElementById('ibanFormatted');
+  const errorMsg = document.getElementById('errorMsg');
+  const fieldsDiv = document.getElementById('detailFields');
+
+  resultDiv.style.display = 'block';
+  errorMsg.style.display = 'none';
+  fieldsDiv.innerHTML = '';
+
+  if (!raw) {
+    badge.className = 'badge badge-invalid';
+    badge.innerHTML = '<span class="badge-dot"></span>Invalid';
+    ibanFmt.textContent = '';
+    errorMsg.textContent = 'Please enter an IBAN.';
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  const cc = raw.slice(0, 2);
+  const ci = COUNTRY_IBAN[cc];
+  ibanFmt.textContent = formatIBAN(raw);
+
+  if (!ci) {
+    badge.className = 'badge badge-invalid';
+    badge.innerHTML = '<span class="badge-dot"></span>Invalid';
+    errorMsg.textContent = `Unknown country code "${cc}". This country may not use IBANs or the code is incorrect.`;
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  if (ci.noIBAN) {
+    badge.className = 'badge badge-invalid';
+    badge.innerHTML = '<span class="badge-dot"></span>Not Applicable';
+    errorMsg.textContent = `${ci.country} does not use the IBAN system.`;
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  if (raw.length !== ci.len) {
+    badge.className = 'badge badge-invalid';
+    badge.innerHTML = '<span class="badge-dot"></span>Invalid';
+    errorMsg.textContent = `Invalid length for ${ci.country}: expected ${ci.len} characters, got ${raw.length}.`;
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  const cs = mod97(raw);
+  if (cs !== 1) {
+    badge.className = 'badge badge-invalid';
+    badge.innerHTML = '<span class="badge-dot"></span>Invalid';
+    errorMsg.textContent = `Checksum failed (mod-97 result: ${cs}, expected: 1). The IBAN contains a typo or error.`;
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  badge.className = 'badge badge-valid';
+  badge.innerHTML = '<span class="badge-dot"></span>Valid';
+
+  let html = '';
+  html += field('Country', ci.flag + '  ' + ci.country, false);
+  html += field('Check Digits', raw.slice(2, 4), true);
+
+  if (cc === 'AE') {
+    const bankCode = raw.slice(4, 7);
+    const account  = raw.slice(7);
+    const b = UAE_BANKS[bankCode];
+
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', b.currency || 'AED', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'AED', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+} else if (cc === 'SA') {
+    const bankCode = raw.slice(4, 6);
+    const account  = raw.slice(6);
+    const b = SA_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'SAR', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'SAR', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+} else if (cc === 'QA') {
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = QA_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'QAR', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'QAR', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+} else if (cc === 'KW') {
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = KW_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'KWD', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'KWD', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+} else if (cc === 'BH') {
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = BH_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'BHD', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'BHD', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+} else if (cc === 'OM') {
+    const bankCode = raw.slice(4, 7);
+    const account  = raw.slice(7);
+    const b = OM_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'OMR', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'OMR', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+  } else {
+    const bban = raw.slice(4);
+    const countryCurrency = ci.currency || 'Not available';
+
+    html += field('BBAN', bban, true, true);
+    html += field('Bank Name', '<span id="api-bank-name">Looking up...</span>', false, true);
+    html += field('SWIFT / BIC', '<span id="api-swift">Looking up...</span>', true);
+    html += field('Currency', '<span id="api-currency">Looking up...</span>', true);
+    html += field('Head Office Address', '<span id="api-address">Looking up...</span>', false, true);
+
+fetch(`${WORKER_URL}?iban=${raw}`)
+  .then(r => r.json())
+  .then(data => {
+    document.getElementById('api-bank-name').textContent = data.bic?.name      || data.bic?.shortName || 'Not available';
+    document.getElementById('api-swift').textContent     = data.bic?.bic       || 'Not available';
+    document.getElementById('api-currency').textContent  = countryCurrency;
+    document.getElementById('api-address').textContent   = 'Not provided by AnyAPI';
+  })
+  .catch(() => {
+    document.getElementById('api-bank-name').textContent = 'API lookup failed';
+    document.getElementById('api-swift').textContent     = 'API lookup failed';
+    document.getElementById('api-currency').textContent  = countryCurrency;
+    document.getElementById('api-address').textContent   = 'API lookup failed';
+  });
+  }
+
+  fieldsDiv.innerHTML = html;
+}
+
+function useExample(iban) {
+  document.getElementById('ibanInput').value = iban;
+  checkIBAN();
+}
+
+document.getElementById('ibanInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkIBAN();
+});
+</script>
+</body>
+</html>

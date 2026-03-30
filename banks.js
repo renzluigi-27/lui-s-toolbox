@@ -1,0 +1,296 @@
+// ================================================================
+// BANKS.JS — GCC BANK REGISTRY
+// Contains UAE_BANKS and GCC_BANKS registries
+// Source: Official central bank routing codes and SWIFT registry
+// ================================================================
+ 
+// ================================================================
+// UAE BANK REGISTRY
+// Bank code = digits 5-7 of UAE IBAN (after AE + 2 check digits)
+// Example: AE07 [033] xxxxxxxxxxxxxxxx → bank code = 033 (Mashreq)
+// ================================================================
+const UAE_BANKS = {
+  "001": { name: "Central Bank of UAE (CBUAE)", swift: "CBAUAEAAXXX", address: "Central Bank Building, Corniche Road, Abu Dhabi, UAE" },
+  "002": { name: "The Royal Bank of Scotland N.V. (ABN AMRO)", swift: "ABNAAEAAXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "003": { name: "Abu Dhabi Commercial Bank (ADCB)", swift: "ADCBAEAAXXX", address: "ADCB Building, Sheikh Zayed Road, Abu Dhabi, UAE" },
+  "004": { name: "Al Ahli Bank of Kuwait K.S.C. (ABK)", swift: "ABKKAEADXXX", address: "Khalid Bin Al Walid Road, Dubai, UAE" },
+  "005": { name: "Rafidain Bank (Rafidain)", swift: "RAFBAEADXXX", address: "Dubai, UAE" },
+  "007": { name: "Arab African International Bank (AAIB)", swift: "ARAIAEADXXX", address: "Deira, Dubai, UAE" },
+  "008": { name: "Al Masraf (Arab Bank for Investment & Foreign Trade)", swift: "ABINAEAAXXX", address: "Al Masraf Tower, Hamdan Street, Abu Dhabi, UAE" },
+  "009": { name: "Arab Bank (Arab Bank)", swift: "ARABAEADXXX", address: "Baniyas Road, Deira, Dubai, UAE" },
+  "010": { name: "Bank Melli Iran (BMI)", swift: "MELIAEADXXX", address: "Al Maktoum Road, Deira, Dubai, UAE" },
+  "011": { name: "Bank of Baroda (BOB)", swift: "BARBAEADXXX", address: "Bank of Baroda Building, Baniyas Road, Dubai, UAE" },
+  "012": { name: "Bank of Sharjah (BOS)", swift: "SHARAEASXXX", address: "Bank of Sharjah Building, Al Buhairah Corniche, Sharjah, UAE" },
+  "013": { name: "Bank Saderat Iran (BSI)", swift: "BSIRAEADXXX", address: "Al Maktoum Road, Deira, Dubai, UAE" },
+  "014": { name: "Blom Bank France (Blom)", swift: "BLOMAEADXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "015": { name: "Banque Misr (Banque Misr)", swift: "BCAIAEAAXXX", address: "Al Rigga Road, Deira, Dubai, UAE" },
+  "016": { name: "Credit Agricole Corporate and Investment Bank (CACIB)", swift: "BSUIAEADXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "017": { name: "Al Khaliji France S.A. (Al Khaliji)", swift: "LICOAEADXXX", address: "Al Khaliji Building, Sheikh Zayed Road, Dubai, UAE" },
+  "018": { name: "BNP Paribas (BNP)", swift: "BNPAAEAAXXX", address: "BNP Paribas Tower, Sheikh Zayed Road, Dubai, UAE" },
+  "019": { name: "Barclays Bank PLC (Barclays)", swift: "BARCAEADXXX", address: "Al Fattan Currency House, DIFC, Dubai, UAE" },
+  "020": { name: "HSBC Bank Middle East (HSBC)", swift: "BBMEAEADXXX", address: "HSBC Tower, Emaar Square, Downtown Dubai, UAE" },
+  "021": { name: "Citibank N.A. (Citi)", swift: "CITIAEADXXX", address: "Internet City, Sheikh Zayed Road, Dubai, UAE" },
+  "022": { name: "Commercial Bank International (CBI)", swift: "CLBIAEADXXX", address: "CBI Building, Al Maktoum Road, Deira, Dubai, UAE" },
+  "023": { name: "Commercial Bank of Dubai (CBD)", swift: "CBDUAEADXXX", address: "CBD Head Office, Al Maktoum Road, Deira, Dubai, UAE" },
+  "024": { name: "Dubai Islamic Bank (DIB)", swift: "DUIBAEADXXX", address: "DIB Building, Omar Bin Khattab Road, Dubai, UAE" },
+  "025": { name: "El Nilein Bank (El Nilein)", swift: "NILBAEAAXXX", address: "Khalid Bin Al Walid Road, Dubai, UAE" },
+  "026": { name: "Emirates NBD (ENBD)", swift: "EBILAEADXXX", address: "Baniyas Road, Deira, Dubai, UAE" },
+  "027": { name: "First Gulf Bank / First Abu Dhabi Bank (FAB)", swift: "FGBMAEAAXXX", address: "FAB Building, Sheikh Zayed Road, Abu Dhabi, UAE" },
+  "028": { name: "Habib Bank Limited (HBL)", swift: "HABBAEADXXX", address: "Khalid Bin Al Walid Road, Dubai, UAE" },
+  "029": { name: "Habib Bank AG Zurich (HBZ)", swift: "HBZUAEADXXX", address: "Al Maktoum Road, Deira, Dubai, UAE" },
+  "030": { name: "Investbank PSC (InvestBank)", swift: "IBTFAEASXXX", address: "Investbank Building, Al Buhairah Corniche, Sharjah, UAE" },
+  "031": { name: "Janata Bank (Janata)", swift: "JANBAEAAXXX", address: "Abu Dhabi, UAE" },
+  "032": { name: "Lloyds TSB Bank PLC (Lloyds)", swift: "LOYDAEADXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "033": { name: "Mashreq Bank (Mashreq)", swift: "BOMLAEADXXX", address: "Mashreqbank PSC, Oud Metha Road, Dubai, UAE" },
+  "034": { name: "Emirates Islamic Bank (EIB)", swift: "MEBLAEADXXX", address: "Emirates Islamic Building, Al Qusais, Dubai, UAE" },
+  "035": { name: "National Bank of Abu Dhabi / First Abu Dhabi Bank (FAB)", swift: "NBADAEAAXXX", address: "FAB Tower, Khalifa Business Park, Abu Dhabi, UAE" },
+  "036": { name: "National Bank of Bahrain (NBB)", swift: "NBOBAEAAXXX", address: "Al Maktoum Road, Deira, Dubai, UAE" },
+  "038": { name: "National Bank of Fujairah (NBF)", swift: "NBFUAEAFXXX", address: "NBF Head Office, Fujairah, UAE" },
+  "039": { name: "National Bank of Oman (NBO)", swift: "NBOMAEADXXX", address: "Al Maktoum Road, Dubai, UAE" },
+  "040": { name: "RAKBANK (National Bank of Ras Al-Khaimah)", swift: "NRAKAEAKXXX", address: "RAKBANK Head Office, Al Nakheel Road, Ras Al Khaimah, UAE" },
+  "041": { name: "Sharjah Islamic Bank (SIB)", swift: "NBSHAEASXXX", address: "SIB Tower, Al Buhairah Corniche, Sharjah, UAE" },
+  "042": { name: "National Bank of Umm Al Qaiwain (NBQ)", swift: "UMMQAEADXXX", address: "NBQ Head Office, Umm Al Qaiwain, UAE" },
+  "043": { name: "Industrial and Commercial Bank of China (ICBC)", swift: "ICBKAEAAXXX", address: "ICBC Tower, Sheikh Zayed Road, Dubai, UAE" },
+  "044": { name: "Standard Chartered Bank UAE (SCB)", swift: "SCBLAEADXXX", address: "Standard Chartered Tower, Downtown Dubai, UAE" },
+  "045": { name: "Union National Bank / First Abu Dhabi Bank (FAB)", swift: "UNBEAEAAXXX", address: "UNB Tower, Khalifa Street, Abu Dhabi, UAE" },
+  "046": { name: "United Arab Bank (UAB)", swift: "UARBAEAAXXX", address: "UAB Tower, Corniche Road, Sharjah, UAE" },
+  "047": { name: "United Bank Ltd. (UBL)", swift: "UNILAEADXXX", address: "Khalid Bin Al Walid Road, Dubai, UAE" },
+  "048": { name: "Emirates Investment Bank (EIBank)", swift: "AEINAEADXXX", address: "Emaar Square, Downtown Dubai, UAE" },
+  "049": { name: "Deutsche Bank AG (Deutsche)", swift: "DEUTAEAAXXX", address: "Deutsche Bank Building, Sheikh Zayed Road, Dubai, UAE" },
+  "050": { name: "Abu Dhabi Islamic Bank (ADIB)", swift: "ABDIAEADXXX", address: "ADIB Tower, Khalifa Street, Abu Dhabi, UAE" },
+  "051": { name: "Dubai Bank (Dubai Bank)", swift: "DBXPAEADXXX", address: "Dubai, UAE" },
+  "052": { name: "Noor Bank (Noor)", swift: "NISLAEADXXX", address: "Noor Bank Tower, Sheikh Zayed Road, Dubai, UAE" },
+  "053": { name: "Al Hilal Bank (AHB)", swift: "HLALAEAAXXX", address: "Al Hilal Bank Building, Khalifa City A, Abu Dhabi, UAE" },
+  "054": { name: "Doha Bank (Doha Bank)", swift: "DOHBAEADXXX", address: "Deira, Dubai, UAE" },
+  "055": { name: "SAMBA Financial Group (SAMBA)", swift: "SAMBAEADXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "056": { name: "National Bank of Kuwait (NBK)", swift: "NBOKAEADXXX", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "057": { name: "Ajman Bank (Ajman Bank)", swift: "AJMNAEAJXXX", address: "Ajman Bank Building, Sheikh Humaid Bin Rashid Al Nuaimi Street, Ajman, UAE" },
+  "060": { name: "Wio Bank PJSC (Wio)", swift: "WIOBAEADXXX", address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" },
+  "081": { name: "Finance House (Finance House)", swift: "FHOUAEADXXX", address: "Finance House Tower, Khalifa Street, Abu Dhabi, UAE" },
+  "082": { name: "Dunia Finance (Dunia)", swift: "N/A", address: "Dubai, UAE" },
+  "083": { name: "Islamic Finance Company (IFC)", swift: "N/A", address: "UAE" },
+  "084": { name: "Mawarid Finance (Mawarid)", swift: "N/A", address: "Sheikh Zayed Road, Dubai, UAE" },
+  "085": { name: "MAF Finance (MAF)", swift: "N/A", address: "Majid Al Futtaim Tower, Sheikh Zayed Road, Dubai, UAE" },
+  "086": { name: "Wio Bank PJSC (Wio)", swift: "WIOBAEADXXX", address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" },
+  "097": { name: "Al Maryah Community Bank LLC", swift: "E097AEXX", address: "Al Maryah Community Bank LLC, Abu Dhabi, UAE" },
+  "132": { name: "Ruya Community Islamic Bank", swift: "E132AEXX", address: "Marsa Ajman Mall, Building No.4, Liwara 1, Ajman, UAE" },
+  "802": { name: "Emirates Industrial Bank / Emirates Development Bank (EDB)", swift: "EMIUAEAAXXX", address: "Abu Dhabi, UAE" },
+};
+
+// ================================================================
+// SAUDI ARABIA BANK REGISTRY
+// Bank code = digits 5-6 of SA IBAN (2 digits)
+// Example: SA03 [80] 000000608010167519 → bank code = 80 (Al Rajhi)
+// ================================================================
+const SA_BANKS = {
+  "01": { name: "Saudi Central Bank (SAMA)", swift: "SAMASARIXXX", address: "SAMA Head Office, Riyadh, Saudi Arabia" },
+  "05": { name: "Alinma Bank (Alinma)", swift: "INMASARIXXX", address: "King Fahd Road, Riyadh, Saudi Arabia" },
+  "10": { name: "Saudi National Bank / Al Ahli (SNB)", swift: "NCBKSAJEXXX", address: "King Abdulaziz Road, Riyadh, Saudi Arabia" },
+  "15": { name: "Bank AlBilad (Albilad)", swift: "ALBISARIXXX", address: "Al Ulaya District, Riyadh, Saudi Arabia" },
+  "20": { name: "Riyad Bank (Riyad)", swift: "RIBLSARIXXX", address: "King Abdulaziz Road, Riyadh, Saudi Arabia" },
+  "30": { name: "Arab National Bank (ANB)", swift: "ARNBSARIXXX", address: "King Faisal Street, Riyadh, Saudi Arabia" },
+  "40": { name: "Samba Financial Group / SNB (Samba)", swift: "SAMBSARIXXX", address: "King Abdulaziz Road, Riyadh, Saudi Arabia" },
+  "45": { name: "Saudi Awwal Bank (SAB)", swift: "SABBSARIXXX", address: "Prince Abdulaziz Bin Mousaed Bin Jalawi Street, Riyadh, Saudi Arabia" },
+  "50": { name: "Saudi Awwal Bank Legacy Alawwal (SAB)", swift: "SABBSARIXXX", address: "Prince Abdulaziz Bin Mousaed Bin Jalawi Street, Riyadh, Saudi Arabia" },
+  "55": { name: "Banque Saudi Fransi (BSF)", swift: "BSFRSARIXXX", address: "Prince Abdulaziz Bin Mousaed Bin Jalawi Street, Riyadh, Saudi Arabia" },
+  "60": { name: "Bank AlJazira (BAJ)", swift: "BJAZSAJEXXX", address: "Prince Abdulaziz Bin Mousaed Bin Jalawi Street, Jeddah, Saudi Arabia" },
+  "65": { name: "Saudi Investment Bank (SAIB)", swift: "SIBCSARIXXX", address: "Maathar Street, Riyadh, Saudi Arabia" },
+  "71": { name: "National Bank of Bahrain Saudi Arabia (NBB)", swift: "NBOBSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "75": { name: "National Bank of Kuwait Saudi Arabia (NBK)", swift: "NBOKSAJEXXX", address: "Riyadh, Saudi Arabia" },
+  "76": { name: "Bank Muscat Saudi Arabia (Bank Muscat)", swift: "BMUSSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "80": { name: "Al Rajhi Bank (Al Rajhi)", swift: "RJHISARIXXX", address: "Olaya Street, Riyadh, Saudi Arabia" },
+  "81": { name: "Deutsche Bank Saudi Arabia (Deutsche)", swift: "DEUTSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "82": { name: "National Bank of Pakistan Saudi Arabia (NBP)", swift: "NBOPSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "83": { name: "State Bank of India Saudi Arabia (SBI)", swift: "SBOISAJEXXX", address: "Riyadh, Saudi Arabia" },
+  "84": { name: "Turkiye Cumhuriyeti Ziraat Bankasi (Ziraat)", swift: "TCZTSAJEXXX", address: "Riyadh, Saudi Arabia" },
+  "86": { name: "JP Morgan Chase Saudi Arabia (JP Morgan)", swift: "CHASSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "87": { name: "Industrial and Commercial Bank of China Saudi Arabia (ICBC)", swift: "ICBKSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "90": { name: "Gulf International Bank Saudi Arabia (GIB)", swift: "GULFSARIXXX", address: "Al Khobar, Eastern Province, Saudi Arabia" },
+  "95": { name: "Emirates NBD Saudi Arabia (ENBD)", swift: "EBILSARIXXX", address: "Riyadh, Saudi Arabia" },
+  "98": { name: "BNP Paribas Saudi Arabia (BNP)", swift: "BNPASARIXXX", address: "Riyadh, Saudi Arabia" },
+};
+ 
+// ================================================================
+// QATAR BANK REGISTRY
+// Bank code = digits 5-8 of QA IBAN (4 letters)
+// Example: QA58 [DOHB] 00001234567890ABCDEFG → bank code = DOHB
+// ================================================================
+const QA_BANKS = {
+  "QNBA": { name: "Qatar National Bank (QNB)", swift: "QNBAQAQAXXX", address: "QNB Tower, West Bay, Doha, Qatar" },
+  "CBQA": { name: "Commercial Bank of Qatar (CBQ)", swift: "CBQAQAQAXXX", address: "Grand Hamad Street, Doha, Qatar" },
+  "DOHB": { name: "Doha Bank (Doha Bank)", swift: "DOHBQAQAXXX", address: "Doha Bank Tower, West Bay, Doha, Qatar" },
+  "QISB": { name: "Qatar Islamic Bank (QIB)", swift: "QISBQAQAXXX", address: "Grand Hamad Street, Doha, Qatar" },
+  "ABQQ": { name: "Ahli Bank of Qatar (Ahli Bank)", swift: "ABQQQAQAXXX", address: "Grand Hamad Street, Doha, Qatar" },
+  "QIIB": { name: "Qatar International Islamic Bank (QIIB)", swift: "QIIBQAQAXXX", address: "Grand Hamad Street, Doha, Qatar" },
+  "ARAB": { name: "Arab Bank Qatar (Arab Bank)", swift: "ARABQAQAXXX", address: "Doha, Qatar" },
+  "MSHQ": { name: "Mashreq Bank Qatar (Mashreq)", swift: "MSHQQAQAXXX", address: "Doha, Qatar" },
+  "IBOQ": { name: "International Bank of Qatar (IBQ)", swift: "IBOQQAQAXXX", address: "West Bay, Doha, Qatar" },
+  "BBME": { name: "HSBC Qatar (HSBC)", swift: "BBMEQAQXXXX", address: "HSBC Tower, West Bay, Doha, Qatar" },
+  "SCBL": { name: "Standard Chartered Qatar (SCB)", swift: "SCBLQAQXXXX", address: "Doha, Qatar" },
+  "UNIL": { name: "United Bank Ltd Qatar (UBL)", swift: "UNILQAQAXXX", address: "Doha, Qatar" },
+  "BNPA": { name: "BNP Paribas Qatar (BNP)", swift: "BNPAQAQAXXX", address: "Doha, Qatar" },
+  "MAFR": { name: "Rayyan Bank (Rayyan)", swift: "MAFRQAQAXXX", address: "Doha, Qatar" },
+  "KLJI": { name: "Al Khalij Commercial Bank (Al Khalij)", swift: "KLJIQAQAXXX", address: "Doha, Qatar" },
+  "BRWA": { name: "Barwa Bank (Barwa)", swift: "BRWAQAQAXXX", address: "Doha, Qatar" },
+  "QIDB": { name: "Qatar Development Bank (QDB)", swift: "QIDBQAQAXXX", address: "Doha, Qatar" },
+};
+ 
+// ================================================================
+// KUWAIT BANK REGISTRY
+// Bank code = digits 5-8 of KW IBAN (4 letters)
+// Example: KW81 [CBKU] 0000000000001234560101 → bank code = CBKU
+// ================================================================
+const KW_BANKS = {
+  "NBOK": { name: "National Bank of Kuwait (NBK)", swift: "NBOKKWKWXXX", address: "Abdullah Al Ahmed Street, Kuwait City, Kuwait" },
+  "KFHO": { name: "Kuwait Finance House (KFH)", swift: "KFHOKWKWXXX", address: "Abdullah Al Ahmed Street, Kuwait City, Kuwait" },
+  "CBKK": { name: "Commercial Bank of Kuwait (CBK)", swift: "CBKKKWKWXXX", address: "Mubarak Al Kabeer Street, Kuwait City, Kuwait" },
+  "GULB": { name: "Gulf Bank Kuwait (Gulf Bank)", swift: "GULBKWKWXXX", address: "Mubarak Al Kabeer Street, Kuwait City, Kuwait" },
+  "ABKK": { name: "Ahli Bank of Kuwait (ABK)", swift: "ABKKKWKWXXX", address: "Ahmad Al Jaber Street, Kuwait City, Kuwait" },
+  "BOUB": { name: "Boubyan Bank (Boubyan)", swift: "BOUBKWKWXXX", address: "Abdullah Al Ahmed Street, Kuwait City, Kuwait" },
+  "BURG": { name: "Burgan Bank (Burgan)", swift: "BURGKWKWXXX", address: "Khalid Ibn Al Waleed Street, Kuwait City, Kuwait" },
+  "WARB": { name: "Warba Bank (Warba)", swift: "WARBKWKWXXX", address: "Al Mirqab District, Kuwait City, Kuwait" },
+  "KWIB": { name: "Kuwait International Bank (KIB)", swift: "KWIBKWKWXXX", address: "Ahmad Al-Jabber Street, Kuwait City, Kuwait" },
+  "BBKK": { name: "Bank of Bahrain and Kuwait Kuwait (BBK)", swift: "BBKKKWKWXXX", address: "Kuwait City, Kuwait" },
+};
+ 
+// ================================================================
+// BAHRAIN BANK REGISTRY
+// Bank code = digits 5-8 of BH IBAN (4 letters = first 4 of SWIFT)
+// Example: BH50 [NBOB] 00001299123456 → bank code = NBOB
+// ================================================================
+const BH_BANKS = {
+  "NBOB": { name: "National Bank of Bahrain (NBB)", swift: "NBOBHMBAXXX", address: "Government Avenue, Manama, Bahrain" },
+  "BBME": { name: "HSBC Bahrain (HSBC)", swift: "BBMEBHBMXXX", address: "Manama Centre, Manama, Bahrain" },
+  "BBKU": { name: "Bank of Bahrain and Kuwait (BBK)", swift: "BBKUBHBMXXX", address: "Diplomatic Area, Manama, Bahrain" },
+  "AUBB": { name: "Ahli United Bank (AUB)", swift: "AUBBHBMBXXX", address: "Government Avenue, Manama, Bahrain" },
+  "CITI": { name: "Citibank Bahrain (Citi)", swift: "CITIBHBMXXX", address: "Manama, Bahrain" },
+  "BNPA": { name: "BNP Paribas Bahrain (BNP)", swift: "BNPABHBMXXX", address: "Manama, Bahrain" },
+  "SCBL": { name: "Standard Chartered Bahrain (SCB)", swift: "SCBLBHBMXXX", address: "Manama, Bahrain" },
+  "ISLM": { name: "Al Salam Bank (Al Salam)", swift: "ISLMBHBMXXX", address: "Manama, Bahrain" },
+  "BIBB": { name: "Bahrain Islamic Bank (BIsB)", swift: "BIBBBHBMXXX", address: "Government Avenue, Manama, Bahrain" },
+  "KFHO": { name: "Kuwait Finance House Bahrain (KFH)", swift: "KFHOBHBMXXX", address: "Manama, Bahrain" },
+  "GULB": { name: "Gulf International Bank (GIB)", swift: "GULBBHBIXXX", address: "Diplomatic Area, Manama, Bahrain" },
+  "RIBL": { name: "Riyad Bank Bahrain (Riyad)", swift: "RIBLBHBMXXX", address: "Manama, Bahrain" },
+  "KHCB": { name: "Khaleeji Commercial Bank (KHCB)", swift: "KHCBBHBMXXX", address: "Diplomatic Area, Manama, Bahrain" },
+  "ARAB": { name: "Arab Banking Corporation (ABC)", swift: "ARABBHBMXXX", address: "ABC Tower, Diplomatic Area, Manama, Bahrain" },
+  "CBBB": { name: "Central Bank of Bahrain (CBB)", swift: "CBBABHBMXXX", address: "Diplomatic Area, Manama, Bahrain" },
+  "ITHMB": { name: "Ithmaar Bank (Ithmaar)", swift: "ITBHBHBMXXX", address: "Diplomatic Area, Manama, Bahrain" },
+};
+ 
+// ================================================================
+// OMAN BANK REGISTRY
+// Bank code = digits 5-7 of OM IBAN (3 digits)
+// Example: OM81 [014] 0000000049101xxxxxx → bank code = 014
+// ================================================================
+const OM_BANKS = {
+  "010": { name: "Bank Muscat (Bank Muscat)", swift: "BMUSOMRXXXX", address: "Bank Muscat Head Office, Ruwi, Muscat, Oman" },
+  "014": { name: "National Bank of Oman (NBO)", swift: "NBOMOM0MXXX", address: "NBO Head Office, Ruwi, Muscat, Oman" },
+  "020": { name: "Oman Arab Bank (OAB)", swift: "OMABOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
+  "025": { name: "Bank Dhofar (Bank Dhofar)", swift: "BKDBOM0MXXX", address: "Bank Dhofar Head Office, Ruwi, Muscat, Oman" },
+  "030": { name: "HSBC Oman (HSBC)", swift: "BBMEOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
+  "035": { name: "Standard Chartered Oman (SCB)", swift: "SCBLOM0MXXX", address: "Muscat, Oman" },
+  "040": { name: "Ahli Bank Oman (Ahli Bank)", swift: "AHLIOM0MXXX", address: "CBD Area, Muscat, Oman" },
+  "050": { name: "Bank Sohar / Bank Muscat (Bank Sohar)", swift: "BKSFOM0MXXX", address: "Bank Sohar Head Office, Muscat, Oman" },
+  "060": { name: "Oman Housing Bank (OHB)", swift: "OHBOOM0MXXX", address: "Muscat, Oman" },
+  "070": { name: "Bank Nizwa (Bank Nizwa)", swift: "BNIZOM0MXXX", address: "Muscat, Oman" },
+  "080": { name: "Alizz Islamic Bank (Alizz)", swift: "ALIZOM0MXXX", address: "Muscat, Oman" },
+  "095": { name: "Citibank Oman (Citi)", swift: "CITIOM0MXXX", address: "Muscat, Oman" },
+  "155": { name: "Meethaq Islamic Banking / Bank Muscat (Meethaq)", swift: "BMUSOMRXXXX", address: "Muscat, Oman" },
+  "180": { name: "Muzn Islamic Banking / NBO (Muzn)", swift: "NBOMOM0MXXX", address: "Muscat, Oman" },
+};
+
+// ================================================================
+// COUNTRY IBAN REGISTRY
+// Contains all supported countries with IBAN lengths and currencies
+// ================================================================
+const COUNTRY_IBAN = {
+  AE:{len:23,country:"United Arab Emirates",flag:"🇦🇪",currency:"AED"},
+  AL:{len:28,country:"Albania",flag:"🇦🇱",currency:"ALL"},
+  AD:{len:24,country:"Andorra",flag:"🇦🇩",currency:"EUR"},
+  AT:{len:20,country:"Austria",flag:"🇦🇹",currency:"EUR"},
+  AZ:{len:28,country:"Azerbaijan",flag:"🇦🇿",currency:"AZN"},
+  BH:{len:22,country:"Bahrain",flag:"🇧🇭",currency:"BHD"},
+  BE:{len:16,country:"Belgium",flag:"🇧🇪",currency:"EUR"},
+  BA:{len:20,country:"Bosnia and Herzegovina",flag:"🇧🇦",currency:"BAM"},
+  BR:{len:29,country:"Brazil",flag:"🇧🇷",currency:"BRL"},
+  BG:{len:22,country:"Bulgaria",flag:"🇧🇬",currency:"BGN"},
+  CR:{len:22,country:"Costa Rica",flag:"🇨🇷",currency:"CRC"},
+  HR:{len:21,country:"Croatia",flag:"🇭🇷",currency:"EUR"},
+  CY:{len:28,country:"Cyprus",flag:"🇨🇾",currency:"EUR"},
+  CZ:{len:24,country:"Czech Republic",flag:"🇨🇿",currency:"CZK"},
+  DK:{len:18,country:"Denmark",flag:"🇩🇰",currency:"DKK"},
+  DO:{len:28,country:"Dominican Republic",flag:"🇩🇴",currency:"DOP"},
+  EG:{len:29,country:"Egypt",flag:"🇪🇬",currency:"EGP"},
+  SV:{len:28,country:"El Salvador",flag:"🇸🇻",currency:"USD"},
+  EE:{len:20,country:"Estonia",flag:"🇪🇪",currency:"EUR"},
+  FO:{len:18,country:"Faroe Islands",flag:"🇫🇴",currency:"DKK"},
+  FI:{len:18,country:"Finland",flag:"🇫🇮",currency:"EUR"},
+  FR:{len:27,country:"France",flag:"🇫🇷",currency:"EUR"},
+  GE:{len:22,country:"Georgia",flag:"🇬🇪",currency:"GEL"},
+  DE:{len:22,country:"Germany",flag:"🇩🇪",currency:"EUR"},
+  GI:{len:23,country:"Gibraltar",flag:"🇬🇮",currency:"GIP"},
+  GR:{len:27,country:"Greece",flag:"🇬🇷",currency:"EUR"},
+  GL:{len:18,country:"Greenland",flag:"🇬🇱",currency:"DKK"},
+  GT:{len:28,country:"Guatemala",flag:"🇬🇹",currency:"GTQ"},
+  HU:{len:28,country:"Hungary",flag:"🇭🇺",currency:"HUF"},
+  IS:{len:26,country:"Iceland",flag:"🇮🇸",currency:"ISK"},
+  IQ:{len:23,country:"Iraq",flag:"🇮🇶",currency:"IQD"},
+  IE:{len:22,country:"Ireland",flag:"🇮🇪",currency:"EUR"},
+  IL:{len:23,country:"Israel",flag:"🇮🇱",currency:"ILS"},
+  IT:{len:27,country:"Italy",flag:"🇮🇹",currency:"EUR"},
+  JO:{len:30,country:"Jordan",flag:"🇯🇴",currency:"JOD"},
+  KZ:{len:20,country:"Kazakhstan",flag:"🇰🇿",currency:"KZT"},
+  XK:{len:20,country:"Kosovo",flag:"🇽🇰",currency:"EUR"},
+  KW:{len:30,country:"Kuwait",flag:"🇰🇼",currency:"KWD"},
+  LV:{len:21,country:"Latvia",flag:"🇱🇻",currency:"EUR"},
+  LB:{len:28,country:"Lebanon",flag:"🇱🇧",currency:"LBP"},
+  LI:{len:21,country:"Liechtenstein",flag:"🇱🇮",currency:"CHF"},
+  LT:{len:20,country:"Lithuania",flag:"🇱🇹",currency:"EUR"},
+  LU:{len:20,country:"Luxembourg",flag:"🇱🇺",currency:"EUR"},
+  MT:{len:31,country:"Malta",flag:"🇲🇹",currency:"EUR"},
+  MR:{len:27,country:"Mauritania",flag:"🇲🇷",currency:"MRU"},
+  MU:{len:30,country:"Mauritius",flag:"🇲🇺",currency:"MUR"},
+  MC:{len:27,country:"Monaco",flag:"🇲🇨",currency:"EUR"},
+  MD:{len:24,country:"Moldova",flag:"🇲🇩",currency:"MDL"},
+  ME:{len:22,country:"Montenegro",flag:"🇲🇪",currency:"EUR"},
+  NL:{len:18,country:"Netherlands",flag:"🇳🇱",currency:"EUR"},
+  MK:{len:19,country:"North Macedonia",flag:"🇲🇰",currency:"MKD"},
+  NO:{len:15,country:"Norway",flag:"🇳🇴",currency:"NOK"},
+  OM:{len:23,country:"Oman",flag:"🇴🇲",currency:"OMR"},
+  PK:{len:24,country:"Pakistan",flag:"🇵🇰",currency:"PKR"},
+  PS:{len:29,country:"Palestine",flag:"🇵🇸",currency:"ILS"},
+  PL:{len:28,country:"Poland",flag:"🇵🇱",currency:"PLN"},
+  PT:{len:25,country:"Portugal",flag:"🇵🇹",currency:"EUR"},
+  QA:{len:29,country:"Qatar",flag:"🇶🇦",currency:"QAR"},
+  RO:{len:24,country:"Romania",flag:"🇷🇴",currency:"RON"},
+  SM:{len:27,country:"San Marino",flag:"🇸🇲",currency:"EUR"},
+  SA:{len:24,country:"Saudi Arabia",flag:"🇸🇦",currency:"SAR"},
+  RS:{len:22,country:"Serbia",flag:"🇷🇸",currency:"RSD"},
+  SC:{len:31,country:"Seychelles",flag:"🇸🇨",currency:"SCR"},
+  SK:{len:24,country:"Slovakia",flag:"🇸🇰",currency:"EUR"},
+  SI:{len:19,country:"Slovenia",flag:"🇸🇮",currency:"EUR"},
+  ES:{len:24,country:"Spain",flag:"🇪🇸",currency:"EUR"},
+  SE:{len:24,country:"Sweden",flag:"🇸🇪",currency:"SEK"},
+  CH:{len:21,country:"Switzerland",flag:"🇨🇭",currency:"CHF"},
+  TL:{len:23,country:"Timor-Leste",flag:"🇹🇱",currency:"USD"},
+  TN:{len:24,country:"Tunisia",flag:"🇹🇳",currency:"TND"},
+  TR:{len:26,country:"Turkey",flag:"🇹🇷",currency:"TRY"},
+  UA:{len:29,country:"Ukraine",flag:"🇺🇦",currency:"UAH"},
+  GB:{len:22,country:"United Kingdom",flag:"🇬🇧",currency:"GBP"},
+  VA:{len:22,country:"Vatican City",flag:"🇻🇦",currency:"EUR"},
+  CM:{len:27,country:"Cameroon",flag:"🇨🇲",currency:"XAF"},
+  CF:{len:27,country:"Central African Republic",flag:"🇨🇫",currency:"XAF"},
+  TD:{len:27,country:"Chad",flag:"🇹🇩",currency:"XAF"},
+  CG:{len:27,country:"Republic of the Congo",flag:"🇨🇬",currency:"XAF"},
+  GQ:{len:27,country:"Equatorial Guinea",flag:"🇬🇶",currency:"XAF"},
+  GA:{len:27,country:"Gabon",flag:"🇬🇦",currency:"XAF"},
+ 
+  // NON-IBAN COUNTRIES
+  US:{noIBAN:true,country:"United States",flag:"🇺🇸"},
+  AU:{noIBAN:true,country:"Australia",flag:"🇦🇺"},
+  CA:{noIBAN:true,country:"Canada",flag:"🇨🇦"},
+  IN:{noIBAN:true,country:"India",flag:"🇮🇳"},
+  CN:{noIBAN:true,country:"China",flag:"🇨🇳"},
+  SG:{noIBAN:true,country:"Singapore",flag:"🇸🇬"},
+  HK:{noIBAN:true,country:"Hong Kong",flag:"🇭🇰"},
+};
