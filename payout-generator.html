@@ -1025,7 +1025,8 @@ function exportExcel() {
   const sheetName = `${MONTHS[mo-1]} ${yr} - ${cycleLabel}`.substring(0, 31);
   XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-  const filename = `PAYOUT_${cycleLabel}_${MONTHS[mo-1].toUpperCase()}${yr}.xlsx`;
+  const cycleTag = cycle === '15' ? '15' : '30';
+  const filename = `PAYOUT_${cycleTag}_${MONTHS[mo-1].toUpperCase()}${yr}.xlsx`;
   XLSX.writeFile(wb, filename);
 }
 
