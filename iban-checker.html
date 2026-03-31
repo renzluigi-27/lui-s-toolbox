@@ -295,6 +295,23 @@ function checkIBAN() {
       html += field('Currency', 'OMR', true);
       html += field('Head Office Address', 'Not available', false, true);
     }
+} else if (cc === 'JO') {
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = JO_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true);
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'JOD', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'JOD', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
   } else {
     const bban = raw.slice(4);
     const countryCurrency = ci.currency || 'Not available';
