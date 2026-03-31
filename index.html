@@ -6,6 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Toolbox by Renz Luigi</title>
   <style>
+	/* ADD this at the bottom of your <style> block */
+	@media (max-width: 480px) {
+	  header h1 { font-size: 20px; }
+	  .tool-name { font-size: 13px; }
+}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
@@ -41,7 +46,7 @@ header {
   max-width: 660px;
 }
     header h1 {
-      font-size: 22px;
+      font-size: 26px;
       font-weight: 600;
       letter-spacing: -0.02em;
       margin-bottom: 6px;
