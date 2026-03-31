@@ -312,6 +312,26 @@ function checkIBAN() {
       html += field('Currency', 'JOD', true);
       html += field('Head Office Address', 'Not available', false, true);
     }
+  } else if (cc === 'TR') {
+  const bankCode = raw.slice(4, 9);
+  const branch   = raw.slice(9, 13);
+  const account  = raw.slice(13);
+  const b = TR_BANKS[bankCode];
+  html += field('Bank Code', bankCode, true);
+  html += field('Branch Code', branch, true);
+  html += field('Account Number', account, true);
+  if (b) {
+    html += field('Bank Name', b.name, false, true);
+    html += field('SWIFT / BIC', b.swift, true);
+    html += field('Currency', 'TRY', true);
+    html += field('Head Office Address', b.address, false, true);
+    if (b.legacy) html += field('Bank Status', 'Legacy / Merged Bank', false);
+  } else {
+    html += field('Bank Name', `Bank code ${bankCode} — not found`, false, true);
+    html += field('SWIFT / BIC', 'Not available', false);
+    html += field('Currency', 'TRY', true);
+    html += field('Head Office Address', 'Not available', false, true);
+  }
   } else {
     const bban = raw.slice(4);
     const countryCurrency = ci.currency || 'Not available';
