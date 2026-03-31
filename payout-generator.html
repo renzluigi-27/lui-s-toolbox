@@ -380,6 +380,7 @@ function parsePaymentSheet(raw) {
     clientType:      col('client type'),
     contractNo:      col('contract no'),
     contractClosed:  col('contract closed'),
+	balance:         col('balance amount pending'),
   };
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -491,6 +492,7 @@ function parsePaymentSheet(raw) {
       bankName:           r[C.bankName]   ? String(r[C.bankName]).trim() : '',
       clientType:         r[C.clientType] ? String(r[C.clientType]).trim() : '',
       contractClosedFlag,
+      balanceNote: (C.balance !== -1 && r[C.balance]) ? String(r[C.balance]).trim() : '',
     });
   }
   return rows;
@@ -734,6 +736,7 @@ function runGenerate() {
         totalDeduction:  0,
         deductionItems:  [], // accumulated structured items across all containers
         structuralNotes: [], // flags: shared, mismatch, manual check, contract closed
+		balanceNotes:    new Set(),
       };
     }
 
@@ -741,6 +744,14 @@ function runGenerate() {
     groups[key].totalReturn += r.returnAmt;
 
     if (r.contractClosedFlag) groups[key].structuralNotes.push(r.contractClosedFlag);
+
+	    // Collect balance note only if this row's first payout falls on the current cycle
+    if (r.balanceNote) {
+      const fp = r.firstPayout;
+      const isThisCycle = fp && fp.getFullYear() === yr && fp.getMonth() + 1 === mo
+        && (cycle === '15' ? fp.getDate() === 15 : fp.getDate() === payoutDay);
+      if (isThisCycle) groups[key].balanceNotes.add(r.balanceNote);
+    }
 
     if (r.groupId === '__MANUAL_CHECK__') {
       groups[key].structuralNotes.push('⚑ No container or contract number — manual check required');
@@ -851,12 +862,19 @@ function runGenerate() {
       deductionNotes.push('HC 1,000 applied');
     }
 
-    const allNotes = [...new Set(g.structuralNotes), ...deductionNotes].join(' | ');
+    const balanceNoteArr = [...g.balanceNotes];
+    const allNotes = [...new Set(g.structuralNotes), ...deductionNotes, ...balanceNoteArr].join(' | ');
+
+    const balanceNumeric = balanceNoteArr.length > 0
+      ? (() => { const m = balanceNoteArr.join(' ').match(/[\d]+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; })()
+      : null;
+    const hasBalance = balanceNumeric !== null;
 
     return {
       ...g,
       totalDeduction:    roundedDeduction,
-      rentalDue:         g.totalReturn - roundedDeduction,
+      rentalDue:         hasBalance ? null : (g.totalReturn - roundedDeduction),
+      balanceAddition:   balanceNumeric,
       firstPayoutDisplay,
       note:              allNotes,
     };
@@ -882,7 +900,7 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
   // Stats
   const totalReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totalDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
-  const totalDue    = results.reduce((s,r) => s + r.rentalDue, 0);
+  const totalDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
   const withDeduct  = results.filter(r => r.totalDeduction > 0).length;
   const withNotes   = results.filter(r => r.note).length;
 
@@ -986,8 +1004,8 @@ function exportExcel() {
     r.firstPayoutDisplay || '',
     r.totalReturn,
     r.totalDeduction || null,
-    '',   // ADDITION — left blank as per instruction
-    r.rentalDue,
+    r.balanceAddition || null,
+    r.rentalDue !== null ? r.rentalDue : null,
     r.accountNo,
     r.iban,
     r.swift,
@@ -998,17 +1016,15 @@ function exportExcel() {
   // Totals row
   const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
-  const totDue    = results.reduce((s,r) => s + r.rentalDue, 0);
-  rows.push(['TOTAL', totReturn, totDeduct, '', totDue, '', '', '', '']);
+  const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
+  rows.push(['', 'TOTAL', '', totReturn, totDeduct, '', totDue, '', '', '', '', '']);
 
   const wb   = XLSX.utils.book_new();
   const data = [headers, ...rows];
   const ws   = XLSX.utils.aoa_to_sheet(data);
 
   ws['!cols'] = [
-    { wch: 45 }, // Name
     { wch: 14 }, // Client Type
-
     { wch: 45 }, // Name
     { wch: 14 }, // First payout
     { wch: 14 }, // Monthly
