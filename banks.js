@@ -200,6 +200,45 @@ const OM_BANKS = {
 };
 
 // ================================================================
+// JORDAN BANK REGISTRY
+// Bank code = digits 5-8 of JO IBAN (4 letters = first 4 of SWIFT)
+// Example: JO94 [CBJO] 0010000000000131000302 → bank code = CBJO
+// Source: Central Bank of Jordan / SWIFT registry
+// ================================================================
+const JO_BANKS = {
+  "CBJO": { name: "Central Bank of Jordan (CBJ)", swift: "CBJOJOAMXXX", address: "King Hussein Street, Amman 11118, Jordan" },
+  "BOJO": { name: "Bank of Jordan PLC (BOJ)", swift: "BOJOJO AXXXX", address: "Shmeisani, Amman, Jordan" },
+  "BJOR": { name: "Bank of Jordan PLC (BOJ)", swift: "BJORJOAXXXX", address: "Shmeisani, Amman, Jordan" },
+  "JONB": { name: "Jordan Ahli Bank PLC (JAB)", swift: "JONBJOAXXXX", address: "Al Madinah Al Munawarah Street, Amman, Jordan" },
+  "JIBA": { name: "Jordan Islamic Bank (JIB)", swift: "JIBAJOAMXXX", address: "Al Thaqafa Street, Shmeisani, Amman, Jordan" },
+  "ARAB": { name: "Arab Bank PLC (Arab Bank)", swift: "ARABJOAXXX", address: "Arab Bank Tower, Abdali, Amman, Jordan" },
+  "CAAB": { name: "Cairo Amman Bank (CAB)", swift: "CAABJOAMXXX", address: "Wadi Saqra Street, Amman, Jordan" },
+  "AJIB": { name: "Arab Jordan Investment Bank (AJIB)", swift: "AJIBJOAMXXX", address: "Al Kulliyah Al Islamiyah Street, Amman, Jordan" },
+  "ABCO": { name: "Arab Banking Corporation Jordan (ABC)", swift: "ABCOJOAMXXX", address: "Abdali, Amman, Jordan" },
+  "UBSI": { name: "Union Bank (UB)", swift: "UBSIJOAMXXX", address: "Al Madinah Al Munawarah Street, Amman, Jordan" },
+  "INMA": { name: "Invest Bank PLC (InvestBank)", swift: "INMAJOAMXXX", address: "Al Kulliyah Al Islamiyah Street, Amman, Jordan" },
+  "SGBJ": { name: "Société Générale de Banque - Jordanie (SGBJ)", swift: "SGBJJOAMXXX", address: "Shmeisani, Amman, Jordan" },
+  "BLOM": { name: "BLOM Bank Jordan (BLOM)", swift: "BLOMJOAMXXX", address: "Amman, Jordan" },
+  "ETIJ": { name: "Bank al Etihad (Etihad)", swift: "ETIJJOAMXXX", address: "Al Hussein Street, Amman, Jordan" },
+  "CITI": { name: "Citibank N.A. Jordan (Citi)", swift: "CITIJOAXXX", address: "Amman, Jordan" },
+  "JORD": { name: "Jordan Commercial Bank (JCB)", swift: "JORDJOAMXXX", address: "Amman, Jordan" },
+  "IIAB": { name: "Islamic International Arab Bank (IIAB)", swift: "IIABJOAMXXX", address: "Amman, Jordan" },
+  "JDIB": { name: "Jordan Dubai Islamic Bank (JDIB)", swift: "JDIBJOAMXXX", address: "Amman, Jordan" },
+  "RJHI": { name: "Al Rajhi Bank Jordan (Al Rajhi)", swift: "RJHIJOAMXXX", address: "Amman, Jordan" },
+  "CAPI": { name: "Capital Bank of Jordan (Capital Bank)", swift: "CAPIJOAMXXX", address: "Al Kulliyah Al Islamiyah Street, Amman, Jordan" },
+  // Missing / Additional Jordan Banks
+  "JKBK": { name: "Jordan Kuwait Bank (JKB)", swift: "JKBKJOAMXXX", address: "Amman, Jordan" },
+  "HBTF": { name: "Housing Bank for Trade & Finance (HBTF)", swift: "HBTFJOAMXXX", address: "Amman, Jordan" },
+  "ARLB": { name: "Egyptian Arab Land Bank (EALB)", swift: "ARLBJOAMXXX", address: "Amman, Jordan" },
+  "SCBL": { name: "Standard Chartered Bank Jordan (SCB)", swift: "SCBLJOAXXX", address: "Amman, Jordan" },
+  "NBOK": { name: "National Bank of Kuwait Jordan (NBK)", swift: "NBOKJOAXXX", address: "Amman, Jordan" },
+  "SAFW": { name: "Safwa Islamic Bank (Safwa)", swift: "SAFWJOAMXXX", address: "Amman, Jordan" },
+  "AUDB": { name: "Bank Audi Jordan (Audi)", swift: "AUDBJOAMXXX", address: "Amman, Jordan" },
+  "CVDB": { name: "Cities & Villages Development Bank (CVDB)", swift: "CVDBJOA1XXX", address: "Amman, Jordan" },
+  "RAFD": { name: "Rafidain Bank Jordan (Rafidain)", swift: "RAFDJOAXXX", address: "Amman, Jordan" },
+};
+
+// ================================================================
 // COUNTRY IBAN REGISTRY
 // Contains all supported countries with IBAN lengths and currencies
 // ================================================================
