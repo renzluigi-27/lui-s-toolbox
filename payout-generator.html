@@ -963,7 +963,7 @@ function exportExcel() {
   const yr    = parseInt(document.getElementById('selYear').value);
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
-  const cycleLabel = cycle === '15' ? '15th' : '30/31';
+  const cycleLabel = cycle === '15' ? '15th' : 'EOM';
 
   const headers = [
     'CLIENT TYPE',
