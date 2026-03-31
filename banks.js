@@ -237,6 +237,31 @@ const JO_BANKS = {
   "CVDB": { name: "Cities & Villages Development Bank (CVDB)", swift: "CVDBJOA1XXX", address: "Amman, Jordan" },
   "RAFD": { name: "Rafidain Bank Jordan (Rafidain)", swift: "RAFDJOAXXXX", address: "Amman, Jordan" },
 };
+// ================================================================
+// TURKEY BANK REGISTRY
+// Bank code = digits 5-9 of TR IBAN (5 digits)
+// Example: TR33 [00061] 00000 000000000000 → bank = Ziraat
+// ================================================================
+const TR_BANKS = {
+  "00010": { name: "Ziraat Bank", swift: "TCZBTR2AXXX", address: "Ankara, Turkey" },
+  "00012": { name: "Halkbank", swift: "TRHBTR2AXXX", address: "Ankara, Turkey" },
+  "00015": { name: "VakifBank", swift: "TVBATR2AXXX", address: "Istanbul, Turkey" },
+  "00032": { name: "TEB (BNP Paribas TEB)", swift: "TEBUTRISXXX", address: "Istanbul, Turkey" },
+  "00046": { name: "Akbank", swift: "AKBKTRISXXX", address: "Istanbul, Turkey" },
+  "00062": { name: "Garanti BBVA", swift: "TGBATRISXXX", address: "Istanbul, Turkey" },
+  "00064": { name: "Isbank", swift: "ISBKTRISXXX", address: "Istanbul, Turkey" },
+  "00067": { name: "Yapi Kredi", swift: "YAPITRISXXX", address: "Istanbul, Turkey" },
+  "00092": { name: "ING Bank Turkey", swift: "INGBTRISXXX", address: "Istanbul, Turkey" },
+  "00111": { name: "QNB Finansbank", swift: "FNNBTRISXXX", address: "Istanbul, Turkey" },
+  "00134": { name: "DenizBank (Emirates NBD Group)", swift: "DENITRISXXX", address: "Istanbul, Turkey" },
+  "00203": { name: "Albaraka Turk Participation Bank", swift: "BTFHTRISXXX", address: "Istanbul, Turkey" },
+  "00206": { name: "Kuveyt Turk Participation Bank", swift: "KTEFTRISXXX", address: "Istanbul, Turkey" },
+  "00210": { name: "Turkiye Finans Participation Bank", swift: "AFKBTRISXXX", address: "Istanbul, Turkey" },
+
+  // Legacy
+  "00075": { name: "Tekstil Bank (now ICBC Turkey)", swift: "TEKBTRISXXX", address: "Istanbul, Turkey", legacy: true },
+  "00029": { name: "Birlesik Fon Bankasi", swift: "BTFHTRISXXX", address: "Istanbul, Turkey", legacy: true }
+};
 
 // ================================================================
 // COUNTRY IBAN REGISTRY
