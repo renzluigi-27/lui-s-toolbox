@@ -330,13 +330,13 @@ function checkIBAN() {
       html += field('Head Office Address', 'Not available', false, true);
     }
   } else if (cc === 'EG') {
-    const bankCode   = raw.slice(4, 8);
-    const branchCode = raw.slice(8, 12);
-    const account    = raw.slice(12);
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
     const b = EG_BANKS[bankCode];
+
     html += field('Bank Code', bankCode, true);
-    html += field('Branch Code', branchCode, true);
     html += field('Account Number', account, true, true);
+
     if (b) {
       html += field('Bank Name', b.name, false, true);
       html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
@@ -363,6 +363,25 @@ function checkIBAN() {
       html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
       html += field('Currency', 'TRY', true);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+  } else if (cc === 'GB') {
+    const bankCode = raw.slice(4, 8).toUpperCase();
+    const account  = raw.slice(8);
+    const b = UK_BANKS[bankCode];
+
+    html += field('Bank Code', bankCode, true);
+    html += field('Account Number', account, true, true);
+
+    if (b) {
+      html += field('Bank Name', b.name, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
+      html += field('Currency', 'GBP', true);
+      html += field('Head Office Address', b.address, false, true);
+    } else {
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Currency', 'GBP', true);
       html += field('Head Office Address', 'Not available', false, true);
     }
   } else {
