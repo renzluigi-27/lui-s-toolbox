@@ -7,23 +7,44 @@
 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 :root {
-  --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
-  --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.25);
-  --text: #1a1a18; --text-muted: #5f5e5a; --text-hint: #888780;
-  --green-bg: #EAF3DE; --green-text: #3B6D11; --green-dot: #639922;
-  --red-bg: #FCEBEB; --red-text: #A32D2D; --red-dot: #E24B4A;
-  --radius-md: 8px; --radius-lg: 12px;
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f1efe8;
+  --border: rgba(0,0,0,0.12);
+  --border-strong: rgba(0,0,0,0.25);
+  --text: #1a1a18;
+  --text-muted: #5f5e5a;
+  --text-hint: #888780;
+  --green-bg: #EAF3DE;
+  --green-text: #3B6D11;
+  --green-dot: #639922;
+  --red-bg: #FCEBEB;
+  --red-text: #A32D2D;
+  --red-dot: #E24B4A;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1c1c1a; --surface: #252523; --surface2: #2c2c2a;
-    --border: rgba(255,255,255,0.1); --border-strong: rgba(255,255,255,0.22);
-    --text: #f0ede6; --text-muted: #b4b2a9; --text-hint: #888780;
-    --green-bg: #173404; --green-text: #C0DD97; --green-dot: #97C459;
-    --red-bg: #501313; --red-text: #F7C1C1; --red-dot: #F09595;
+    --bg: #1c1c1a;
+    --surface: #252523;
+    --surface2: #2c2c2a;
+    --border: rgba(255,255,255,0.1);
+    --border-strong: rgba(255,255,255,0.22);
+    --text: #f0ede6;
+    --text-muted: #b4b2a9;
+    --text-hint: #888780;
+    --green-bg: #173404;
+    --green-text: #C0DD97;
+    --green-dot: #97C459;
+    --red-bg: #501313;
+    --red-text: #F7C1C1;
+    --red-dot: #F09595;
   }
 }
 
@@ -35,18 +56,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem 1rem 2rem;
+  padding: 3rem 1rem 4rem;
 }
-
-/* Back link */
-.back-link {
-  align-self: flex-start;
-  font-size: 13px;
-  color: var(--text-hint);
-  text-decoration: none;
-  margin-bottom: 2rem;
-}
-.back-link:hover { color: var(--text-muted); }
 
 header {
   text-align: center;
@@ -55,7 +66,6 @@ header {
 header h1 {
   font-size: 26px;
   font-weight: 600;
-  letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
 header p {
@@ -68,52 +78,44 @@ header p {
   max-width: 660px;
 }
 
-/* Section label */
-.section-label {
-  font-size: 11px;
-  font-weight: 500;
+.back-link {
+  font-size: 13px;
   color: var(--text-hint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.75rem;
+  text-decoration: none;
+  display: inline-block;
+  margin-bottom: 10px;
 }
+.back-link:hover { color: var(--text-muted); }
 
-/* Card */
 .card {
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.5rem;
-  margin-bottom: 0.75rem;
 }
 
-/* Inputs */
-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-hint);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-  display: block;
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0.5rem;
 }
 
 input {
-  width: 100%;
-  height: 40px;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  background: var(--surface2);
   border: 0.5px solid var(--border-strong);
   border-radius: var(--radius-md);
-  padding: 0 12px;
-  font-size: 14px;
-  background: var(--surface2);
-  font-family: var(--font-mono);
-  margin-bottom: 12px;
+  padding: 0 14px;
+  height: 44px;
+  color: var(--text);
+  outline: none;
 }
 
-/* Button */
 button {
-  width: 100%;
-  height: 42px;
+  padding: 0 20px;
+  height: 44px;
   font-size: 14px;
   font-weight: 500;
   background: var(--text);
@@ -122,92 +124,126 @@ button {
   border-radius: var(--radius-md);
   cursor: pointer;
 }
-button:hover { opacity: 0.85; }
 
-/* Result bar */
-.result-bar {
+.hint {
+  font-size: 12px;
+  color: var(--text-hint);
+  margin-top: 6px;
+}
+
+/* Status badge */
+.status-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
+  gap: 10px;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
 }
+.badge-valid { background: var(--green-bg); color: var(--green-text); }
+.badge-invalid { background: var(--red-bg); color: var(--red-text); }
+.badge-dot { width: 7px; height: 7px; border-radius: 50%; }
+.badge-valid .badge-dot { background: var(--green-dot); }
+.badge-invalid .badge-dot { background: var(--red-dot); }
 
-/* Status dot */
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-/* Result box */
-.result-box {
+.error-msg {
+  font-size: 13px;
+  color: var(--red-text);
+  background: var(--red-bg);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.75rem;
   display: none;
 }
-.result-box.valid {
-  background: var(--green-bg);
-  color: var(--green-text);
+
+/* Fields */
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
-.result-box.invalid {
-  background: var(--red-bg);
-  color: var(--red-text);
+.field {
+  background: var(--surface2);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
 }
-.result-box pre {
+.field.full {
+  grid-column: 1 / -1;
+}
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.field-value {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.field-value.mono {
   font-family: var(--font-mono);
-  white-space: pre-wrap;
 }
 
-/* Footer */
 footer {
-  margin-top: 2rem;
+  margin-top: 3rem;
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-hint);
   line-height: 1.8;
+}
+
+@media (max-width: 480px) {
+  .fields { grid-template-columns: 1fr; }
 }
 </style>
 </head>
 <body>
 
-<a class="back-link" href="index.html">← Back</a>
-
 <header>
   <h1>India Bank Checker</h1>
-  <p>Validate IFSC and bank branch details</p>
+  <p>Validate IFSC and bank branch details — runs entirely in your browser, no data sent anywhere</p>
 </header>
 
 <div class="container">
 
-  <div class="section-label">Bank Details</div>
+  <a class="back-link" href="index.html">&#8592; Back to Tools</a>
 
   <div class="card">
-    <label>Account Number</label>
-    <input type="text" id="account" placeholder="Enter account number">
-
-    <label>IFSC Code</label>
-    <input type="text" id="ifsc" placeholder="Enter IFSC (e.g. HDFC0001234)">
-
-    <button onclick="checkBank()">Validate Bank Details</button>
-  </div>
-
-  <div class="section-label">Result</div>
-
-  <div id="resultCard" class="card result-box">
-    <div class="result-bar">
-      <div id="statusDot" class="status-dot"></div>
-      <div id="statusText">Status</div>
+    <div class="input-row">
+      <input type="text" id="accountInput" placeholder="Account Number">
+      <input type="text" id="ifscInput" placeholder="IFSC Code">
+      <button onclick="checkBank()">Validate</button>
     </div>
-    <pre id="resultText"></pre>
+
+    <div class="hint">Enter account number and IFSC code</div>
+
+    <div id="result">
+      <div class="status-row">
+        <span id="statusBadge" class="badge"></span>
+      </div>
+
+      <div id="errorMsg" class="error-msg"></div>
+
+      <div id="detailFields" class="fields"></div>
+    </div>
   </div>
 
 </div>
 
 <footer>
-  Toolbox by Renz Luigi<br>
-  India Bank Validation Tool
+  India bank registry based on RBI IFSC database &nbsp;·&nbsp; IFSC format validation &nbsp;·&nbsp; Bank branch lookup &nbsp;·&nbsp; Renz Luigi &copy; 2026
 </footer>
 
 <script src="india-banks.js"></script>
