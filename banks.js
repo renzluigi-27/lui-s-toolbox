@@ -238,6 +238,7 @@ const JO_BANKS = {
   "CVDB": { name: "Cities & Villages Development Bank (CVDB)", swift: "CVDBJOA1XXX", address: "Amman, Jordan" },
   "RAFD": { name: "Rafidain Bank Jordan (Rafidain)", swift: "RAFDJOAXXXX", address: "Amman, Jordan" },
 };
+
 // ================================================================
 // TURKEY BANK REGISTRY
 // Bank code = digits 5-9 of TR IBAN (5 digits)
@@ -264,6 +265,7 @@ const TR_BANKS = {
   "00075": { name: "Tekstil Bank (now ICBC Turkey)", swift: "TEKBTRISXXX", address: "Istanbul, Turkey", legacy: true },
   "00029": { name: "Birlesik Fon Bankasi", swift: "BTFHTRISXXX", address: "Istanbul, Turkey", legacy: true }
 };
+
 // ================================================================
 // PAKISTAN BANK REGISTRY
 // Bank code = digits 5-8 of PK IBAN (4 letters = first 4 of SWIFT)
@@ -320,6 +322,25 @@ const EG_BANKS = {
   "0091": { name: "First Abu Dhabi Bank Egypt (FAB Egypt)", swift: "NBADEGCXXXX", address: "First Abu Dhabi Bank Egypt, 124 Othman Ibn Affan Street, Heliopolis, Cairo, Egypt" },
   "0092": { name: "Al Ahli Bank of Kuwait Egypt (ABK Egypt)", swift: "ABKKEGCXXXX", address: "Al Ahli Bank of Kuwait Egypt, 66 Mossadak Street, Dokki, Giza, Egypt" },
   "0095": { name: "National Bank of Kuwait Egypt (NBK Egypt)", swift: "NBOKEGCXXXX", address: "National Bank of Kuwait Egypt, 1187 Corniche El Nil Street, Boulak, Cairo, Egypt" },
+};
+
+// ================================================================
+// UK BANK REGISTRY
+// Bank code = characters 5-8 of UK IBAN
+// Example: GB29 NWBK 601613 31926819 → bank code = NWBK (NatWest)
+// ================================================================
+const UK_BANKS = {
+  "NWBK": { name: "NatWest Bank", swift: "NWBKGB2L", address: "250 Bishopsgate, London, UK" },
+  "BARC": { name: "Barclays Bank PLC", swift: "BARCGB22", address: "1 Churchill Place, London, UK" },
+  "BUKB": { name: "Barclays Bank UK PLC", swift: "BUKBGB22", address: "1 Churchill Place, London, UK" },
+  "LOYD": { name: "Lloyds Bank", swift: "LOYDGB2L", address: "25 Gresham Street, London, UK" },
+  "HBUK": { name: "HSBC UK Bank", swift: "HBUKGB4B", address: "1 Centenary Square, Birmingham, UK" },
+  "RBOS": { name: "Royal Bank of Scotland", swift: "RBOSGB2L", address: "36 St Andrew Square, Edinburgh, UK" },
+  "TSBS": { name: "TSB Bank", swift: "TSBSGB2A", address: "One Lovell Park, Leeds, LS1 1NS, UK" },
+  "HLFX": { name: "Halifax", swift: "HLFXGB21", address: "Trinity Road, Halifax, UK" },
+  "MONZ": { name: "Monzo Bank", swift: "MONZGB2L", address: "Broadwalk House, 5 Appold Street, London, UK" },
+  "REVO": { name: "Revolut", swift: "REVOGB2L", address: "London, UK" },
+  "SRLG": { name: "Starling Bank", swift: "SRLGGB2L", address: "1 Duval Square, London, UK" }
 };
 // ================================================================
 // COUNTRY IBAN REGISTRY
