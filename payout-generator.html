@@ -1106,12 +1106,26 @@ document.getElementById('generateBtn').disabled = true;
 </script>
 <script>
 document.addEventListener('contextmenu', e => e.preventDefault());
-document.onkeydown = function(e) {
-  if (e.keyCode == 123) return false; // F12
-  if (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
-  if (e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
-  if (e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
-}
+
+document.addEventListener('keydown', function(e) {
+  // F12
+  if (e.key === "F12") e.preventDefault();
+
+  // Ctrl+Shift+I
+  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
+
+  // Ctrl+Shift+J
+  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
+
+  // Ctrl+U (view source)
+  if (e.ctrlKey && e.key === "u") e.preventDefault();
+
+  // Ctrl+S (save page)
+  if (e.ctrlKey && e.key === "s") e.preventDefault();
+
+  // Ctrl+Shift+C (inspect element)
+  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
+});
 </script>
 </body>
 </html>
