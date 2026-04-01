@@ -143,6 +143,7 @@ const QA_BANKS = {
 const KW_BANKS = {
   "NBOK": { name: "National Bank of Kuwait (NBK)", swift: "NBOKKWKWXXX", address: "Abdullah Al Ahmed Street, Kuwait City, Kuwait" },
   "KFHO": { name: "Kuwait Finance House (KFH)", swift: "KFHOKWKWXXX", address: "Abdullah Al Ahmed Street, Kuwait City, Kuwait" },
+  "CBKU": { name: "Central Bank of Kuwait (CBK)", swift: "CBKUKWKWXXX", address: "P.O. Box 526 Safat, Kuwait City, Kuwait" },
   "CBKK": { name: "Commercial Bank of Kuwait (CBK)", swift: "CBKKKWKWXXX", address: "Mubarak Al Kabeer Street, Kuwait City, Kuwait" },
   "GULB": { name: "Gulf Bank Kuwait (Gulf Bank)", swift: "GULBKWKWXXX", address: "Mubarak Al Kabeer Street, Kuwait City, Kuwait" },
   "ABKK": { name: "Ahli Bank of Kuwait (ABK)", swift: "ABKKKWKWXXX", address: "Ahmad Al Jaber Street, Kuwait City, Kuwait" },
@@ -244,6 +245,7 @@ const JO_BANKS = {
 // ================================================================
 const TR_BANKS = {
   "00010": { name: "Ziraat Bank", swift: "TCZBTR2AXXX", address: "Ankara, Turkey" },
+  "00100": { name: "Türkiye Cumhuriyeti Merkez Bankası (Central Bank of Turkey)", swift: "TCMBTR2AXXX", address: "Istiklal Cad. No:10, Ulus, Ankara, Turkey" },
   "00012": { name: "Halkbank", swift: "TRHBTR2AXXX", address: "Ankara, Turkey" },
   "00015": { name: "VakifBank", swift: "TVBATR2AXXX", address: "Istanbul, Turkey" },
   "00032": { name: "TEB (BNP Paribas TEB)", swift: "TEBUTRISXXX", address: "Istanbul, Turkey" },
