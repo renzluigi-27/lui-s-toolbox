@@ -1,9 +1,15 @@
 const INDIA_BANKS = {
-  "HDFC0000001": {
-    bank: "HDFC Bank",
-    branch: "Mumbai Main Branch",
-    address: "HDFC Bank Ltd, Fort, Mumbai, Maharashtra 400001, India",
+  "HDFC": {
+    name: "HDFC Bank",
+    branch: "Head Office",
+    address: "HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai 400013, India",
     swift: "HDFCINBBXXX"
+  },
+  "ICIC": {
+    name: "ICICI Bank",
+    branch: "Head Office",
+    address: "ICICI Bank Towers, Bandra Kurla Complex, Mumbai 400051, India",
+    swift: "ICICINBBXXX"
   },
   "SBIN0000001": {
     bank: "State Bank of India",
