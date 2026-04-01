@@ -326,22 +326,51 @@ const EG_BANKS = {
 
 // ================================================================
 // UK BANK REGISTRY
-// Bank code = characters 5-8 of UK IBAN
-// Example: GB29 NWBK 601613 31926819 → bank code = NWBK (NatWest)
+// Bank code = characters 5-8 of GB IBAN (4 letters)
+// Example: GB29 [NWBK] 601613 31926819 → bank code = NWBK (NatWest)
 // ================================================================
 const UK_BANKS = {
-  "NWBK": { name: "NatWest Bank", swift: "NWBKGB2L", address: "250 Bishopsgate, London, UK" },
-  "BARC": { name: "Barclays Bank PLC", swift: "BARCGB22", address: "1 Churchill Place, London, UK" },
-  "BUKB": { name: "Barclays Bank UK PLC", swift: "BUKBGB22", address: "1 Churchill Place, London, UK" },
-  "LOYD": { name: "Lloyds Bank", swift: "LOYDGB2L", address: "25 Gresham Street, London, UK" },
-  "HBUK": { name: "HSBC UK Bank", swift: "HBUKGB4B", address: "1 Centenary Square, Birmingham, UK" },
-  "RBOS": { name: "Royal Bank of Scotland", swift: "RBOSGB2L", address: "36 St Andrew Square, Edinburgh, UK" },
-  "TSBS": { name: "TSB Bank", swift: "TSBSGB2A", address: "One Lovell Park, Leeds, LS1 1NS, UK" },
-  "HLFX": { name: "Halifax", swift: "HLFXGB21", address: "Trinity Road, Halifax, UK" },
-  "MONZ": { name: "Monzo Bank", swift: "MONZGB2L", address: "Broadwalk House, 5 Appold Street, London, UK" },
-  "REVO": { name: "Revolut", swift: "REVOGB2L", address: "London, UK" },
-  "SRLG": { name: "Starling Bank", swift: "SRLGGB2L", address: "1 Duval Square, London, UK" }
+  "NWBK": { name: "National Westminster Bank (NatWest)", swift: "NWBKGB2LXXX", address: "250 Bishopsgate, London EC2M 4AA, UK" },
+  "BARC": { name: "Barclays Bank PLC", swift: "BARCGB22XXX", address: "1 Churchill Place, Canary Wharf, London E14 5HP, UK" },
+  "BUKB": { name: "Barclays Bank UK PLC (Retail)", swift: "BUKBGB22XXX", address: "1 Churchill Place, Canary Wharf, London E14 5HP, UK" },
+  "LOYD": { name: "Lloyds Bank", swift: "LOYDGB2LXXX", address: "25 Gresham Street, London EC2V 7HN, UK" },
+  "HBUK": { name: "HSBC UK Bank", swift: "HBUKGB4BXXX", address: "1 Centenary Square, Birmingham B1 1HQ, UK" },
+  "RBOS": { name: "Royal Bank of Scotland (RBS)", swift: "RBOSGB2LXXX", address: "36 St Andrew Square, Edinburgh EH2 2YB, UK" },
+  "TSBS": { name: "TSB Bank", swift: "TSBSGB2AXXX", address: "One Lovell Park, Leeds LS1 1NS, UK" },
+  "HLFX": { name: "Halifax", swift: "HLFXGB21XXX", address: "Trinity Road, Halifax HX1 2RG, UK" },
+  "ABBY": { name: "Santander UK", swift: "ABBYGB2LXXX", address: "2 Triton Square, Regent's Place, London NW1 3AN, UK" },
+  "BOFS": { name: "Bank of Scotland", swift: "BOFSGB2SXXX", address: "The Mound, Edinburgh EH1 1YZ, UK" },
+  "NAIA": { name: "Nationwide Building Society", swift: "NAIAGB2LXXX", address: "Nationwide House, Pipers Way, Swindon SN38 1NW, UK" },
+  "MONZ": { name: "Monzo Bank", swift: "MONZGB2LXXX", address: "Broadwalk House, 5 Appold Street, London EC2A 2AG, UK" },
+  "SRLG": { name: "Starling Bank", swift: "SRLGGB2LXXX", address: "Floor 5, 1 Duval Square, London E1 6PW, UK" },
+  "REVO": { name: "Revolut", swift: "REVOGB2LXXX", address: "7 Westferry Circus, Canary Wharf, London E14 4HD, UK" },
+  "TRWI": { name: "Wise (formerly TransferWise)", swift: "TRWIGB2LXXX", address: "56 Shoreditch High Street, London E1 6JJ, UK" },
 };
+
+// ================================================================
+// BULGARIA BANK REGISTRY
+// Bank code = digits 5-8 of BG IBAN (4 letters = first 4 of SWIFT)
+// Example: BG80 [BNBG] 9661 1020 345678 → bank code = BNBG
+// ================================================================
+const BG_BANKS = {
+  "BPBI": { name: "Eurobank Bulgaria AD (Postbank)", swift: "BPBIBGSFXXX", address: "Okolovrasten Pat Str. 260, Sofia 1766, Bulgaria" },
+  "BNBG": { name: "Bulgarian National Bank (BNB)", swift: "BNBGBGSFXXX", address: "1 Knyaz Alexander I Square, Sofia 1000, Bulgaria" },
+  "BUIB": { name: "UniCredit Bulbank", swift: "BUIBBGSFXXX", address: "7 Sveta Nedelya Square, Sofia 1000, Bulgaria" },
+  "CECB": { name: "Central Cooperative Bank (CCB)", swift: "CECBBGSFXXX", address: "109 G.S. Rakovski Street, Sofia 1000, Bulgaria" },
+  "CREX": { name: "Credit Europe Bank Bulgaria", swift: "CREXBGSFXXX", address: "Sofia, Bulgaria" },
+  "DSKI": { name: "DSK Bank", swift: "DSKIBGSFXXX", address: "19 Moskovska Street, Sofia 1036, Bulgaria" },
+  "FINV": { name: "First Investment Bank (Fibank)", swift: "FINVBGSFXXX", address: "37 Dragan Tsankov Blvd, Sofia 1797, Bulgaria" },
+  "IABG": { name: "International Asset Bank", swift: "IABGBGSFXXX", address: "79B James Bourchier Blvd, Sofia 1407, Bulgaria" },
+  "IBAN": { name: "Investbank", swift: "IBANBGSFXXX", address: "10 Todor Alexandrov Blvd, Sofia 1303, Bulgaria" },
+  "MBUL": { name: "Municipal Bank", swift: "MBULBGSFXXX", address: "2 Vrabcha Street, Sofia 1000, Bulgaria" },
+  "PIRB": { name: "Piraeus Bank Bulgaria", swift: "PIRBBGSFXXX", address: "Sofia, Bulgaria" },
+  "RZBR": { name: "Raiffeisenbank Bulgaria", swift: "RZBRBBSFXXX", address: "55 Nikola I. Vaptsarov Blvd, Sofia 1407, Bulgaria" },
+  "RZBB": { name: "Raiffeisenbank Bulgaria", swift: "RZBBBBSFXXX", address: "55 Nikola I. Vaptsarov Blvd, Sofia 1407, Bulgaria" },
+  "STSA": { name: "Societe Generale Expressbank", swift: "STSABGSFXXX", address: "92 Vladislav Varnenchik Blvd, Varna 9000, Bulgaria" },
+  "TTBB": { name: "TBI Bank", swift: "TTBBBGSFXXX", address: "Sofia, Bulgaria" },
+  "UBBS": { name: "United Bulgarian Bank (UBB)", swift: "UBBSBGSFXXX", address: "89B Vitosha Blvd, Sofia 1000, Bulgaria" },
+};
+
 // ================================================================
 // COUNTRY IBAN REGISTRY
 // Contains all supported countries with IBAN lengths and currencies
