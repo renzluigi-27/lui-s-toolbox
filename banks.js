@@ -185,7 +185,7 @@ const BH_BANKS = {
 // ================================================================
 const OM_BANKS = {
   "010": { name: "Bank Muscat (Bank Muscat)", swift: "BMUSOMRXXXX", address: "Bank Muscat Head Office, Ruwi, Muscat, Oman" },
-  "014": { name: "National Bank of Oman (NBO)", swift: "NBOMOM0MXXX", address: "NBO Head Office, Ruwi, Muscat, Oman" },
+  "014": { name: "National Bank of Oman (NBO)", swift: "NBOMOMRXXXX", address: "NBO Head Office, Ruwi, Muscat, Oman" },
   "020": { name: "Oman Arab Bank (OAB)", swift: "OMABOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
   "025": { name: "Bank Dhofar (Bank Dhofar)", swift: "BKDBOM0MXXX", address: "Bank Dhofar Head Office, Ruwi, Muscat, Oman" },
   "030": { name: "HSBC Oman (HSBC)", swift: "BBMEOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
@@ -197,7 +197,7 @@ const OM_BANKS = {
   "080": { name: "Alizz Islamic Bank (Alizz)", swift: "ALIZOM0MXXX", address: "Muscat, Oman" },
   "095": { name: "Citibank Oman (Citi)", swift: "CITIOM0MXXX", address: "Muscat, Oman" },
   "155": { name: "Meethaq Islamic Banking / Bank Muscat (Meethaq)", swift: "BMUSOMRXXXX", address: "Muscat, Oman" },
-  "180": { name: "Muzn Islamic Banking / NBO (Muzn)", swift: "NBOMOM0MXXX", address: "Muscat, Oman" },
+  "180": { name: "Muzn Islamic Banking / NBO (Muzn)", swift: "NBOMOMRXXXX", address: "Muscat, Oman" },
 };
 
 // ================================================================
@@ -264,7 +264,63 @@ const TR_BANKS = {
   "00075": { name: "Tekstil Bank (now ICBC Turkey)", swift: "TEKBTRISXXX", address: "Istanbul, Turkey", legacy: true },
   "00029": { name: "Birlesik Fon Bankasi", swift: "BTFHTRISXXX", address: "Istanbul, Turkey", legacy: true }
 };
+// ================================================================
+// PAKISTAN BANK REGISTRY
+// Bank code = digits 5-8 of PK IBAN (4 letters = first 4 of SWIFT)
+// Example: PK36 [SCBL] 0000001123456702 → bank code = SCBL
+// Source: State Bank of Pakistan / SWIFT registry
+// ================================================================
+const PK_BANKS = {
+  "SCBL": { name: "Standard Chartered Bank Pakistan (SCB)", swift: "SCBLPKKXXXX", address: "Standard Chartered Tower, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "NBPA": { name: "National Bank of Pakistan (NBP)", swift: "NBPAPKKAXXX", address: "NBP Head Office, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "HABB": { name: "Habib Bank Limited (HBL)", swift: "HABBPKKAXXX", address: "HBL Plaza, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "UNIL": { name: "United Bank Limited (UBL)", swift: "UNILPKKAXXX", address: "UBL Head Office, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "MUCB": { name: "MCB Bank Limited (MCB)", swift: "MUCBPKKAXXX", address: "MCB House, F-6/G-6, Islamabad, Pakistan" },
+  "MEZN": { name: "Meezan Bank Limited (Meezan)", swift: "MEZNPKKAXXX", address: "Meezan House, C-25 Estate Avenue, SITE, Karachi, Pakistan" },
+  "ALFH": { name: "Bank Alfalah Limited (Alfalah)", swift: "ALFHPKKAXXX", address: "B.A. Building, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "BAHL": { name: "Bank Al Habib Limited (BAHL)", swift: "BAHLPKKAXXX", address: "Bank Al Habib Tower, 23-Mauve Area, G-10/4, Islamabad, Pakistan" },
+  "ABPA": { name: "Allied Bank Limited (ABL)", swift: "ABPAPKKAXXX", address: "Allied Bank House, Abdullah Haroon Road, Karachi, Pakistan" },
+  "ASCM": { name: "Askari Bank Limited (Askari)", swift: "ASCMPKKAXXX", address: "AWT Plaza, The Mall, Rawalpindi, Pakistan" },
+  "FAYS": { name: "Faysal Bank Limited (Faysal)", swift: "FAYSPKKAXXX", address: "Faysal House, ST-02, Shahrah-e-Faisal, Karachi, Pakistan" },
+  "BPUN": { name: "Bank of Punjab (BOP)", swift: "BPUNPKKAXXX", address: "BOP Tower, 10-B, Block E-2, Main Boulevard Gulberg III, Lahore, Pakistan" },
+  "JSBL": { name: "JS Bank Limited (JS Bank)", swift: "JSBLPKKAXXX", address: "JS Bank Tower, Plot G-2, KDA Scheme 5, Clifton, Karachi, Pakistan" },
+  "SONE": { name: "Soneri Bank Limited (Soneri)", swift: "SONEPKKAXXX", address: "Rupali House, 241-243, Upper Mall, Lahore, Pakistan" },
+  "MPBL": { name: "Habib Metropolitan Bank Limited (HMB)", swift: "MPBLPKKAXXX", address: "HMB House, 35-Dockyard Road, West Wharf, Karachi, Pakistan" },
+  "BKIP": { name: "BankIslami Pakistan Limited (BankIslami)", swift: "BKIPPKKAXXX", address: "BankIslami Tower, Dolmen City, Block 4, Clifton, Karachi, Pakistan" },
+  "DUIB": { name: "Dubai Islamic Bank Pakistan (DIB Pakistan)", swift: "DUIBPKKAXXX", address: "Harbour Front, 9th Floor, Dolmen City, Clifton, Karachi, Pakistan" },
+  "MCIB": { name: "MCB Islamic Bank Limited (MCB Islamic)", swift: "MCIBPKKIXXX", address: "MCB Islamic House, 3 Jinnah Avenue, Blue Area, Islamabad, Pakistan" },
+  "CITI": { name: "Citibank Pakistan (Citi)", swift: "CITIPKKAXXX", address: "Citibank House, Plot 42 Block 7/8, Shahrah-e-Faisal, Karachi, Pakistan" },
+  "SBPP": { name: "State Bank of Pakistan (SBP)", swift: "SBPPPKKAXXX", address: "I.I. Chundrigar Road, Karachi, Pakistan" },
+  "KHYB": { name: "Bank of Khyber (BOK)", swift: "KHYBPKKAXXX", address: "24-A, The Mall, Peshawar, Pakistan" },
+  "SIND": { name: "Sindh Bank Limited (Sindh Bank)", swift: "SINDPKKAXXX", address: "Sindh Bank House, I.I. Chundrigar Road, Karachi, Pakistan" },
+  "AIIN": { name: "Albaraka Bank Pakistan (Albaraka)", swift: "AIINPKKAXXX", address: "Albaraka Islamic Tower, 10th Floor, Main Clifton Road, Karachi, Pakistan" },
+  "FWOM": { name: "First Women Bank Limited (FWBL)", swift: "FWOMPKKAXXX", address: "Ground Floor, SBP Building, Shahrah-e-Quaid-e-Azam, Lahore, Pakistan" },
+};
 
+// ================================================================
+// EGYPT BANK REGISTRY
+// Bank code = digits 5-8 of EG IBAN (4 digits numeric)
+// Branch code = digits 9-12 of EG IBAN (4 digits numeric)
+// Example: EG38 [0019] [0005] 00000000263180002 → bank = 0019 (NBE)
+// Source: Central Bank of Egypt / SWIFT registry
+// ================================================================
+const EG_BANKS = {
+  "0019": { name: "National Bank of Egypt (NBE)", swift: "NBEGEGCXXXX", address: "Al Nil Street, Corniche El Nil, Cairo, Egypt" },
+  "0022": { name: "Commercial International Bank Egypt (CIB)", swift: "CIBEEGCXXXX", address: "Nile Tower, 21-23 Charles de Gaulle Street, Giza, Egypt" },
+  "0025": { name: "Banque Misr (BM)", swift: "BMISEGCXXXX", address: "151 Mohamed Farid Street, Cairo, Egypt" },
+  "0027": { name: "Bank of Alexandria (AlexBank)", swift: "ALEXEGCXXXX", address: "49 Kasr El Nil Street, Cairo, Egypt" },
+  "0031": { name: "Banque du Caire (BdC)", swift: "BCAIEGCXXXX", address: "22 Adly Street, Cairo, Egypt" },
+  "0046": { name: "HSBC Bank Egypt (HSBC)", swift: "EBBKEGCXXXX", address: "306 Corniche El Nil, Cairo, Egypt" },
+  "0057": { name: "Arab African International Bank (AAIB)", swift: "ARAIEGCXXXX", address: "5 Midan Al Saraya Al Kobra, Garden City, Cairo, Egypt" },
+  "0062": { name: "Credit Agricole Egypt (CAE)", swift: "AGRIEGCXXXX", address: "Garden City Branch, 3 El Pharaana Street, Garden City, Cairo, Egypt" },
+  "0067": { name: "Export Development Bank of Egypt (EBank)", swift: "EXPLEGCXXXX", address: "108 Mohamed Farid Street, Cairo, Egypt" },
+  "0076": { name: "Arab Bank Egypt (Arab Bank)", swift: "ARABEGCXXXX", address: "26 A, Hassan Sabri Street, Zamalek, Cairo, Egypt" },
+  "0085": { name: "Abu Dhabi Islamic Bank Egypt (ADIB Egypt)", swift: "ABDIEGCXXXX", address: "CI Tower, 1st Floor, Mohamed Farid Street, Cairo, Egypt" },
+  "0086": { name: "Qatar National Bank Egypt (QNB Egypt)", swift: "QNBAEGCXXXX", address: "17 Kasr El Nil Street, Downtown, Cairo, Egypt" },
+  "0091": { name: "First Abu Dhabi Bank Egypt (FAB Egypt)", swift: "NBADEGCXXXX", address: "First Abu Dhabi Bank Egypt, 124 Othman Ibn Affan Street, Heliopolis, Cairo, Egypt" },
+  "0092": { name: "Al Ahli Bank of Kuwait Egypt (ABK Egypt)", swift: "ABKKEGCXXXX", address: "Al Ahli Bank of Kuwait Egypt, 66 Mossadak Street, Dokki, Giza, Egypt" },
+  "0095": { name: "National Bank of Kuwait Egypt (NBK Egypt)", swift: "NBOKEGCXXXX", address: "National Bank of Kuwait Egypt, 1187 Corniche El Nil Street, Boulak, Cairo, Egypt" },
+};
 // ================================================================
 // COUNTRY IBAN REGISTRY
 // Contains all supported countries with IBAN lengths and currencies
@@ -351,7 +407,7 @@ const COUNTRY_IBAN = {
   GQ:{len:27,country:"Equatorial Guinea",flag:"🇬🇶",currency:"XAF"},
   GA:{len:27,country:"Gabon",flag:"🇬🇦",currency:"XAF"},
  
-  // NON-IBAN COUNTRIES
+// NON-IBAN COUNTRIES
   US:{noIBAN:true,country:"United States",flag:"🇺🇸"},
   AU:{noIBAN:true,country:"Australia",flag:"🇦🇺"},
   CA:{noIBAN:true,country:"Canada",flag:"🇨🇦"},
@@ -359,4 +415,23 @@ const COUNTRY_IBAN = {
   CN:{noIBAN:true,country:"China",flag:"🇨🇳"},
   SG:{noIBAN:true,country:"Singapore",flag:"🇸🇬"},
   HK:{noIBAN:true,country:"Hong Kong",flag:"🇭🇰"},
+  JP:{noIBAN:true,country:"Japan",flag:"🇯🇵"},
+  KR:{noIBAN:true,country:"South Korea",flag:"🇰🇷"},
+  TH:{noIBAN:true,country:"Thailand",flag:"🇹🇭"},
+  MY:{noIBAN:true,country:"Malaysia",flag:"🇲🇾"},
+  ID:{noIBAN:true,country:"Indonesia",flag:"🇮🇩"},
+  PH:{noIBAN:true,country:"Philippines",flag:"🇵🇭"},
+  BD:{noIBAN:true,country:"Bangladesh",flag:"🇧🇩"},
+  LK:{noIBAN:true,country:"Sri Lanka",flag:"🇱🇰"},
+  NP:{noIBAN:true,country:"Nepal",flag:"🇳🇵"},
+  NG:{noIBAN:true,country:"Nigeria",flag:"🇳🇬"},
+  KE:{noIBAN:true,country:"Kenya",flag:"🇰🇪"},
+  GH:{noIBAN:true,country:"Ghana",flag:"🇬🇭"},
+  ZA:{noIBAN:true,country:"South Africa",flag:"🇿🇦"},
+  MX:{noIBAN:true,country:"Mexico",flag:"🇲🇽"},
+  AR:{noIBAN:true,country:"Argentina",flag:"🇦🇷"},
+  NZ:{noIBAN:true,country:"New Zealand",flag:"🇳🇿"},
+  TW:{noIBAN:true,country:"Taiwan",flag:"🇹🇼"},
+  VN:{noIBAN:true,country:"Vietnam",flag:"🇻🇳"},
+  MM:{noIBAN:true,country:"Myanmar",flag:"🇲🇲"},
 };
