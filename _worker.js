@@ -16,7 +16,10 @@ export default {
       return new Response(JSON.stringify(data), {
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
+          'Access-Control-Allow-Origin': '*',
+          'X-Frame-Options': 'DENY',
+          'X-Content-Type-Options': 'nosniff',
+          'Referrer-Policy': 'no-referrer'
         }
       });
     }
@@ -28,6 +31,11 @@ export default {
     if (url.pathname.endsWith('.html') || url.pathname === '/') {
       newHeaders.set('Cache-Control', 'no-store');
     }
+
+    // Add security headers to ALL pages
+    newHeaders.set('X-Frame-Options', 'DENY');
+    newHeaders.set('X-Content-Type-Options', 'nosniff');
+    newHeaders.set('Referrer-Policy', 'no-referrer');
 
     return new Response(response.body, {
       status: response.status,
