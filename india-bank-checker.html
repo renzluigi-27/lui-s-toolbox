@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>India Bank Checker</title>
+<title>India Bank Checker — Lui's Toolbox</title>
 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,10 +62,13 @@ body {
 header {
   text-align: center;
   margin-bottom: 2.5rem;
+  width: 100%;
+  max-width: 660px;
 }
 header h1 {
   font-size: 26px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   margin-bottom: 6px;
 }
 header p {
@@ -111,6 +114,17 @@ input {
   height: 44px;
   color: var(--text);
   outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus {
+  border-color: #378ADD;
+  box-shadow: 0 0 0 3px rgba(55,138,221,0.15);
+}
+
+input::placeholder {
+  color: var(--text-hint);
+  font-size: 13px;
 }
 
 button {
@@ -118,12 +132,17 @@ button {
   height: 44px;
   font-size: 14px;
   font-weight: 500;
+  font-family: var(--font-sans);
+  white-space: nowrap;
   background: var(--text);
   color: var(--bg);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
 }
+button:hover { opacity: 0.85; }
+button:active { transform: scale(0.97); }
 
 .hint {
   font-size: 12px;
@@ -131,13 +150,19 @@ button {
   margin-top: 6px;
 }
 
-/* Status badge */
+#result {
+  display: none;
+  margin-top: 1.5rem;
+}
+
 .status-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 1rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.5px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .badge {
@@ -148,12 +173,21 @@ button {
   font-weight: 500;
   padding: 4px 12px;
   border-radius: var(--radius-md);
+  flex-shrink: 0;
 }
 .badge-valid { background: var(--green-bg); color: var(--green-text); }
 .badge-invalid { background: var(--red-bg); color: var(--red-text); }
-.badge-dot { width: 7px; height: 7px; border-radius: 50%; }
+.badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .badge-valid .badge-dot { background: var(--green-dot); }
 .badge-invalid .badge-dot { background: var(--red-dot); }
+
+.ifsc-formatted {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  word-break: break-all;
+}
 
 .error-msg {
   font-size: 13px;
@@ -165,7 +199,6 @@ button {
   display: none;
 }
 
-/* Fields */
 .fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -191,6 +224,7 @@ button {
   font-size: 14px;
   color: var(--text);
   font-weight: 500;
+  line-height: 1.4;
 }
 .field-value.mono {
   font-family: var(--font-mono);
@@ -206,6 +240,8 @@ footer {
 
 @media (max-width: 480px) {
   .fields { grid-template-columns: 1fr; }
+  .field.full { grid-column: 1; }
+  header h1 { font-size: 20px; }
 }
 </style>
 </head>
@@ -213,7 +249,7 @@ footer {
 
 <header>
   <h1>India Bank Checker</h1>
-  <p>Validate IFSC and bank branch details — runs entirely in your browser, no data sent anywhere</p>
+  <p>Validate IFSC and bank account details — runs entirely in your browser, no data sent anywhere</p>
 </header>
 
 <div class="container">
@@ -226,16 +262,14 @@ footer {
       <input type="text" id="ifscInput" placeholder="IFSC Code">
       <button onclick="checkBank()">Validate</button>
     </div>
-
-    <div class="hint">Enter account number and IFSC code</div>
+    <div class="hint">Press Enter or click Validate · IFSC format: ABCD0123456</div>
 
     <div id="result">
       <div class="status-row">
         <span id="statusBadge" class="badge"></span>
+        <span id="ifscFormatted" class="ifsc-formatted"></span>
       </div>
-
       <div id="errorMsg" class="error-msg"></div>
-
       <div id="detailFields" class="fields"></div>
     </div>
   </div>
@@ -248,6 +282,18 @@ footer {
 
 <script src="india-banks.js"></script>
 <script src="india-checker.js"></script>
+
+<script>
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', function(e) {
+  if (e.key === "F12") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
+  if (e.ctrlKey && e.key === "u") e.preventDefault();
+  if (e.ctrlKey && e.key === "s") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
+});
+</script>
 
 </body>
 </html>
