@@ -184,11 +184,14 @@ const BH_BANKS = {
 // Example: OM81 [014] 0000000049101xxxxxx → bank code = 014
 // ================================================================
 const OM_BANKS = {
+  "002": { name: "Oman Arab Bank (OAB)", swift: "OMABOMRXXXX", address: "Muttrah Business District, Muscat, Oman" },
   "010": { name: "Bank Muscat (Bank Muscat)", swift: "BMUSOMRXXXX", address: "Bank Muscat Head Office, Ruwi, Muscat, Oman" },
   "014": { name: "National Bank of Oman (NBO)", swift: "NBOMOMRXXXX", address: "NBO Head Office, Ruwi, Muscat, Oman" },
   "020": { name: "Oman Arab Bank (OAB)", swift: "OMABOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
   "025": { name: "Bank Dhofar (Bank Dhofar)", swift: "BKDBOM0MXXX", address: "Bank Dhofar Head Office, Ruwi, Muscat, Oman" },
+  "027": { name: "Bank Muscat (Bank Muscat)", swift: "BMUSOMRXXXX", address: "Bank Muscat Head Office, Ruwi, Muscat, Oman" },
   "030": { name: "HSBC Oman (HSBC)", swift: "BBMEOM0MXXX", address: "Muttrah Business District, Muscat, Oman" },
+  "031": { name: "Sohar International Bank", swift: "BKSFOMRXXXX", address: "Sohar International Head Office, Muscat, Oman" },
   "035": { name: "Standard Chartered Oman (SCB)", swift: "SCBLOM0MXXX", address: "Muscat, Oman" },
   "040": { name: "Ahli Bank Oman (Ahli Bank)", swift: "AHLIOM0MXXX", address: "CBD Area, Muscat, Oman" },
   "050": { name: "Bank Sohar / Bank Muscat (Bank Sohar)", swift: "BKSFOM0MXXX", address: "Bank Sohar Head Office, Muscat, Oman" },
@@ -345,6 +348,10 @@ const UK_BANKS = {
   "SRLG": { name: "Starling Bank", swift: "SRLGGB2LXXX", address: "Floor 5, 1 Duval Square, London E1 6PW, UK" },
   "REVO": { name: "Revolut", swift: "REVOGB2LXXX", address: "7 Westferry Circus, Canary Wharf, London E14 4HD, UK" },
   "TRWI": { name: "Wise (formerly TransferWise)", swift: "TRWIGB2LXXX", address: "56 Shoreditch High Street, London E1 6JJ, UK" },
+  "MYMB": { name: "Metro Bank PLC", swift: "MYMBGB2LXXX", address: "One Southampton Row, London WC1A 5HA, UK" },
+  "SBIC": { name: "SBI (UK) Limited (State Bank of India UK)", swift: "SBICGB2LXXX", address: "13-14 Cavendish Place, London W1G 9DD, UK" },
+  "CLRB": { name: "ClearBank Limited", swift: "CLRBGB22XXX", address: "Borough Yards, 13 Dirty Lane, London SE1 9PA, UK" },
+  "TCCL": { name: "The Currency Cloud Limited", swift: "TCCLGB3LXXX", address: "The Steward Building, 12 Steward Street, London E1 6FQ, UK" },
 };
 
 // ================================================================
