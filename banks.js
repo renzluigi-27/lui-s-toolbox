@@ -372,6 +372,74 @@ const BG_BANKS = {
 };
 
 // ================================================================
+// BELGIUM BANK REGISTRY
+// Bank code = digits 5-7 of BE IBAN (3 digits numeric)
+// Example: BE68 [539] 007547034 → bank code = 539 (ING)
+// Note: Belgium has 800+ bank codes. Only codes present in LMC
+// payment data are listed here; others fall through to AnyAPI.
+// ================================================================
+const BE_BANKS = {
+  "096": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "097": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "230": { name: "ING Belgium NV/SA", swift: "BBRUBEBB XXX", address: "Avenue Marnix 24, Brussels 1000, Belgium" },
+  "310": { name: "BNP Paribas Fortis SA/NV", swift: "GEBABEBB XXX", address: "Montagne du Parc 3, Brussels 1000, Belgium" },
+  "363": { name: "Beobank NV/SA", swift: "CTBKBEBX XXX", address: "Boulevard du Roi Albert II 7B, Brussels 1210, Belgium" },
+  "523": { name: "Argenta Spaarbank NV", swift: "ARSPBE22 XXX", address: "Belgiëlei 49-53, Antwerp 2018, Belgium" },
+  "539": { name: "ING Belgium NV/SA", swift: "BBRUBEBB XXX", address: "Avenue Marnix 24, Brussels 1000, Belgium" },
+  "734": { name: "KBC Bank NV", swift: "KREDBEBB XXX", address: "Havenlaan 2, Brussels 1080, Belgium" },
+  "905": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "967": { name: "Wise Europe SA", swift: "TRWIBEBBXXX", address: "Rue du Trône 100, Floor 3, Brussels 1050, Belgium" },
+};
+
+// ================================================================
+// LITHUANIA BANK REGISTRY
+// Bank code = digits 5-9 of LT IBAN (5 digits numeric)
+// Example: LT12 [10000] 11101001000 → bank code = 10000 (Bank of Lithuania)
+// Source: Bank of Lithuania official IBAN participant list
+// ================================================================
+const LT_BANKS = {
+  "10000": { name: "Bank of Lithuania (Lietuvos Bankas)", swift: "LIABLT2XXXX", address: "Totorių g. 4, LT-01121 Vilnius, Lithuania" },
+  "21400": { name: "Luminor Bank AS (Lithuanian branch)", swift: "NDEALT2XXXX", address: "Konstitucijos pr. 21A, LT-03601 Vilnius, Lithuania" },
+  "21200": { name: "Luminor Bank AS (ex-Nordea)", swift: "NDEALT2XXXX", address: "Konstitucijos pr. 21A, LT-03601 Vilnius, Lithuania" },
+  "40100": { name: "Luminor Bank AS (ex-DNB)", swift: "AGBLLT2XXXX", address: "Konstitucijos pr. 21A, LT-03601 Vilnius, Lithuania" },
+  "32500": { name: "Revolut Bank UAB", swift: "REVOLT21XXX", address: "Konstitucijos pr. 21B, LT-08130 Vilnius, Lithuania" },
+  "70440": { name: "SEB Bankas AB", swift: "CBVILT2XXXX", address: "Gedimino pr. 12, LT-01103 Vilnius, Lithuania" },
+  "72900": { name: "Citadele Bankas (Lithuanian branch)", swift: "INDULT2XXXX", address: "Konstitucijos pr. 20A, LT-03502 Vilnius, Lithuania" },
+  "73000": { name: "Swedbank AB (Lithuanian branch)", swift: "HABALT22XXX", address: "Konstitucijos pr. 20A, LT-09308 Vilnius, Lithuania" },
+  "74000": { name: "Luminor Bank (ex-Nordea Lithuania)", swift: "NDEALT2XXXX", address: "Konstitucijos pr. 21A, LT-03601 Vilnius, Lithuania" },
+  "70500": { name: "Šiaulių Bankas AB", swift: "CBSBLT26XXX", address: "Tilžės g. 149, LT-76348 Šiauliai, Lithuania" },
+  "71800": { name: "Šiaulių Bankas AB", swift: "CBSBLT26XXX", address: "Tilžės g. 149, LT-76348 Šiauliai, Lithuania" },
+  "31900": { name: "Paysera LT UAB", swift: "EVIULT21XXX", address: "Mėsinių g. 5, LT-01133 Vilnius, Lithuania" },
+};
+
+// ================================================================
+// SPAIN BANK REGISTRY
+// Bank code = digits 5-8 of ES IBAN (4 digits numeric)
+// Example: ES91 [2100] 0418 450200051332 → bank code = 2100 (CaixaBank)
+// Source: Banco de España national bank code register
+// ================================================================
+const ES_BANKS = {
+  "0019": { name: "Deutsche Bank SAE (Spain)", swift: "DEUTESMMXXX", address: "Paseo de la Castellana 18, Madrid 28046, Spain" },
+  "0049": { name: "Banco Santander SA", swift: "BSABESBBXXX", address: "Ciudad Grupo Santander, Boadilla del Monte, Madrid 28660, Spain" },
+  "0073": { name: "Openbank SA (Santander Group)", swift: "OPENESMMXXX", address: "Príncipe de Vergara 187, Madrid 28002, Spain" },
+  "0075": { name: "Banco Popular Español SA (merged into Santander)", swift: "POPUESMM XXX", address: "Calle Velázquez 34, Madrid 28001, Spain" },
+  "0081": { name: "Banco de Sabadell SA", swift: "BSABESBBXXX", address: "Avenida Óscar Esplá 37, Alicante 03007, Spain" },
+  "0128": { name: "Bankinter SA", swift: "BKBKESMMXXX", address: "Paseo de la Castellana 29, Madrid 28046, Spain" },
+  "0182": { name: "Banco Bilbao Vizcaya Argentaria SA (BBVA)", swift: "BBVAESMMXXX", address: "Calle Azul 4, Madrid 28050, Spain" },
+  "0238": { name: "Banco Societe Generale Spain", swift: "SOGEESMMXXX", address: "Madrid, Spain" },
+  "1000": { name: "Banco de España (Central Bank)", swift: "ESPBESMMXXX", address: "Calle Alcalá 48, Madrid 28014, Spain" },
+  "1465": { name: "ING España (ING Direct)", swift: "INGDESMMXXX", address: "Paseo de la Castellana 189, Madrid 28046, Spain" },
+  "2038": { name: "Bankia SA (merged into CaixaBank)", swift: "CAHMESMMXXX", address: "Calle Pintor Sorolla 8, Valencia 46002, Spain" },
+  "2080": { name: "ABANCA Corporación Bancaria SA", swift: "ABCAESMM XXX", address: "Calle Juan Flórez 44, A Coruña 15005, Spain" },
+  "2085": { name: "Ibercaja Banco SA", swift: "CAZRES2ZXXX", address: "Plaza de Basilio Paraíso 2, Zaragoza 50008, Spain" },
+  "2095": { name: "Kutxabank SA", swift: "BASKES2BXXX", address: "Gran Vía 30-32, Bilbao 48009, Spain" },
+  "2100": { name: "CaixaBank SA", swift: "CAIXESBBXXX", address: "Avenida Diagonal 621-629, Barcelona 08028, Spain" },
+  "2103": { name: "Unicaja Banco SA", swift: "UCJAES2MXXX", address: "Avenida de Andalucía 10-12, Málaga 29007, Spain" },
+  "3016": { name: "Caja Rural del Sur (Grupo Caja Rural)", swift: "BCOEESMMXXX", address: "Tomás de Ibarra 5, Seville 41001, Spain" },
+  "3058": { name: "Cajamar Caja Rural SCC", swift: "CCRIES2AXXX", address: "Carretera de Málaga s/n, Almería 04120, Spain" },
+};
+
+// ================================================================
 // COUNTRY IBAN REGISTRY
 // Contains all supported countries with IBAN lengths and currencies
 // ================================================================
