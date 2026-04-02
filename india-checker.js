@@ -9,27 +9,31 @@ function checkBank() {
   const account = document.getElementById('accountInput').value.trim();
   const ifsc = document.getElementById('ifscInput').value.trim().toUpperCase();
 
+  const resultDiv = document.getElementById('result');
   const badge = document.getElementById('statusBadge');
+  const ifscFmt = document.getElementById('ifscFormatted');
   const errorMsg = document.getElementById('errorMsg');
   const fieldsDiv = document.getElementById('detailFields');
 
+  resultDiv.style.display = 'block';
   errorMsg.style.display = 'none';
   fieldsDiv.innerHTML = '';
+  ifscFmt.textContent = ifsc;
 
   if (!account || !ifsc) {
     badge.className = 'badge badge-invalid';
     badge.innerHTML = '<span class="badge-dot"></span>Invalid';
-    errorMsg.textContent = 'Please enter account number and IFSC.';
+    ifscFmt.textContent = '';
+    errorMsg.textContent = 'Please enter both account number and IFSC code.';
     errorMsg.style.display = 'block';
     return;
   }
 
-  // IFSC format check
   const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
   if (!ifscRegex.test(ifsc)) {
     badge.className = 'badge badge-invalid';
     badge.innerHTML = '<span class="badge-dot"></span>Invalid';
-    errorMsg.textContent = 'Invalid IFSC format.';
+    errorMsg.textContent = 'Invalid IFSC format. Expected format: ABCD0123456 (11 characters).';
     errorMsg.style.display = 'block';
     return;
   }
@@ -38,7 +42,7 @@ function checkBank() {
   const bank = INDIA_BANKS[bankCode];
 
   badge.className = 'badge badge-valid';
-  badge.innerHTML = '<span class="badge-dot"></span>Valid';
+  badge.innerHTML = '<span class="badge-dot"></span>Format Valid';
 
   let html = '';
   html += field('Account Number', account, true, true);
@@ -59,3 +63,10 @@ function checkBank() {
 
   fieldsDiv.innerHTML = html;
 }
+
+document.getElementById('ifscInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkBank();
+});
+document.getElementById('accountInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkBank();
+});
