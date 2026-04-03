@@ -1,38 +1,42 @@
 const INDIA_BANKS = {
-  "HDFC": {
-    name: "HDFC Bank",
-    branch: "Head Office",
-    address: "HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai 400013, India",
-    swift: "HDFCINBBXXX"
-  },
-  "ICIC": {
-    name: "ICICI Bank",
-    branch: "Head Office",
-    address: "ICICI Bank Towers, Bandra Kurla Complex, Mumbai 400051, India",
-    swift: "ICICINBBXXX"
-  },
-  "SBIN0000001": {
-    bank: "State Bank of India",
-    branch: "New Delhi Main Branch",
-    address: "11 Parliament Street, New Delhi 110001, India",
-    swift: "SBININBBXXX"
-  },
-  "ICIC0000001": {
-    bank: "ICICI Bank",
-    branch: "Mumbai Main Branch",
-    address: "ICICI Bank Tower, Bandra Kurla Complex, Mumbai 400051, India",
-    swift: "ICICINBBXXX"
-  },
-  "BARB0000001": {
-    bank: "Bank of Baroda",
-    branch: "Mumbai Main Branch",
-    address: "Bank of Baroda Building, Fort, Mumbai, Maharashtra 400001, India",
-    swift: "BARBINBBXXX"
-  },
-  "PUNB0000001": {
-    bank: "Punjab National Bank",
-    branch: "New Delhi Main Branch",
-    address: "PNB House, Rajendra Place, New Delhi 110008, India",
-    swift: "PUNBINBBXXX"
-  }
+  "SBIN": { name: "State Bank of India", swift: "SBININBBXXX", address: "State Bank Bhavan, Madame Cama Road, Nariman Point, Mumbai 400021, India" },
+  "HDFC": { name: "HDFC Bank", swift: "HDFCINBBXXX", address: "HDFC Bank House, Senapati Bapat Marg, Lower Parel, Mumbai 400013, India" },
+  "ICIC": { name: "ICICI Bank", swift: "ICICINBBXXX", address: "ICICI Bank Towers, Bandra Kurla Complex, Mumbai 400051, India" },
+  "AXIS": { name: "Axis Bank", swift: "AXISINBBXXX", address: "Axis Bank Limited, C-2 Wadia International Centre, Worli, Mumbai 400025, India" },
+  "KKBK": { name: "Kotak Mahindra Bank", swift: "KKBKINBBXXX", address: "Kotak Mahindra Bank Ltd, BKC, Mumbai 400051, India" },
+  "YESB": { name: "Yes Bank", swift: "YESBINBBXXX", address: "YES Bank Tower, Elphinstone, Mumbai 400013, India" },
+  "INDB": { name: "IndusInd Bank", swift: "INDBINBBXXX", address: "IndusInd Bank Ltd, Pune 411001, India" },
+  "IDFB": { name: "IDFC First Bank", swift: "IDFBINBBXXX", address: "IDFC First Bank, Naman Chambers, BKC, Mumbai 400051, India" },
+  "PUNB": { name: "Punjab National Bank", swift: "PUNBINBBXXX", address: "PNB House, Rajendra Place, New Delhi 110008, India" },
+  "BARB": { name: "Bank of Baroda", swift: "BARBINBBXXX", address: "Bank of Baroda, Mandvi, Vadodara 390006, India" },
+  "CNRB": { name: "Canara Bank", swift: "CNRBINBBXXX", address: "Canara Bank Head Office, 112 J C Road, Bengaluru 560002, India" },
+  "UBIN": { name: "Union Bank of India", swift: "UBININBBXXX", address: "Union Bank Bhavan, Nariman Point, Mumbai 400021, India" },
+  "IOBA": { name: "Indian Overseas Bank", swift: "IOBAINBBXXX", address: "Indian Overseas Bank, Anna Salai, Chennai 600002, India" },
+  "IDIB": { name: "Indian Bank", swift: "IDIBINBBXXX", address: "Indian Bank Head Office, Rajaji Salai, Chennai 600001, India" },
+  "MAHB": { name: "Bank of Maharashtra", swift: "MAHBINBBXXX", address: "Bank of Maharashtra, Lokmangal, Shivajinagar, Pune 411005, India" },
+  "BKID": { name: "Bank of India", swift: "BKIDINBBXXX", address: "Bank of India, Star House, Bandra East, Mumbai 400051, India" },
+  "CBIN": { name: "Central Bank of India", swift: "CBININBBXXX", address: "Central Bank of India, Nariman Point, Mumbai 400021, India" },
+  "PSIB": { name: "Punjab & Sind Bank", swift: "PSIBINBBXXX", address: "Punjab & Sind Bank, Rajendra Place, New Delhi 110008, India" },
+  "FDRL": { name: "Federal Bank", swift: "FDRLINBBXXX", address: "Federal Bank, Aluva, Kochi 683101, India" },
+  "SIBL": { name: "South Indian Bank", swift: "SIBLINBBXXX", address: "South Indian Bank, Thrissur 680001, India" },
+  "KARU": { name: "Karur Vysya Bank", swift: "KVBLINBBXXX", address: "Karur Vysya Bank, Karur 639002, India" },
+  "TMBL": { name: "Tamilnad Mercantile Bank", swift: "TMBLINBBXXX", address: "TMB Bank, Thoothukudi 628002, India" },
+  "CSBK": { name: "CSB Bank", swift: "CSBKINBBXXX", address: "CSB Bank, Thrissur 680020, India" },
+  "RBLB": { name: "RBL Bank", swift: "RATNINBBXXX", address: "RBL Bank, Kolhapur 416001, India" },
+  "DCBL": { name: "DCB Bank", swift: "DCBLINBBXXX", address: "DCB Bank, Lower Parel, Mumbai 400013, India" },
+  "LAVB": { name: "Lakshmi Vilas Bank", swift: "LAVBINBBXXX", address: "Lakshmi Vilas Bank, Karur 639001, India" },
+  "ESFB": { name: "Equitas Small Finance Bank", swift: "ESFBINBBXXX", address: "Equitas Bank, Chennai 600032, India" },
+  "UJVN": { name: "Ujjivan Small Finance Bank", swift: "UJVNINBBXXX", address: "Ujjivan Bank, Bengaluru 560052, India" },
+  "AUBL": { name: "AU Small Finance Bank", swift: "AUBLINBBXXX", address: "AU Bank, Jaipur 302001, India" },
+  "IPOS": { name: "India Post Payments Bank", swift: "IPOSINBBXXX", address: "IPPB, New Delhi 110001, India" },
+  "PAYT": { name: "Paytm Payments Bank", swift: "PYTMINBBXXX", address: "Paytm Bank, Noida 201301, India" },
+
+  // Foreign banks in India
+  "HSBC": { name: "HSBC Bank India", swift: "HSBCINBBXXX", address: "HSBC, Fort, Mumbai 400001, India" },
+  "CITI": { name: "Citibank India", swift: "CITIINBX", address: "Citibank, Bandra Kurla Complex, Mumbai 400051, India" },
+  "SCBL": { name: "Standard Chartered Bank India", swift: "SCBLINBBXXX", address: "Standard Chartered, BKC, Mumbai 400051, India" },
+  "DEUT": { name: "Deutsche Bank India", swift: "DEUTINBBXXX", address: "Deutsche Bank, Fort, Mumbai 400001, India" },
+  "BNPA": { name: "BNP Paribas India", swift: "BNPAINBBXXX", address: "BNP Paribas, Fort, Mumbai 400001, India" },
+  "DBSS": { name: "DBS Bank India", swift: "DBSSINBBXXX", address: "DBS Bank, Fort, Mumbai 400001, India" },
+  "BARC": { name: "Barclays Bank India", swift: "BARCINBBXXX", address: "Barclays, Nariman Point, Mumbai 400021, India" }
 };
