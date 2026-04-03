@@ -447,6 +447,74 @@ const ES_BANKS = {
 };
 
 // ================================================================
+// MALTA BANK REGISTRY
+// Bank code = characters 5-8 of MT IBAN (4 letters)
+// Example: MT84 [VALL] 0110 0001 2345 MTLC AST0 01S → bank = VALL (Bank of Valletta)
+// Source: Malta Financial Services Authority / SWIFT Registry
+// ================================================================
+const MT_BANKS = {
+  "VALL": { name: "Bank of Valletta (BOV)", swift: "VALLMTMTXXX", address: "58 Zachary Street, Valletta, Malta" },
+  "MALT": { name: "Bank of Valletta (BOV)", swift: "VALLMTMTXXX", address: "58 Zachary Street, Valletta, Malta" },
+  "BOVM": { name: "Bank of Valletta (BOV) → formerly National Bank of Malta", swift: "VALLMTMTXXX", address: "58 Zachary Street, Valletta, Malta" },
+  "MMEB": { name: "HSBC Bank Malta (HSBC)", swift: "MMEBMTMTXXX", address: "116 Archbishop Street, Valletta, Malta" },
+  "APSB": { name: "APS Bank (APS)", swift: "APSBMTMTXXX", address: "APS Centre, Tower Street, Birkirkara, Malta" },
+  "MBRM": { name: "MeDirect Bank (MeDirect) → formerly Mediterranean Bank", swift: "MBRMMTMTXXX", address: "The Centre, Tigne Point, Sliema, Malta" },
+  "BMAL": { name: "Banif Bank Malta (Banif)", swift: "BNIFMTMTXXX", address: "Triq il-Kbira, Sliema, Malta" },
+  "BNFN": { name: "BNF Bank (BNF) → formerly Banif Bank", swift: "BNFNMTMTXXX", address: "203 Level 3, Rue D’Argens, Gzira, Malta" },
+  "FIMB": { name: "FIMBank (FIMBank)", swift: "FIMBMTMXXXX", address: "Mercury Tower, St Julian’s, Malta" },
+  "IZOL": { name: "Izola Bank (Izola)", swift: "IZOLMTMXXXX", address: "53 Abate Rigord Street, Ta' Xbiex, Malta" },
+  "SPBK": { name: "Sparkasse Bank Malta (Sparkasse)", swift: "SBMMMTMXXXX", address: "101 Townsquare, Sliema, Malta" },
+};
+
+// ================================================================
+// CYPRUS BANK REGISTRY
+// Bank code = digits 5-7 of CY IBAN (3 digits)
+// Example: CY17 [002] 001 28 0000000120052760 → bank = 002 (Bank of Cyprus)
+// Source: Central Bank of Cyprus / SWIFT Registry
+// ================================================================
+const CY_BANKS = {
+  "001": { name: "Central Bank of Cyprus (CBC)", swift: "CBCYCY2NXXX", address: "80 Kennedy Avenue, Nicosia, Cyprus" },
+  "002": { name: "Bank of Cyprus (BOC) → merged Laiki Bank / Cyprus Popular Bank", swift: "BCYPCY2NXXX", address: "51 Stassinos Street, Nicosia, Cyprus" },
+  "003": { name: "Hellenic Bank (HB) → acquired assets of RCB Bank", swift: "HEBACY2NXXX", address: "200 Limassol Avenue, Strovolos, Nicosia, Cyprus" },
+  "004": { name: "Eurobank Cyprus (Eurobank)", swift: "ERBKCY2NXXX", address: "41 Arch. Makarios III Avenue, Nicosia, Cyprus" },
+  "005": { name: "Alpha Bank Cyprus (Alpha)", swift: "CRBACY2NXXX", address: "3 Byron Avenue, Nicosia, Cyprus" },
+  "006": { name: "National Bank of Greece Cyprus (NBG)", swift: "ETHNCY2NXXX", address: "46 Makarios Avenue, Nicosia, Cyprus" },
+  "007": { name: "AstroBank (AstroBank) → formerly Piraeus Bank Cyprus", swift: "PIRBCY2NXXX", address: "1 Spyrou Kyprianou Avenue, Nicosia, Cyprus" },
+  "008": { name: "Societe Generale Cyprus (SG)", swift: "SOGECY2NXXX", address: "Limassol, Cyprus" },
+  "009": { name: "RCB Bank (RCB) → formerly Russian Commercial Bank → operations transferred to Hellenic Bank", swift: "RCBKCY2NXXX", address: "97 Makarios Avenue, Nicosia, Cyprus" },
+  "010": { name: "Eurobank EFG Cyprus (Eurobank EFG)", swift: "EFGBCY2NXXX", address: "Limassol, Cyprus" },
+  "011": { name: "Ancoria Bank (Ancoria)", swift: "ANCYCY2NXXX", address: "13 Amathountos Avenue, Limassol, Cyprus" },
+  "012": { name: "Housing Finance Corporation (HFC)", swift: "HFCFCY2NXXX", address: "26 Makarios Avenue, Nicosia, Cyprus" },
+  "013": { name: "Cyprus Development Bank (CDB)", swift: "CDBLCY2NXXX", address: "50 Arch. Makarios III Avenue, Nicosia, Cyprus" },
+};
+
+// ================================================================
+// NETHERLANDS BANK REGISTRY
+// Bank code = characters 5-8 of NL IBAN (4 letters)
+// Example: NL91 [ABNA] 0417 1643 00 → bank = ABNA (ABN AMRO)
+// Source: Dutch Central Bank (DNB) / SWIFT Registry
+// ================================================================
+const NL_BANKS = {
+  "ABNA": { name: "ABN AMRO Bank (ABN AMRO) → merged with Fortis Bank Nederland", swift: "ABNANL2AXXX", address: "Gustav Mahlerlaan 10, 1082 PP Amsterdam, Netherlands" },
+  "INGB": { name: "ING Bank (ING) → merger Internationale Nederlanden Group + NMB Postbank", swift: "INGBNL2AXXX", address: "Bijlmerdreef 106, 1102 CT Amsterdam, Netherlands" },
+  "RABO": { name: "Rabobank (Rabobank) → merger Raiffeisen Bank + Boerenleenbank", swift: "RABONL2UXXX", address: "Croeselaan 18, 3521 CB Utrecht, Netherlands" },
+  "SNSB": { name: "SNS Bank (SNS) → part of Volksbank", swift: "SNSBNL2AXXX", address: "Croeselaan 1, 3521 BJ Utrecht, Netherlands" },
+  "ASNB": { name: "ASN Bank (ASN) → part of Volksbank", swift: "ASNBNL21XXX", address: "Croeselaan 1, 3521 BJ Utrecht, Netherlands" },
+  "RBRB": { name: "RegioBank (RegioBank) → part of Volksbank", swift: "RBRBNL21XXX", address: "Croeselaan 1, 3521 BJ Utrecht, Netherlands" },
+  "TRIO": { name: "Triodos Bank (Triodos)", swift: "TRIONL2UXXX", address: "Hoofdstraat 10, 3972 LA Driebergen-Rijsenburg, Netherlands" },
+  "BUNQ": { name: "bunq Bank (bunq)", swift: "BUNQNL2AXXX", address: "Naritaweg 131-133, 1043 BS Amsterdam, Netherlands" },
+  "KNAB": { name: "Knab Bank (Knab) → formerly Aegon Bank", swift: "KNABNL2HXXX", address: "Hoogoorddreef 15, 1101 BA Amsterdam, Netherlands" },
+  "NWAB": { name: "Nederlandse Waterschapsbank (NWB)", swift: "NWABNL2GXXX", address: "Haagweg 1, 2311 AA Leiden, Netherlands" },
+  "FVLB": { name: "Van Lanschot Kempen (Van Lanschot)", swift: "FVLB NL22XXX", address: "Hooge Steenweg 29, 5211 JN 's-Hertogenbosch, Netherlands" },
+  "HAND": { name: "Handelsbanken Netherlands (Handelsbanken)", swift: "HANDNL2AXXX", address: "Herengracht 450, 1017 CA Amsterdam, Netherlands" },
+  "HHBA": { name: "Hof Hoorneman Bankiers (HHB)", swift: "HHBANL2AXXX", address: "Gustav Mahlerplein 70, Amsterdam, Netherlands" },
+  "KASA": { name: "KAS Bank → merged with CACEIS Bank", swift: "KASANL2AXXX", address: "Nieuwezijds Voorburgwal 225, Amsterdam, Netherlands" },
+  "CACE": { name: "CACEIS Bank (CACEIS)", swift: "CACE NL2AXXX", address: "De Entree 500, Amsterdam, Netherlands" },
+  "BKCH": { name: "Bank of China Netherlands (BOC)", swift: "BKCHNL2AXXX", address: "WTC Tower, Amsterdam, Netherlands" },
+  "ICBC": { name: "ICBC Netherlands (ICBC)", swift: "ICBKNL2AXXX", address: "Amsterdam, Netherlands" },
+};
+
+// ================================================================
 // COUNTRY IBAN REGISTRY
 // Contains all supported countries with IBAN lengths and currencies
 // ================================================================
