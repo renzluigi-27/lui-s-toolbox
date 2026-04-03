@@ -408,7 +408,7 @@ const BE_BANKS = {
   "732": { name: "CBC Banque SA (CBC) → subsidiary of KBC Bank NV", swift: "KREDBEBBXXX", address: "Avenue Albert II 2, Brussels 1000, Belgium" },
   "734": { name: "KBC Bank NV", swift: "KREDBEBBXXX", address: "Havenlaan 2, Brussels 1080, Belgium" },
   "877": { name: "Byblos Bank Europe SA", swift: "BYBABEBBXXX", address: "Rue des Colonies 11, Brussels 1000, Belgium" },
-  "903": { name: "Paynovate SA (Paynovate)", swift: "PNVABE22XXX", address: "Cantersteen 47, Brussels 1000, Belgium" },
+  "903": { name: "Wise Europe SA (via Paynovate)", swift: "TRWIBEBBXXX", address: "Rue du Trône 100, Floor 3, Brussels 1050, Belgium" },
   "905": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
   "967": { name: "Wise Europe SA", swift: "TRWIBEBBXXX", address: "Rue du Trône 100, Floor 3, Brussels 1050, Belgium" },
   "979": { name: "Bank of New York Mellon SA/NV", swift: "IRVTBEBBXXX", address: "Avenue des Arts 46, Brussels 1000, Belgium" }
