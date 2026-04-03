@@ -386,16 +386,32 @@ const BG_BANKS = {
 // payment data are listed here; others fall through to AnyAPI.
 // ================================================================
 const BE_BANKS = {
+  "000": { name: "bpost bank NV/SA", swift: "BPOTBEB1XXX", address: "Rue du Marquis 1, Brussels 1000, Belgium" },
+  "001": { name: "BNP Paribas Fortis SA/NV (BNP Paribas Fortis)", swift: "GEBABEBBXXX", address: "Montagne du Parc 3, Brussels 1000, Belgium" },
+  "063": { name: "Belfius Bank SA/NV (Belfius)", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "068": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "075": { name: "Bank Van Breda NV", swift: "BBRUBEBBXXX", address: "Ledeganckkaai 7, Antwerp 2000, Belgium" },
   "096": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
   "097": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
+  "103": { name: "Crelan SA/NV", swift: "NICABEBBXXX", address: "Sylvain Dupuislaan 251, Brussels 1070, Belgium" },
+  "132": { name: "Delen Private Bank NV", swift: "DELBEBBXXX", address: "Jan Van Rijswijcklaan 184, Antwerp 2020, Belgium" },
+  "217": { name: "Puilaetco Dewaay Private Bankers SA", swift: "PUIDBEBBXXX", address: "Avenue Herrmann-Debroux 46, Brussels 1160, Belgium" },
   "230": { name: "ING Belgium NV/SA", swift: "BBRUBEBBXXX", address: "Avenue Marnix 24, Brussels 1000, Belgium" },
+  "299": { name: "bpost bank NV/SA", swift: "BPOTBEB1XXX", address: "Rue du Marquis 1, Brussels 1000, Belgium" },
   "310": { name: "BNP Paribas Fortis SA/NV", swift: "GEBABEBBXXX", address: "Montagne du Parc 3, Brussels 1000, Belgium" },
-  "363": { name: "Beobank NV/SA", swift: "CTBKBEBXXXX", address: "Boulevard du Roi Albert II 7B, Brussels 1210, Belgium" },
+  "340": { name: "Triodos Bank Belgium", swift: "TRIOBEBBXXX", address: "Rue Haute 139, Brussels 1000, Belgium" },
+  "363": { name: "Beobank NV/SA", swift: "CTBKBEBBXXX", address: "Boulevard du Roi Albert II 7B, Brussels 1210, Belgium" },
   "523": { name: "Argenta Spaarbank NV", swift: "ARSPBE22XXX", address: "Belgiëlei 49-53, Antwerp 2018, Belgium" },
   "539": { name: "ING Belgium NV/SA", swift: "BBRUBEBBXXX", address: "Avenue Marnix 24, Brussels 1000, Belgium" },
+  "547": { name: "Hello Bank SA/NV (Hello Bank) → subsidiary of BNP Paribas Fortis", swift: "GEBABEBBXXX", address: "Montagne du Parc 3, Brussels 1000, Belgium" },
+  "651": { name: "Keytrade Bank NV (Keytrade)", swift: "KEYTBEBBXXX", address: "Boulevard du Souverain 100, Brussels 1170, Belgium" },
+  "732": { name: "CBC Banque SA (CBC) → subsidiary of KBC Bank NV", swift: "KREDBEBBXXX", address: "Avenue Albert II 2, Brussels 1000, Belgium" },
   "734": { name: "KBC Bank NV", swift: "KREDBEBBXXX", address: "Havenlaan 2, Brussels 1080, Belgium" },
+  "877": { name: "Byblos Bank Europe SA", swift: "BYBABEBBXXX", address: "Rue des Colonies 11, Brussels 1000, Belgium" },
+  "903": { name: "Paynovate SA (Paynovate)", swift: "PNVABE22XXX", address: "Cantersteen 47, Brussels 1000, Belgium" },
   "905": { name: "Belfius Bank SA/NV", swift: "GKCCBEBBXXX", address: "Place Charles Rogier 11, Brussels 1210, Belgium" },
   "967": { name: "Wise Europe SA", swift: "TRWIBEBBXXX", address: "Rue du Trône 100, Floor 3, Brussels 1050, Belgium" },
+  "979": { name: "Bank of New York Mellon SA/NV", swift: "IRVTBEBBXXX", address: "Avenue des Arts 46, Brussels 1000, Belgium" }
 };
 
 // ================================================================
