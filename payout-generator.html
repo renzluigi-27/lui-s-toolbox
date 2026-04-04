@@ -100,18 +100,18 @@
 
     /* Table */
     .table-wrap { overflow-x: auto; overflow-y: auto; max-height: 500px; border-radius: var(--radius-md); border: 0.5px solid var(--border); }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
     thead th { background: var(--surface2); padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-hint); white-space: nowrap; border-bottom: 0.5px solid var(--border); }
     tbody tr { border-bottom: 0.5px solid var(--border); transition: background 0.1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface2); }
     tbody td { padding: 9px 12px; vertical-align: middle; }
     .td-mono { font-family: var(--font-mono); font-size: 12px; }
-    .td-name { font-weight: 500; min-width: 160px; }
+    .td-name { font-weight: 500; width: 160px; min-width: 160px; }
     .td-num { font-family: var(--font-mono); text-align: right; }
     .td-deduct { font-family: var(--font-mono); text-align: right; color: var(--red-text); }
     .td-due { font-family: var(--font-mono); text-align: right; font-weight: 600; }
-    .td-note { font-size: 10px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .td-note { font-size: 10px; width: 150px; min-width: 150px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-md); }
     .badge-warn { background: var(--yellow-bg); color: var(--yellow-text); }
