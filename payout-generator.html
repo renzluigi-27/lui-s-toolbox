@@ -90,7 +90,7 @@
     .msg.show { display: block; }
     .msg.error { background: var(--red-bg); color: var(--red-text); }
     .msg.info  { background: var(--blue-bg); color: var(--blue-text); }
-    .msg.warn  { background: var(--yellow-bg); color: var(--yellow-text); }
+    .msg.warn  { background: var(--yellow-bg); color: var(--yellow-text); max-height: 120px; overflow-y: auto; }
 
     /* Stats */
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.25rem; }
