@@ -949,7 +949,7 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
   }
 
   // Table
-  const preview = results.slice(0, 5);
+  const preview = results.slice(0, 100);
   document.getElementById('previewBody').innerHTML = preview.map((r, i) => `
     <tr>
       <td class="td-mono" style="color:var(--text-hint)">${i+1}</td>
