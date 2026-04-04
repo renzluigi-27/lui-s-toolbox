@@ -7,6 +7,9 @@
 <title>IP Deduction Tool</title>
 
 <style>
+@media (max-width: 480px) { header h1 { font-size: 20px; } }
+@media (min-width: 1200px) { header h1 { font-size: 30px; } .card { padding: 1.8rem; } }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg: #f5f4f0; --surface: #ffffff; --surface2: #f1efe8;
@@ -38,7 +41,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 3rem 1rem 4rem;
+  padding: 1.5rem 1rem 2rem;
 }
 
 /* ── Back nav ── */
@@ -57,7 +60,7 @@ body {
 
 header {
   text-align: center;
-  margin-bottom: 2.5rem;
+  margin-bottom: 1.2rem;
 }
 header h1 {
   font-size: 26px;
@@ -72,7 +75,7 @@ header p {
 
 .container {
   width: 100%;
-  max-width: 660px;
+  max-width: 860px;
 }
 
 /* ── Section label ── */
@@ -245,7 +248,7 @@ tbody tr:hover td { background: var(--surface2); }
 footer {
   margin-top: 3rem;
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-hint);
   line-height: 1.8;
 }
