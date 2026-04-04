@@ -106,12 +106,12 @@
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface2); }
     tbody td { padding: 9px 12px; vertical-align: middle; }
-    .td-mono { font-family: var(--font-mono); font-size: 12px; }
+    .td-mono { font-family: var(--font-mono); font-size: 12px; text-align: center; }
     .td-name { font-weight: 500; width: 160px; min-width: 160px; }
-    .td-num { font-family: var(--font-mono); text-align: right; }
-    .td-deduct { font-family: var(--font-mono); text-align: right; color: var(--red-text); }
-    .td-due { font-family: var(--font-mono); text-align: right; font-weight: 600; }
-    .td-note { font-size: 10px; width: 150px; min-width: 150px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .td-num { font-family: var(--font-mono); text-align: center; }
+    .td-deduct { font-family: var(--font-mono); text-align: center; color: var(--red-text); }
+    .td-due { font-family: var(--font-mono); text-align: center; font-weight: 600; }
+    .td-note { font-size: 10px; width: 150px; min-width: 150px; max-width: 150px; }
 
     .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-md); }
     .badge-warn { background: var(--yellow-bg); color: var(--yellow-text); }
@@ -237,17 +237,12 @@
         <table>
           <thead>
             <tr>
-              <th>#</th>
+			  <th>#</th>
               <th>Name of Clients</th>
-              <th>Client Type</th>
-              <th>First Payout Date</th>
-              <th>Monthly Rental</th>
-              <th>Deduction</th>
-              <th>Rental Due</th>
-              <th>Account Number</th>
-              <th>IBAN Number</th>
-              <th>SWIFT Code</th>
-              <th>Bank Name</th>
+              <th style="text-align:center">First Payout Date</th>
+              <th style="text-align:center">Monthly Rental</th>
+              <th style="text-align:center">Deduction</th>
+              <th style="text-align:center">Rental Due</th>
               <th>Notes</th>
             </tr>
           </thead>
@@ -949,21 +944,16 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
   }
 
   // Table
-  const previewCount = 100;
+  const previewCount = 50;
   const preview = results.slice(0, previewCount);
   document.getElementById('previewBody').innerHTML = preview.map((r, i) => `
     <tr>
-      <td class="td-mono" style="color:var(--text-hint)">${i+1}</td>
+	  <td style="color:var(--text-hint);font-family:var(--font-mono);font-size:11px;">${i+1}</td>
       <td class="td-name">${esc(r.clientName)}</td>
-      <td>${esc(r.clientType) || "—"}</td>
       <td class="td-mono">${r.firstPayoutDisplay || '—'}</td>
       <td class="td-num">${fmt(r.totalReturn)}</td>
       <td class="td-deduct">${r.totalDeduction > 0 ? fmt(r.totalDeduction) : '—'}</td>
       <td class="td-due">${fmt(r.rentalDue)}</td>
-      <td class="td-mono">${r.accountNo ? String(r.accountNo) : '—'}</td>
-      <td class="td-mono">${r.iban ? String(r.iban) : '—'}</td>
-      <td class="td-mono">${r.swift ? String(r.swift) : '—'}</td>
-      <td style="font-size:12px">${esc(r.bankName) || '—'}</td>
       <td class="td-note">${renderNote(r.note)}</td>
     </tr>
   `).join('');
