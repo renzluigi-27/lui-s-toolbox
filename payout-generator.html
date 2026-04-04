@@ -99,7 +99,7 @@
     .stat-box .stat-lbl { font-size: 11px; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 500; }
 
     /* Table */
-    .table-wrap { overflow-x: auto; overflow-y: auto; max-height: 500px; border-radius: var(--radius-md); border: 0.5px solid var(--border); }
+    .table-wrap { overflow-x: auto; overflow-y: auto; max-height: 600px; border-radius: var(--radius-md); border: 0.5px solid var(--border); }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
     thead th { background: var(--surface2); padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-hint); white-space: nowrap; border-bottom: 0.5px solid var(--border); }
     tbody tr { border-bottom: 0.5px solid var(--border); transition: background 0.1s; }
@@ -944,7 +944,7 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
   }
 
   // Table
-  const previewCount = 50;
+  const previewCount = 10;
   const preview = results.slice(0, previewCount);
   document.getElementById('previewBody').innerHTML = preview.map((r, i) => `
     <tr>
