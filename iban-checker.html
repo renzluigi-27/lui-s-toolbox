@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IBAN Checker — UAE & International</title>
   <style>
+
+.country-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+    
 .back-link {
   align-self: flex-start;
   font-size: 13px;
@@ -104,11 +113,11 @@
   <div class="card">
     <div class="examples">
       <h3>Supported Countries</h3>
-      <div id="supported-countries" class="example-list"></div>
+      <div id="supported-countries" class="country-list"></div>
     </div>
     <div class="examples" style="margin-top:1.25rem;">
       <h3>No IBAN (Recognized)</h3>
-      <div id="noiban-countries" class="example-list"></div>
+      <div id="noiban-countries" class="country-list"></div>
     </div>
   </div>
 </div>
@@ -557,7 +566,7 @@ document.getElementById('ibanInput').addEventListener('keydown', e => {
   Object.values(COUNTRY_IBAN).forEach(c => {
     const chip = document.createElement('span');
     chip.className = 'example-chip';
-    chip.textContent = `${c.flag} ${c.country}`;
+    chip.innerHTML = `${c.flag} ${c.country}`;
     (c.noIBAN ? noiban : supported).appendChild(chip);
   });
 })();
@@ -602,8 +611,8 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     <div style="font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;max-width:280px;line-height:1.6;">
       This tool is best viewed on a PC or laptop. Some features may not work properly on mobile.
     </div>
-    <button onclick="this.parentElement.remove()" style="padding:0 24px;height:44px;font-size:14px;">
-      Continue Anyway
+    <button onclick="history.back()" style="padding:0 24px;height:44px;font-size:14px;">
+      ← Go Back
     </button>
   `;
   document.body.appendChild(overlay);
