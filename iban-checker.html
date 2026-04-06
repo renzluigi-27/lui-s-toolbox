@@ -116,8 +116,12 @@
 <div class="container" style="margin-top:1rem;">
   <div class="card">
     <div class="examples">
-      <h3>Supported Countries</h3>
-      <div id="supported-countries" class="country-list"></div>
+      <h3>In Database</h3>
+      <div id="db-countries" class="country-list"></div>
+    </div>
+    <div class="examples" style="margin-top:1.25rem;">
+      <h3>IBAN Supported — Coming Soon</h3>
+      <div id="soon-countries" class="country-list"></div>
     </div>
     <div class="examples" style="margin-top:1.25rem;">
       <h3>No IBAN (Recognized)</h3>
@@ -565,13 +569,18 @@ document.getElementById('ibanInput').addEventListener('keydown', e => {
 });
 
 (function(){
-  const supported = document.getElementById('supported-countries');
-  const noiban = document.getElementById('noiban-countries');
-  Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
-    const chip = document.createElement('span');
-    chip.className = 'example-chip';
-    chip.innerHTML = `<img src="https://flagcdn.com/16x12/${code.toLowerCase()}.png" style="margin-right:5px;vertical-align:middle;">${c.country}`;
-    (c.noIBAN ? noiban : supported).appendChild(chip);
+const IN_DB = ['AE','SA','QA','KW','BH','OM','JO','TR','PK','EG','GB','BG','BE','LT','ES','MT','CY','NL'];
+Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
+  const chip = document.createElement('span');
+  chip.className = 'example-chip';
+  chip.innerHTML = `<img src="https://flagcdn.com/16x12/${code.toLowerCase()}.png" style="margin-right:5px;vertical-align:middle;">${c.country}`;
+  if (c.noIBAN) {
+    document.getElementById('noiban-countries').appendChild(chip);
+  } else if (IN_DB.includes(code)) {
+    document.getElementById('db-countries').appendChild(chip);
+  } else {
+    document.getElementById('soon-countries').appendChild(chip);
+  }
 });
 })();
   
