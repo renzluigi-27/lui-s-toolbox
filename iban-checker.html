@@ -100,6 +100,19 @@
   </div>
 </div>
 
+<div class="container" style="margin-top:1rem;">
+  <div class="card">
+    <div class="examples">
+      <h3>Supported Countries</h3>
+      <div id="supported-countries" class="example-list"></div>
+    </div>
+    <div class="examples" style="margin-top:1.25rem;">
+      <h3>No IBAN (Recognized)</h3>
+      <div id="noiban-countries" class="example-list"></div>
+    </div>
+  </div>
+</div>
+
 <footer>
   All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
 </footer>
@@ -537,6 +550,18 @@ function useExample(iban) {
 document.getElementById('ibanInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') checkIBAN();
 });
+
+(function(){
+  const supported = document.getElementById('supported-countries');
+  const noiban = document.getElementById('noiban-countries');
+  Object.values(COUNTRY_IBAN).forEach(c => {
+    const chip = document.createElement('span');
+    chip.className = 'example-chip';
+    chip.textContent = `${c.flag} ${c.country}`;
+    (c.noIBAN ? noiban : supported).appendChild(chip);
+  });
+})();
+  
 </script>
 <script>
 document.addEventListener('contextmenu', e => e.preventDefault());
