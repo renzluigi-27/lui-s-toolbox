@@ -184,6 +184,17 @@
     All tools run entirely in your browser &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
   </footer>
 
+<script>
+const PASSWORD = "0904"; // change this
+
+const userPass = prompt("Enter password:");
+
+if (userPass !== PASSWORD) {
+  document.body.innerHTML = "<h3 style='font-family:sans-serif;text-align:center;margin-top:50px;'>Access Denied</h3>";
+}
+</script>
+
+  
   <script>
     const WEB_APP_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
 
