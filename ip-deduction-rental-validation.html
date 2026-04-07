@@ -5,6 +5,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>IP Deduction Tool</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
 
 <style>
 @media (max-width: 480px) { header h1 { font-size: 20px; } }
@@ -256,6 +257,8 @@ footer {
 </head>
 
 <body>
+  <div class="page-container">
+    <div class="content">
 
 <div class="container">
   <a class="back-link" href="index.html">&#8592; Back to Tools</a>
@@ -291,11 +294,6 @@ footer {
   </div>
 
 </div>
-
-<footer>
-  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-</footer>
-
 <script src="xlsx.full.min.js"></script>
 <script src="app.js"></script>
 
@@ -329,28 +327,17 @@ document.getElementById('file2').addEventListener('change', function() {
   validateFile("file2", "card2", "name2", "deduction list.xlsx");
 });
 </script>
-<script>
-document.addEventListener('contextmenu', e => e.preventDefault());
+    </div>
+    <div id="footer"></div>
+  </div>
 
-document.addEventListener('keydown', function(e) {
-  // F12
-  if (e.key === "F12") e.preventDefault();
-
-  // Ctrl+Shift+I
-  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
-
-  // Ctrl+Shift+J
-  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
-
-  // Ctrl+U (view source)
-  if (e.ctrlKey && e.key === "u") e.preventDefault();
-
-  // Ctrl+S (save page)
-  if (e.ctrlKey && e.key === "s") e.preventDefault();
-
-  // Ctrl+Shift+C (inspect element)
-  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
-});
-</script>
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
+  <script src="/assets/js/security.js"></script>
 </body>
 </html>

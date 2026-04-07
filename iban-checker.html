@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>IBAN Checker — UAE & International</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
   <style>
 
 .country-list {
@@ -89,6 +90,8 @@
    </style>
 </head>
 <body>
+  <div class="page-container">
+    <div class="content">
 <header>
   <h1>IBAN Checker</h1>
   <p>Validate UAE &amp; international IBANs — runs entirely in your browser, no data sent anywhere</p>
@@ -129,10 +132,6 @@
     </div>
   </div>
 </div>
-
-<footer>
-  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-</footer>
 <script src="banks.js"></script>
 <script>
 
@@ -585,31 +584,20 @@ Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
 })();
   
 </script>
-<script>
-document.addEventListener('contextmenu', e => e.preventDefault());
-
-document.addEventListener('keydown', function(e) {
-  // F12
-  if (e.key === "F12") e.preventDefault();
-
-  // Ctrl+Shift+I
-  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
-
-  // Ctrl+Shift+J
-  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
-
-  // Ctrl+U (view source)
-  if (e.ctrlKey && e.key === "u") e.preventDefault();
-
-  // Ctrl+S (save page)
-  if (e.ctrlKey && e.key === "s") e.preventDefault();
-
-  // Ctrl+Shift+C (inspect element)
-  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
-});
-</script>
 
 
   
+    </div>
+    <div id="footer"></div>
+  </div>
+
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
+  <script src="/assets/js/security.js"></script>
 </body>
 </html>
