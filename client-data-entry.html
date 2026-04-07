@@ -196,7 +196,7 @@ if (userPass !== PASSWORD) {
 
   
   <script>
-    const WEB_APP_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQVXGFYy3aD8eR2ClRR6D6CD6NoWwLN2NX6xIAxnnpC0qQbvf0Yz3tYlv4kaIY9l-UHA/exec";
 
     document.getElementById("clientForm").addEventListener("submit", async function (e) {
       e.preventDefault();
@@ -212,7 +212,7 @@ if (userPass !== PASSWORD) {
       });
 
       try {
-        const response = await fetch("https://script.google.com/macros/s/AKfycbyQVXGFYy3aD8eR2ClRR6D6CD6NoWwLN2NX6xIAxnnpC0qQbvf0Yz3tYlv4kaIY9l-UHA/exec", {
+        const response = await fetch(WEB_APP_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -233,10 +233,6 @@ if (userPass !== PASSWORD) {
       }
     });
   </script>
-
-// Disable generate button until file is loaded
-document.getElementById('generateBtn').disabled = true;
-</script>
 <script>
 document.addEventListener('contextmenu', e => e.preventDefault());
 
