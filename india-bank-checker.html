@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>India Bank Checker — Lui's Toolbox</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
 
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -246,6 +247,8 @@ footer {
 </style>
 </head>
 <body>
+  <div class="page-container">
+    <div class="content">
 
 <header>
   <h1>India Bank Checker</h1>
@@ -275,25 +278,21 @@ footer {
   </div>
 
 </div>
-
-<footer>
-  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-</footer>
-
 <script src="india-banks.js"></script>
 <script src="india-checker.js"></script>
 
-<script>
-document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('keydown', function(e) {
-  if (e.key === "F12") e.preventDefault();
-  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
-  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
-  if (e.ctrlKey && e.key === "u") e.preventDefault();
-  if (e.ctrlKey && e.key === "s") e.preventDefault();
-  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
-});
-</script>
 
+    </div>
+    <div id="footer"></div>
+  </div>
+
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
+  <script src="/assets/js/security.js"></script>
 </body>
 </html>

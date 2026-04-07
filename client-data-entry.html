@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Client Data Entry</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -143,6 +144,8 @@
   </style>
 </head>
 <body>
+  <div class="page-container">
+    <div class="content">
   <header>
     <h1>Client Data Entry</h1>
     <p>Submit client records to Google Sheets</p>
@@ -152,7 +155,12 @@
     <a class="back-link" href="index.html">&#8592; Back to Tools</a>
     <div class="card">
       <div class="section-label">Form</div>
-      <form id="clientForm">
+      <div id="authSection">
+        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" /></div>
+        <button class="run-btn" type="button" onclick="checkPassword()">Unlock</button>
+        <p id="authStatus"></p>
+      </div>
+      <form id="clientForm" style="display:none;">
         <div class="form-grid">
           <div class="field"><label for="quantity">Quantity</label><input id="quantity" type="number" name="Quantity" min="1" value="1" required /></div>
           <div class="field"><label for="contractNo">Contract No</label><input id="contractNo" type="text" name="Contract No" required /></div>
@@ -180,21 +188,25 @@
     </div>
   </div>
 
-  <footer>
-    All tools run entirely in your browser &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-  </footer>
-
-<script>
-const PASSWORD = "0904"; // change this
-
-const userPass = prompt("Enter password:");
-
-if (userPass !== PASSWORD) {
-  document.body.innerHTML = "<h3 style='font-family:sans-serif;text-align:center;margin-top:50px;'>Access Denied</h3>";
-}
-</script>
-
   
+  <script>
+    function checkPassword() {
+      const passwordInput = document.getElementById("password");
+      const authStatus = document.getElementById("authStatus");
+      const authSection = document.getElementById("authSection");
+      const form = document.getElementById("clientForm");
+
+      if (passwordInput.value !== "rlpgulla") {
+        authStatus.textContent = "Access Denied";
+        return;
+      }
+
+      authStatus.textContent = "";
+      authSection.style.display = "none";
+      form.style.display = "block";
+    }
+  </script>
+
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQVXGFYy3aD8eR2ClRR6D6CD6NoWwLN2NX6xIAxnnpC0qQbvf0Yz3tYlv4kaIY9l-UHA/exec";
 
@@ -234,29 +246,18 @@ if (userPass !== PASSWORD) {
     });
   </script>
 
-<script>
-document.addEventListener('contextmenu', e => e.preventDefault());
-
-document.addEventListener('keydown', function(e) {
-  // F12
-  if (e.key === "F12") e.preventDefault();
-
-  // Ctrl+Shift+I
-  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
-
-  // Ctrl+Shift+J
-  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
-
-  // Ctrl+U (view source)
-  if (e.ctrlKey && e.key === "u") e.preventDefault();
-
-  // Ctrl+S (save page)
-  if (e.ctrlKey && e.key === "s") e.preventDefault();
-
-  // Ctrl+Shift+C (inspect element)
-  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
-});
-</script>
   
+    </div>
+    <div id="footer"></div>
+  </div>
+
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
+  <script src="/assets/js/security.js"></script>
 </body>
 </html>
