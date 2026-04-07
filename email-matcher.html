@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Email Matcher</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
   <style>
   @media (max-width: 480px) { header h1 { font-size: 20px; } }
   @media (min-width: 1200px) { header h1 { font-size: 30px; } .card { padding: 1.8rem; } }
@@ -110,6 +111,8 @@
   </style>
 </head>
 <body>
+  <div class="page-container">
+    <div class="content">
 
 <header>
   <h1>Email Matcher</h1>
@@ -167,11 +170,6 @@
     </table>
   </div>
 </div>
-
-<footer>
-  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-</footer>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   let emailSheetData = null;
@@ -392,5 +390,16 @@ document.addEventListener('keydown', function(e) {
   if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
 });
 </script>
+    </div>
+    <div id="footer"></div>
+  </div>
+
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
 </body>
 </html>

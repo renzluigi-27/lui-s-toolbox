@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Payout Generator</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
 	@media (max-width: 480px) { header h1 { font-size: 20px; } }
@@ -129,6 +130,8 @@
   </style>
 </head>
 <body>
+  <div class="page-container">
+    <div class="content">
 
 <header>
   <h1>Payout Generator</h1>
@@ -254,11 +257,6 @@
   </div>
 
 </div>
-
-<footer>
-  All tools run entirely in your browser &nbsp;&middot;&nbsp; No data is uploaded or stored &nbsp;&middot;&nbsp; Renz Luigi v1.6.4 &copy; 2026
-</footer>
-
 <script>
 // ─────────────────────────────────────────────────────────────────
 // STATE
@@ -1154,5 +1152,16 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 }
 </script>
 	
+    </div>
+    <div id="footer"></div>
+  </div>
+
+  <script>
+  fetch('/components/footer.html')
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById('footer').innerHTML = data;
+    });
+  </script>
 </body>
 </html>
