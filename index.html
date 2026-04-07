@@ -351,29 +351,6 @@
     </div>
   </div>
 </div>
-<script>
-document.addEventListener('contextmenu', e => e.preventDefault());
-
-document.addEventListener('keydown', function(e) {
-  // F12
-  if (e.key === "F12") e.preventDefault();
-
-  // Ctrl+Shift+I
-  if (e.ctrlKey && e.shiftKey && e.key === "I") e.preventDefault();
-
-  // Ctrl+Shift+J
-  if (e.ctrlKey && e.shiftKey && e.key === "J") e.preventDefault();
-
-  // Ctrl+U (view source)
-  if (e.ctrlKey && e.key === "u") e.preventDefault();
-
-  // Ctrl+S (save page)
-  if (e.ctrlKey && e.key === "s") e.preventDefault();
-
-  // Ctrl+Shift+C (inspect element)
-  if (e.ctrlKey && e.shiftKey && e.key === "C") e.preventDefault();
-});
-</script>
     </div>
     <div id="footer"></div>
   </div>
@@ -385,5 +362,6 @@ document.addEventListener('keydown', function(e) {
       document.getElementById('footer').innerHTML = data;
     });
   </script>
+  <script src="/assets/js/security.js"></script>
 </body>
 </html>
