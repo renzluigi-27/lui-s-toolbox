@@ -33,8 +33,9 @@
       flex-direction: column;
       align-items: center;
       padding: 1.5rem 1rem 2rem;
+      justify-content: flex-start;
     }
-    header { text-align: center; margin-bottom: 1.2rem; width: 100%; max-width: 1400px; }
+    header { text-align: center; margin-bottom: 0.6rem; width: 100%; max-width: 1400px; }
     header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
     header p { font-size: 14px; color: var(--text-muted); }
     .container { width: 100%; max-width: 1400px; }
@@ -71,7 +72,7 @@
     .form-grid {
       display: grid;
       grid-template-columns: 3fr 1fr;
-      gap: 12px;
+      gap: 8px;
     }
     @media (max-width: 1024px) {
    .form-grid { grid-template-columns: 1fr 1fr; }
@@ -81,7 +82,7 @@
    .form-grid { grid-template-columns: 1fr; }
     }
 
-    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field { display: flex; flex-direction: column; gap: 3px; }
     .field label {
       font-size: 11px;
       font-weight: 500;
@@ -96,8 +97,8 @@
       border-radius: var(--radius-md);
       color: var(--text);
       font-family: var(--font-sans);
-      font-size: 14px;
-      padding: 9px 10px;
+      font-size: 13px;
+      padding: 6px 8px;
       outline: none;
     }
     .field input:focus, .field select:focus {
@@ -141,7 +142,7 @@
 
     footer { margin-top: 2rem; text-align: center; font-size: 13px; color: var(--text-hint); line-height: 1.8; }
     @media (max-width: 480px) { header h1 { font-size: 20px; } }
-    @media (min-width: 1200px) { header h1 { font-size: 30px; } .card { padding: 1.8rem; } }
+    @media (min-width: 1200px) { header h1 { font-size: 30px; } .card { padding: 1rem; } }
   </style>
 </head>
 <body>
