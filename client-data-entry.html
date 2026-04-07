@@ -188,9 +188,15 @@
     </div>
   </div>
 <script>
-const PASSWORD = "0904"; // change this
+    const PASSWORD = "rlpgulla";
 
-      if (passwordInput.value !== "rlpgulla") {
+    function checkPassword() {
+      const passwordInput = document.getElementById("password");
+      const authStatus = document.getElementById("authStatus");
+      const authSection = document.getElementById("authSection");
+      const form = document.getElementById("clientForm");
+
+      if (passwordInput.value !== PASSWORD) {
         authStatus.textContent = "Access Denied";
         return;
       }
@@ -242,8 +248,9 @@ const PASSWORD = "0904"; // change this
 
   
     </div>
-    <div id="footer"></div>
   </div>
+
+  <div id="footer"></div>
 
   <script>
   fetch('/components/footer.html')
