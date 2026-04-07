@@ -155,7 +155,12 @@
     <a class="back-link" href="index.html">&#8592; Back to Tools</a>
     <div class="card">
       <div class="section-label">Form</div>
-      <form id="clientForm">
+      <div id="authSection">
+        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" /></div>
+        <button class="run-btn" type="button" onclick="checkPassword()">Unlock</button>
+        <p id="authStatus"></p>
+      </div>
+      <form id="clientForm" style="display:none;">
         <div class="form-grid">
           <div class="field"><label for="quantity">Quantity</label><input id="quantity" type="number" name="Quantity" min="1" value="1" required /></div>
           <div class="field"><label for="contractNo">Contract No</label><input id="contractNo" type="text" name="Contract No" required /></div>
@@ -185,14 +190,17 @@
 <script>
 const PASSWORD = "0904"; // change this
 
-const userPass = prompt("Enter password:");
+      if (passwordInput.value !== "rlpgulla") {
+        authStatus.textContent = "Access Denied";
+        return;
+      }
 
-if (userPass !== PASSWORD) {
-  document.body.innerHTML = "<h3 style='font-family:sans-serif;text-align:center;margin-top:50px;'>Access Denied</h3>";
-}
-</script>
+      authStatus.textContent = "";
+      authSection.style.display = "none";
+      form.style.display = "block";
+    }
+  </script>
 
-  
   <script>
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQVXGFYy3aD8eR2ClRR6D6CD6NoWwLN2NX6xIAxnnpC0qQbvf0Yz3tYlv4kaIY9l-UHA/exec";
 
