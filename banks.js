@@ -1510,7 +1510,7 @@ const BE_BANKS = {
 },
   "132": { 
    name: "Delen Private Bank NV", 
-   swift: "DELBEBBXXX", 
+   swift: "DELBBEBBXXX", 
    address: "Jan Van Rijswijcklaan 184, Antwerp 2020, Belgium" 
 },
   "217": { 
@@ -1964,7 +1964,7 @@ const NL_BANKS = {
 },
   "FVLB": { 
    name: "Van Lanschot Kempen (Van Lanschot)", 
-   swift: "FVLB NL22XXX", 
+   swift: "FVLBNL22XXX", 
    address: "Hooge Steenweg 29, 5211 JN 's-Hertogenbosch, Netherlands" 
 },
   "HAND": { 
@@ -1984,7 +1984,7 @@ const NL_BANKS = {
 },
   "CACE": { 
    name: "CACEIS Bank (CACEIS)", 
-   swift: "CACE NL2AXXX", 
+   swift: "CACENL2AXXX", 
    address: "De Entree 500, Amsterdam, Netherlands" 
 },
   "BKCH": { 
