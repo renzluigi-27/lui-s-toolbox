@@ -32,14 +32,24 @@
         payload[key] = value;
       });
 
+      console.log("[client-data-entry] payload:", payload);
+
       try {
         const response = await fetch(WEB_APP_URL, {
           method: "POST",
+          mode: "cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
-        const result = await response.json();
+        console.log("[client-data-entry] response:", response);
+
+        let result = { success: response.ok };
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          result = await response.json();
+        }
+
         if (result.success) {
           status.className = "success";
           status.textContent = "Submitted successfully.";
@@ -49,6 +59,7 @@
           status.textContent = "Submission failed.";
         }
       } catch (error) {
+        console.log("[client-data-entry] error:", error);
         status.className = "error";
         status.textContent = "Error submitting form.";
       }
