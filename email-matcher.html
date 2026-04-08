@@ -60,13 +60,6 @@
     .upload-zone-filename { font-size: 12px; color: var(--green-text); font-family: var(--font-mono); margin-top: 6px; }
     .file-input { display: none; }
     .hint { font-size: 12px; color: var(--text-hint); margin-top: 6px; }
-    .config-section { margin-top: 1rem; padding-top: 1rem; border-top: 0.5px solid var(--border); display: none; }
-    .config-section.visible { display: block; }
-    .config-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    @media (max-width: 540px) { .config-grid { grid-template-columns: 1fr; } }
-    .config-group label { display: block; font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; }
-    .config-group select { width: 100%; height: 42px; background: var(--surface2); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); color: var(--text); font-family: var(--font-mono); font-size: 14px; padding: 0 14px; cursor: pointer; outline: none; transition: border-color 0.15s; }
-    .config-group select:focus { border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.15); }
     button.run-btn { width: 100%; padding: 0 20px; height: 42px; font-size: 14px; font-weight: 500; font-family: var(--font-sans); background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-md); cursor: pointer; transition: opacity 0.15s, transform 0.1s; margin-top: 1rem; }
     button.run-btn:hover { opacity: 0.85; }
     button.run-btn:active { transform: scale(0.97); }
@@ -105,8 +98,8 @@
     .badge-warn .badge-dot { background: var(--warn-dot); }
     .badge-invalid { background: var(--red-bg); color: var(--red-text); }
     .badge-invalid .badge-dot { background: var(--red-dot); }
-    .email-confirmed { color: var(--green-text); font-family: var(--font-mono); font-size: 12px; }
-    .email-potential { color: var(--warn-text); font-family: var(--font-mono); font-size: 12px; display: block; }
+    .preview-count { display: none; font-size: 12px; color: var(--text-hint); margin-top: 0.5rem; }
+    .preview-count.visible { display: block; }
     footer { margin-top: 3rem; text-align: center; font-size: 13px; color: var(--text-hint); line-height: 1.8; }
   </style>
 </head>
@@ -116,7 +109,7 @@
 
 <header>
   <h1>Email Matcher</h1>
-  <p>Match client names to emails from your master sheet — runs entirely in your browser, no data sent anywhere</p>
+  <p>Match payment clients to email/mobile contact details directly in your browser</p>
 </header>
 
 <div class="container">
@@ -124,29 +117,24 @@
   <div class="card">
     <div class="section-label">Upload Files</div>
     <div class="upload-grid">
+      <div class="upload-zone" id="paymentSheetCard" onclick="document.getElementById('paymentSheetInput').click()">
+        <div class="upload-zone-title">💳 Payment Info Sheet</div>
+        <div class="upload-zone-hint">Client Name, Payment Date, Payout Start, Agent Closing</div>
+        <div class="upload-zone-filename" id="paymentSheetName" style="display:none"></div>
+      </div>
+      <input type="file" id="paymentSheetInput" class="file-input" accept=".csv,.xlsx,.xls">
+
       <div class="upload-zone" id="emailSheetCard" onclick="document.getElementById('emailSheetInput').click()">
         <div class="upload-zone-title">📋 Email Sheet</div>
-        <div class="upload-zone-hint">Master reference — Name, Email, ID</div>
+        <div class="upload-zone-hint">Client Name, Agent Email, Payment Date, Lease Start, Contact</div>
         <div class="upload-zone-filename" id="emailSheetName" style="display:none"></div>
       </div>
       <input type="file" id="emailSheetInput" class="file-input" accept=".csv,.xlsx,.xls">
-
-      <div class="upload-zone" id="clientListCard" onclick="document.getElementById('clientListInput').click()">
-        <div class="upload-zone-title">👥 Client List</div>
-        <div class="upload-zone-hint">Input file — Names only</div>
-        <div class="upload-zone-filename" id="clientListName" style="display:none"></div>
-      </div>
-      <input type="file" id="clientListInput" class="file-input" accept=".csv,.xlsx,.xls">
     </div>
     <div class="hint">Drag & drop supported · CSV and XLSX accepted</div>
 
-    <div class="config-section" id="configSection">
-      <div class="section-label">Column Mapping</div>
-      <div class="config-grid" id="configGrid"></div>
-    </div>
-
     <div class="error-banner" id="errorBanner"></div>
-    <button class="run-btn" id="runBtn" onclick="runMatcher()" disabled>Run Email Matching</button>
+    <button class="run-btn" id="runBtn" onclick="runMatcher()" disabled>Run Matching</button>
   </div>
 </div>
 
@@ -154,13 +142,13 @@
   <div class="stats-row" id="statsBar">
     <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total</div></div>
     <div class="stat-box"><div class="stat-num stat-confirmed" id="statConfirmed">0</div><div class="stat-label">Confirmed</div></div>
-    <div class="stat-box"><div class="stat-num stat-multiple" id="statMultiple">0</div><div class="stat-label">Multiple</div></div>
+    <div class="stat-box"><div class="stat-num stat-multiple" id="statMismatch">0</div><div class="stat-label">Date Mismatch</div></div>
     <div class="stat-box"><div class="stat-num stat-nomatch" id="statNomatch">0</div><div class="stat-label">No Match</div></div>
   </div>
 
   <div class="results-bar" id="resultsBar">
-    <h2>Results</h2>
-    <button class="export-btn" onclick="exportCSV()">&#8595; Export CSV</button>
+    <h2>Results (Preview)</h2>
+    <button class="export-btn" onclick="exportExcel()">&#8595; Export to Excel</button>
   </div>
 
   <div class="table-wrap" id="tableWrap">
@@ -169,6 +157,7 @@
       <tbody id="tableBody"></tbody>
     </table>
   </div>
+  <div class="preview-count" id="previewCount"></div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
