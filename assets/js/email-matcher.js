@@ -1,201 +1,429 @@
-  let emailSheetData = null;
-  let clientListData = null;
-  let results = [];
-  const PREFIXES = /^(mr\.?|mrs\.?|ms\.?|dr\.?|miss\.?)\s+/gi;
+let paymentSheetData = null;
+let emailSheetData = null;
+let results = [];
 
-  function readFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const data = new Uint8Array(e.target.result);
-          const wb = XLSX.read(data, { type: 'array' });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          resolve(XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }));
-        } catch(err) { reject(err); }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
+const NAME_PREFIXES = /^(mr\.?|mrs\.?|ms\.?)\s+/i;
+const PREVIEW_LIMIT = 10;
+
+(function initCycleSelectors() {
+  const now = new Date();
+  const yearSel = document.getElementById('selYear');
+  for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+    const option = document.createElement('option');
+    option.value = y;
+    option.textContent = y;
+    yearSel.appendChild(option);
+  }
+})();
+
+function readFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        resolve(XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }));
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function normalizeName(value, stripPrefixes = false) {
+  let name = String(value || '').trim();
+  if (stripPrefixes) {
+    name = name.replace(NAME_PREFIXES, '');
+  }
+  return name.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function parseDateValue(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (!parsed) return '';
+    return formatDateParts(parsed.d, parsed.m, parsed.y);
   }
 
-  document.getElementById('emailSheetInput').addEventListener('change', async e => {
-    const file = e.target.files[0]; if (!file) return;
-    emailSheetData = await readFile(file);
-    document.getElementById('emailSheetCard').classList.add('has-file');
-    const nm = document.getElementById('emailSheetName');
-    nm.textContent = '\u2713 ' + file.name; nm.style.display = 'block';
-    checkReady();
-  });
+  const raw = String(value).trim();
+  if (!raw) return '';
 
-  document.getElementById('clientListInput').addEventListener('change', async e => {
-    const file = e.target.files[0]; if (!file) return;
-    clientListData = await readFile(file);
-    document.getElementById('clientListCard').classList.add('has-file');
-    const nm = document.getElementById('clientListName');
-    nm.textContent = '\u2713 ' + file.name; nm.style.display = 'block';
-    checkReady();
-  });
+  const match = raw.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
+  if (match) {
+    let a = parseInt(match[1], 10);
+    let b = parseInt(match[2], 10);
+    let c = parseInt(match[3], 10);
 
-  ['emailSheetCard','clientListCard'].forEach(id => {
-    const el = document.getElementById(id);
-    el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
-    el.addEventListener('dragleave', () => el.classList.remove('dragover'));
-    el.addEventListener('drop', async e => {
-      e.preventDefault(); el.classList.remove('dragover');
-      const file = e.dataTransfer.files[0]; if (!file) return;
-      const inputId = id === 'emailSheetCard' ? 'emailSheetInput' : 'clientListInput';
-      const dt = new DataTransfer(); dt.items.add(file);
-      document.getElementById(inputId).files = dt.files;
-      document.getElementById(inputId).dispatchEvent(new Event('change'));
-    });
-  });
+    let day;
+    let month;
+    let year;
 
-  function checkReady() {
-    if (emailSheetData && clientListData) {
-      buildConfig();
-      document.getElementById('runBtn').disabled = false;
+    if (match[1].length === 4) {
+      year = a;
+      month = b;
+      day = c;
+    } else {
+      day = a;
+      month = b;
+      year = c;
+    }
+
+    if (year < 100) {
+      year += year >= 70 ? 1900 : 2000;
+    }
+
+    return formatDateParts(day, month, year);
+  }
+
+  const fallback = new Date(raw);
+  if (!Number.isNaN(fallback.getTime())) {
+    return formatDateParts(fallback.getUTCDate(), fallback.getUTCMonth() + 1, fallback.getUTCFullYear());
+  }
+
+  return '';
+}
+
+function formatDateParts(day, month, year) {
+  if (!day || !month || !year) return '';
+  const dd = String(day).padStart(2, '0');
+  const mm = String(month).padStart(2, '0');
+  const yyyy = String(year).padStart(4, '0');
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function splitEmails(value) {
+  const text = String(value || '').trim();
+  if (!text) return ['', ''];
+  const parts = text
+    .split(/[,:;\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return [parts[0] || '', parts[1] || ''];
+}
+
+function fillDownColumns(rows, columns) {
+  const lastValues = {};
+  for (const col of columns) {
+    lastValues[col] = '';
+  }
+
+  for (const row of rows) {
+    for (const col of columns) {
+      const current = String(row[col] ?? '').trim();
+      if (current) {
+        lastValues[col] = current;
+      } else if (lastValues[col]) {
+        row[col] = lastValues[col];
+      }
     }
   }
+}
 
-  function buildConfig() {
-    const esH = emailSheetData[0] || [], clH = clientListData[0] || [];
-    document.getElementById('configSection').classList.add('visible');
-    document.getElementById('configGrid').innerHTML =
-      '<div class="config-group"><label>Email Sheet \u2014 Name</label><select id="esName">' + opts(esH, autoDetect(esH,['name','client'])) + '</select></div>' +
-      '<div class="config-group"><label>Email Sheet \u2014 Email</label><select id="esEmail">' + opts(esH, autoDetect(esH,['email','mail'])) + '</select></div>' +
-      '<div class="config-group"><label>Client List \u2014 Name</label><select id="clName">' + opts(clH, autoDetect(clH,['name','client'])) + '</select></div>';
-  }
+async function handleFileUpload(event, targetKey, cardId, filenameId) {
+  const file = event.target.files[0];
+  if (!file) return;
 
-  function autoDetect(headers, kw) {
-    for (let i = 0; i < headers.length; i++) {
-      const h = String(headers[i]).toLowerCase();
-      if (kw.some(k => h.includes(k))) return i;
+  try {
+    const data = await readFile(file);
+    if (targetKey === 'payment') {
+      paymentSheetData = data;
+    } else {
+      emailSheetData = data;
     }
-    return 0;
-  }
 
-  function opts(headers, def) {
-    return headers.map((h, i) => '<option value="' + i + '"' + (i===def?' selected':'') + '>' + (h || 'Column '+(i+1)) + '</option>').join('');
-  }
+    const card = document.getElementById(cardId);
+    const filename = document.getElementById(filenameId);
+    card.classList.add('has-file');
+    filename.textContent = `✓ ${file.name}`;
+    filename.style.display = 'block';
 
-  function normalize(name) {
-    return String(name || '').replace(PREFIXES, '').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-  }
-
-  function dedup(name) {
-    const parts = name.split(' '), seen = [];
-    for (const w of parts) if (!seen.includes(w)) seen.push(w);
-    return seen.join(' ');
-  }
-
-  function extractNames(raw) {
-    const m = raw.match(/\(([^)]+)\)/);
-    const main = raw.replace(/\([^)]*\)/g, '').trim();
-    const names = [dedup(normalize(main))];
-    if (m) names.push(dedup(normalize(m[1])));
-    return names;
-  }
-
-  function isMatch(query, sheet) {
-    if (!query || !sheet) return false;
-    const qp = query.split(' ').filter(Boolean);
-    const sp = sheet.split(' ').filter(Boolean);
-    return qp.every(q => sp.some(s => s === q));
-  }
-
-  function runMatcher() {
+    checkReady();
     hideError();
-    const esNi = parseInt(document.getElementById('esName').value);
-    const esEi = parseInt(document.getElementById('esEmail').value);
-    const clNi = parseInt(document.getElementById('clName').value);
+  } catch (err) {
+    showError('Could not read file. Please upload a valid CSV/XLSX file.');
+  }
+}
 
-    const sheetRows = emailSheetData.slice(1).map(r => ({
-      rawName: String(r[esNi] || '').trim(),
-      email: String(r[esEi] || '').trim().toLowerCase(),
-      norm: dedup(normalize(String(r[esNi] || '')))
-    })).filter(r => r.rawName);
+document.getElementById('paymentSheetInput').addEventListener('change', (e) => {
+  handleFileUpload(e, 'payment', 'paymentSheetCard', 'paymentSheetName');
+});
 
-    const clients = clientListData.slice(1).map(r => String(r[clNi] || '').trim()).filter(Boolean);
+document.getElementById('emailSheetInput').addEventListener('change', (e) => {
+  handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
+});
+document.getElementById('selMonth').addEventListener('change', checkReady);
+document.getElementById('selCycle').addEventListener('change', checkReady);
+document.getElementById('selYear').addEventListener('change', checkReady);
 
-    if (!sheetRows.length) { showError('Email Sheet is empty or column mapping is wrong.'); return; }
-    if (!clients.length) { showError('Client List is empty or column mapping is wrong.'); return; }
+['paymentSheetCard', 'emailSheetCard'].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    el.classList.add('dragover');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('dragover');
 
-    results = [];
-    let confirmed = 0, multiple = 0, noMatch = 0;
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
 
-    for (const name of clients) {
-      const queries = extractNames(name);
-      const matched = [];
-      for (const q of queries) {
-        for (const sr of sheetRows) {
-          if (isMatch(q, sr.norm) && !matched.find(r => r.rawName === sr.rawName && r.email === sr.email)) {
-            matched.push(sr);
-          }
+    const inputId = id === 'paymentSheetCard' ? 'paymentSheetInput' : 'emailSheetInput';
+    const input = document.getElementById(inputId);
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change'));
+  });
+});
+
+function checkReady() {
+  const cycleSelected = !!(
+    document.getElementById('selMonth').value &&
+    document.getElementById('selCycle').value &&
+    document.getElementById('selYear').value
+  );
+  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData && cycleSelected);
+}
+
+function buildEmailRecords() {
+  const rows = emailSheetData.slice(1).map((row) => [...row]);
+  fillDownColumns(rows, [15, 16]);
+
+  return rows
+    .map((row) => {
+      const emailSheetClientName = String(row[0] || '').trim();
+      const normalizedName = normalizeName(emailSheetClientName, true);
+
+      return {
+        emailSheetClientName,
+        normalizedName,
+        agentEmail: String(row[2] || '').trim(),
+        paymentReceivedDate: parseDateValue(row[5]),
+        payoutStartDate: parseDateValue(row[14]),
+        clientEmailRaw: String(row[15] || '').trim(),
+        mobile: String(row[16] || '').trim()
+      };
+    })
+    .filter((record) => record.emailSheetClientName && record.normalizedName);
+}
+
+function runMatcher() {
+  hideError();
+
+  if (!paymentSheetData || !emailSheetData) {
+    showError('Please upload both required files.');
+    return;
+  }
+  if (!document.getElementById('selMonth').value || !document.getElementById('selCycle').value || !document.getElementById('selYear').value) {
+    showError('Please select payout cycle (month, cycle, and year).');
+    return;
+  }
+
+  const emailRecords = buildEmailRecords();
+  if (!emailRecords.length) {
+    showError('Email Sheet has no usable rows.');
+    return;
+  }
+
+  const paymentRows = filterPaymentRowsByCycle(paymentSheetData.slice(1));
+  results = paymentRows
+    .map((row) => {
+      const paymentClientName = String(row[1] || '').trim();
+      if (!paymentClientName) return null;
+
+      const normalizedPaymentName = normalizeName(paymentClientName, false);
+      const paymentDate = parseDateValue(row[18]);
+      const payoutStartDate = parseDateValue(row[20]);
+      const agentClosing = String(row[37] || '').trim();
+
+      const byName = emailRecords.filter((record) => record.normalizedName === normalizedPaymentName);
+      let matchedRecord = null;
+      let notes = 'No match found';
+      let status = 'invalid';
+
+      if (byName.length > 0) {
+        const byNameAndDate = byName.filter((record) => record.paymentReceivedDate && paymentDate && record.paymentReceivedDate === paymentDate);
+        matchedRecord = byNameAndDate[0] || byName[0];
+
+        if (byNameAndDate.length > 0) {
+          notes = '';
+          status = 'valid';
+        } else {
+          notes = 'Date mismatch — verify';
+          status = 'warn';
         }
       }
-      const emails = [...new Set(matched.map(r => r.email).filter(Boolean))];
-      const sheetNames = [...new Set(matched.map(r => r.rawName))];
-      const row = { clientName: name, sheetNames, confirmedEmail: '', potentialEmails: [] };
-      if (emails.length === 1) { row.confirmedEmail = emails[0]; confirmed++; }
-      else if (emails.length > 1) { row.potentialEmails = emails; multiple++; }
-      else noMatch++;
-      results.push(row);
-    }
 
-    document.getElementById('statTotal').textContent = results.length;
-    document.getElementById('statConfirmed').textContent = confirmed;
-    document.getElementById('statMultiple').textContent = multiple;
-    document.getElementById('statNomatch').textContent = noMatch;
-    document.getElementById('statsBar').classList.add('visible');
+      const [email1, email2] = splitEmails(matchedRecord ? matchedRecord.clientEmailRaw : '');
 
-    const maxP = Math.max(0, ...results.map(r => r.potentialEmails.length));
-    let hHTML = '<tr><th>#</th><th>Client Name (Input)</th><th>Client Name (Email Sheet)</th><th>Status</th><th>Confirmed Email</th>';
-    for (let i = 1; i <= maxP; i++) hHTML += '<th>Potential Email ' + i + '</th>';
-    hHTML += '</tr>';
-    document.getElementById('tableHead').innerHTML = hHTML;
+      return {
+        paymentClientName,
+        emailSheetClientName: matchedRecord ? matchedRecord.emailSheetClientName : '',
+        email1,
+        email2,
+        mobile: matchedRecord ? matchedRecord.mobile : '',
+        agentClosing,
+        agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
+        notes,
+        status,
+        paymentReceivedDate: paymentDate,
+        payoutStartDate,
+        matchedPayoutStartDate: matchedRecord ? matchedRecord.payoutStartDate : ''
+      };
+    })
+    .filter(Boolean);
 
-    let bHTML = '';
-    results.forEach((r, i) => {
-      let badge;
-      if (r.confirmedEmail) badge = '<span class="badge badge-valid"><span class="badge-dot"></span>Confirmed</span>';
-      else if (r.potentialEmails.length) badge = '<span class="badge badge-warn"><span class="badge-dot"></span>' + r.potentialEmails.length + ' found</span>';
-      else badge = '<span class="badge badge-invalid"><span class="badge-dot"></span>No match</span>';
-      bHTML += '<tr><td class="mono">' + (i+1) + '</td><td class="name-col">' + esc(r.clientName) + '</td><td class="name-col" style="color:var(--text-muted);font-weight:400">' + (r.sheetNames.length ? r.sheetNames.map(esc).join('<br>') : '\u2014') + '</td><td>' + badge + '</td><td class="email-confirmed">' + esc(r.confirmedEmail) + '</td>';
-      for (let j = 0; j < maxP; j++) bHTML += '<td><span class="email-potential">' + (r.potentialEmails[j] ? esc(r.potentialEmails[j]) : '') + '</span></td>';
-      bHTML += '</tr>';
-    });
-    document.getElementById('tableBody').innerHTML = bHTML;
-    document.getElementById('resultsBar').classList.add('visible');
-    document.getElementById('tableWrap').classList.add('visible');
-  }
+  renderStats();
+  renderTable();
+}
 
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function showError(msg) { const e = document.getElementById('errorBanner'); e.textContent = '\u26a0 ' + msg; e.classList.add('visible'); }
-  function hideError() { document.getElementById('errorBanner').classList.remove('visible'); }
+function filterPaymentRowsByCycle(paymentRows) {
+  const yr = parseInt(document.getElementById('selYear').value, 10);
+  const mo = parseInt(document.getElementById('selMonth').value, 10);
+  const cycle = document.getElementById('selCycle').value;
 
-  function exportCSV() {
-    if (!results.length) return;
-    const maxP = Math.max(0, ...results.map(r => r.potentialEmails.length));
-    const headers = ['Client Name (Uploaded File)', 'Client Name (Email Sheet)', 'Confirmed Email'];
-    for (let i = 1; i <= maxP; i++) headers.push('Potential Email ' + i);
-    const rows = results.map(r => {
-      const cols = [csvCell(r.clientName), csvCell(r.sheetNames.join('; ')), csvCell(r.confirmedEmail)];
-      for (let i = 0; i < maxP; i++) cols.push(csvCell(r.potentialEmails[i] || ''));
-      return cols.join(',');
-    });
-    const blob = new Blob([[headers.map(csvCell).join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'email_match_results.csv'; a.click();
-  }
+  const payoutDay = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
+  const payoutDate = new Date(Date.UTC(yr, mo - 1, payoutDay));
 
-  function csvCell(v) {
-    const s = String(v || '');
-    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? '"' + s.replace(/"/g,'""') + '"' : s;
-  }
+  return paymentRows.filter((row) => {
+    const paymentDate = parseDateValue(row[18]);
+    const firstPayoutDate = parseDateValue(row[23]);
+    if (!paymentDate || !firstPayoutDate) return false;
 
-  fetch('/components/footer.html')
-    .then(res => res.text())
-    .then(data => {
-      document.getElementById('footer').innerHTML = data;
-    });
-  
+    const paymentDt = parseNormalizedDateToUTC(paymentDate);
+    const firstPayoutDt = parseNormalizedDateToUTC(firstPayoutDate);
+    if (!paymentDt || !firstPayoutDt) return false;
+
+    const cycleMatch = cycle === '15'
+      ? firstPayoutDt.getUTCDate() === 15
+      : firstPayoutDt.getUTCDate() === new Date(Date.UTC(firstPayoutDt.getUTCFullYear(), firstPayoutDt.getUTCMonth() + 1, 0)).getUTCDate();
+
+    const monthYearMatch = firstPayoutDt.getUTCFullYear() === yr && (firstPayoutDt.getUTCMonth() + 1) === mo;
+    const receivedByPayoutDate = paymentDt <= payoutDate;
+
+    return cycleMatch && monthYearMatch && receivedByPayoutDate;
+  });
+}
+
+function parseNormalizedDateToUTC(ddmmyyyy) {
+  const match = String(ddmmyyyy || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function renderStats() {
+  const total = results.length;
+  const confirmed = results.filter((row) => row.status === 'valid').length;
+  const mismatch = results.filter((row) => row.status === 'warn').length;
+  const noMatch = results.filter((row) => row.status === 'invalid').length;
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statConfirmed').textContent = confirmed;
+  document.getElementById('statMismatch').textContent = mismatch;
+  document.getElementById('statNomatch').textContent = noMatch;
+  document.getElementById('statsBar').classList.add('visible');
+}
+
+function renderTable() {
+  const headers = [
+    'Client Name (Payment Sheet)',
+    'Client Name (Email Sheet)',
+    'Email 1',
+    'Email 2',
+    'Mobile',
+    'Agent Closing',
+    'Agent Email',
+    'Notes'
+  ];
+
+  document.getElementById('tableHead').innerHTML = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`;
+
+  const previewRows = results.slice(0, PREVIEW_LIMIT);
+  document.getElementById('tableBody').innerHTML = previewRows
+    .map((row) => {
+      const notesCell = row.notes
+        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${esc(row.notes)}</span>`
+        : '<span class="badge badge-valid"><span class="badge-dot"></span>Confirmed</span>';
+
+      return `<tr>
+        <td class="name-col">${esc(row.paymentClientName)}</td>
+        <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
+        <td class="mono">${esc(row.email1)}</td>
+        <td class="mono">${esc(row.email2)}</td>
+        <td class="mono">${esc(row.mobile)}</td>
+        <td>${esc(row.agentClosing)}</td>
+        <td class="mono">${esc(row.agentEmail)}</td>
+        <td>${notesCell}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const previewCount = document.getElementById('previewCount');
+  const shown = Math.min(PREVIEW_LIMIT, results.length);
+  previewCount.textContent = `Showing ${shown} of ${results.length} rows`;
+  previewCount.classList.add('visible');
+
+  document.getElementById('resultsBar').classList.add('visible');
+  document.getElementById('tableWrap').classList.add('visible');
+}
+
+function statusToBadgeClass(status) {
+  if (status === 'valid') return 'badge-valid';
+  if (status === 'warn') return 'badge-warn';
+  return 'badge-invalid';
+}
+
+function exportExcel() {
+  if (!results.length) return;
+
+  const exportRows = results.map((row) => ({
+    'Client Name (Payment Sheet)': row.paymentClientName,
+    'Client Name (Email Sheet)': row.emailSheetClientName,
+    'Email 1': row.email1,
+    'Email 2': row.email2,
+    Mobile: row.mobile,
+    'Agent Closing': row.agentClosing,
+    'Agent Email': row.agentEmail,
+    Notes: row.notes
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(exportRows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Email Matching Results');
+  XLSX.writeFile(wb, 'email_match_results.xlsx');
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function showError(msg) {
+  const banner = document.getElementById('errorBanner');
+  banner.textContent = `⚠ ${msg}`;
+  banner.classList.add('visible');
+}
+
+function hideError() {
+  document.getElementById('errorBanner').classList.remove('visible');
+}
+
+fetch('/components/footer.html')
+  .then((res) => res.text())
+  .then((data) => {
+    document.getElementById('footer').innerHTML = data;
+  });
