@@ -5,6 +5,17 @@ let results = [];
 const NAME_PREFIXES = /^(mr\.?|mrs\.?|ms\.?)\s+/i;
 const PREVIEW_LIMIT = 10;
 
+(function initCycleSelectors() {
+  const now = new Date();
+  const yearSel = document.getElementById('selYear');
+  for (let y = now.getFullYear() - 1; y <= now.getFullYear() + 2; y++) {
+    const option = document.createElement('option');
+    option.value = y;
+    option.textContent = y;
+    yearSel.appendChild(option);
+  }
+})();
+
 function readFile(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -147,6 +158,9 @@ document.getElementById('paymentSheetInput').addEventListener('change', (e) => {
 document.getElementById('emailSheetInput').addEventListener('change', (e) => {
   handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
 });
+document.getElementById('selMonth').addEventListener('change', checkReady);
+document.getElementById('selCycle').addEventListener('change', checkReady);
+document.getElementById('selYear').addEventListener('change', checkReady);
 
 ['paymentSheetCard', 'emailSheetCard'].forEach((id) => {
   const el = document.getElementById(id);
@@ -172,7 +186,12 @@ document.getElementById('emailSheetInput').addEventListener('change', (e) => {
 });
 
 function checkReady() {
-  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData);
+  const cycleSelected = !!(
+    document.getElementById('selMonth').value &&
+    document.getElementById('selCycle').value &&
+    document.getElementById('selYear').value
+  );
+  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData && cycleSelected);
 }
 
 function buildEmailRecords() {
@@ -204,6 +223,10 @@ function runMatcher() {
     showError('Please upload both required files.');
     return;
   }
+  if (!document.getElementById('selMonth').value || !document.getElementById('selCycle').value || !document.getElementById('selYear').value) {
+    showError('Please select payout cycle (month, cycle, and year).');
+    return;
+  }
 
   const emailRecords = buildEmailRecords();
   if (!emailRecords.length) {
@@ -211,7 +234,7 @@ function runMatcher() {
     return;
   }
 
-  const paymentRows = paymentSheetData.slice(1);
+  const paymentRows = filterPaymentRowsByCycle(paymentSheetData.slice(1));
   results = paymentRows
     .map((row) => {
       const paymentClientName = String(row[1] || '').trim();
@@ -261,6 +284,43 @@ function runMatcher() {
 
   renderStats();
   renderTable();
+}
+
+function filterPaymentRowsByCycle(paymentRows) {
+  const yr = parseInt(document.getElementById('selYear').value, 10);
+  const mo = parseInt(document.getElementById('selMonth').value, 10);
+  const cycle = document.getElementById('selCycle').value;
+
+  const payoutDay = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
+  const payoutDate = new Date(Date.UTC(yr, mo - 1, payoutDay));
+
+  return paymentRows.filter((row) => {
+    const paymentDate = parseDateValue(row[18]);
+    const payoutStartDate = parseDateValue(row[20]);
+    if (!paymentDate || !payoutStartDate) return false;
+
+    const paymentDt = parseNormalizedDateToUTC(paymentDate);
+    const payoutStartDt = parseNormalizedDateToUTC(payoutStartDate);
+    if (!paymentDt || !payoutStartDt) return false;
+
+    const cycleMatch = cycle === '15'
+      ? payoutStartDt.getUTCDate() === 15
+      : payoutStartDt.getUTCDate() === new Date(Date.UTC(payoutStartDt.getUTCFullYear(), payoutStartDt.getUTCMonth() + 1, 0)).getUTCDate();
+
+    const monthYearMatch = payoutStartDt.getUTCFullYear() === yr && (payoutStartDt.getUTCMonth() + 1) === mo;
+    const receivedByPayoutDate = paymentDt <= payoutDate;
+
+    return cycleMatch && monthYearMatch && receivedByPayoutDate;
+  });
+}
+
+function parseNormalizedDateToUTC(ddmmyyyy) {
+  const match = String(ddmmyyyy || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function renderStats() {
