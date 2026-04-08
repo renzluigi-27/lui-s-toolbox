@@ -290,27 +290,22 @@ function filterPaymentRowsByCycle(paymentRows) {
   const yr = parseInt(document.getElementById('selYear').value, 10);
   const mo = parseInt(document.getElementById('selMonth').value, 10);
   const cycle = document.getElementById('selCycle').value;
-
   const payoutDay = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(Date.UTC(yr, mo - 1, payoutDay));
 
   return paymentRows.filter((row) => {
-    const paymentDate = parseDateValue(row[18]);
-    const payoutStartDate = parseDateValue(row[20]);
-    if (!paymentDate || !payoutStartDate) return false;
+    const firstPayoutDate = parseDateValue(row[23]);
+    if (!firstPayoutDate) return false;
 
-    const paymentDt = parseNormalizedDateToUTC(paymentDate);
-    const payoutStartDt = parseNormalizedDateToUTC(payoutStartDate);
-    if (!paymentDt || !payoutStartDt) return false;
+    const firstPayoutDt = parseNormalizedDateToUTC(firstPayoutDate);
+    if (!firstPayoutDt) return false;
 
     const cycleMatch = cycle === '15'
-      ? payoutStartDt.getUTCDate() === 15
-      : payoutStartDt.getUTCDate() === new Date(Date.UTC(payoutStartDt.getUTCFullYear(), payoutStartDt.getUTCMonth() + 1, 0)).getUTCDate();
+      ? firstPayoutDt.getUTCDate() === 15
+      : (firstPayoutDt.getUTCDate() === 30 || firstPayoutDt.getUTCDate() === 31);
 
-    const monthYearMatch = payoutStartDt.getUTCFullYear() === yr && (payoutStartDt.getUTCMonth() + 1) === mo;
-    const receivedByPayoutDate = paymentDt <= payoutDate;
-
-    return cycleMatch && monthYearMatch && receivedByPayoutDate;
+    const alreadyStarted = firstPayoutDt <= payoutDate;
+    return cycleMatch && alreadyStarted;
   });
 }
 
