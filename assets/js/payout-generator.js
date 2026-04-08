@@ -688,6 +688,7 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
     <tr>
 	  <td style="color:var(--text-hint);font-family:var(--font-mono);font-size:11px;">${i+1}</td>
       <td class="td-name">${esc(r.clientName)}</td>
+      <td class="td-num">${r.containers.length}</td>
       <td class="td-mono">${r.firstPayoutDisplay || '—'}</td>
       <td class="td-num">${fmt(r.totalReturn)}</td>
       <td class="td-deduct">${r.totalDeduction > 0 ? fmt(r.totalDeduction) : '—'}</td>
@@ -727,6 +728,7 @@ function exportExcel() {
   const headers = [
     'CLIENT TYPE',
     'NAME OF CLIENTS',
+    'UNITS',
     'FIRST PAYOUT DATE',
     'MONTHLY RENTAL AMOUNT',
     'DEDUCTION',
@@ -742,6 +744,7 @@ function exportExcel() {
   const rows = results.map(r => [
     r.clientType || '',
     r.clientName,
+    r.containers.length,
     r.firstPayoutDisplay || '',
     r.totalReturn,
     r.totalDeduction || null,
@@ -758,7 +761,7 @@ function exportExcel() {
   const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['', 'TOTAL', '', totReturn, totDeduct, '', totDue, '', '', '', '', '']);
+  rows.push(['', 'TOTAL', '', '', totReturn, totDeduct, '', totDue, '', '', '', '', '']);
 
   const wb   = XLSX.utils.book_new();
   const data = [headers, ...rows];
@@ -767,6 +770,7 @@ function exportExcel() {
   ws['!cols'] = [
     { wch: 14 }, // Client Type
     { wch: 45 }, // Name
+    { wch: 8 },  // Units
     { wch: 14 }, // First payout
     { wch: 14 }, // Monthly
     { wch: 12 }, // Deduction
