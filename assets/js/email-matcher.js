@@ -208,7 +208,6 @@ function buildEmailRecords() {
         normalizedName,
         agentEmail: String(row[2] || '').trim(),
         paymentReceivedDate: parseDateValue(row[5]),
-        payoutStartDate: parseDateValue(row[14]),
         clientEmailRaw: String(row[15] || '').trim(),
         mobile: String(row[16] || '').trim()
       };
@@ -235,52 +234,8 @@ function runMatcher() {
   }
 
   const paymentRows = filterPaymentRowsByCycle(paymentSheetData.slice(1));
-  results = paymentRows
-    .map((row) => {
-      const paymentClientName = String(row[1] || '').trim();
-      if (!paymentClientName) return null;
-
-      const normalizedPaymentName = normalizeName(paymentClientName, false);
-      const paymentDate = parseDateValue(row[18]);
-      const payoutStartDate = parseDateValue(row[20]);
-      const agentClosing = String(row[37] || '').trim();
-
-      const byName = emailRecords.filter((record) => record.normalizedName === normalizedPaymentName);
-      let matchedRecord = null;
-      let notes = 'No match found';
-      let status = 'invalid';
-
-      if (byName.length > 0) {
-        const byNameAndDate = byName.filter((record) => record.paymentReceivedDate && paymentDate && record.paymentReceivedDate === paymentDate);
-        matchedRecord = byNameAndDate[0] || byName[0];
-
-        if (byNameAndDate.length > 0) {
-          notes = '';
-          status = 'valid';
-        } else {
-          notes = 'Date mismatch — verify';
-          status = 'warn';
-        }
-      }
-
-      const [email1, email2] = splitEmails(matchedRecord ? matchedRecord.clientEmailRaw : '');
-
-      return {
-        paymentClientName,
-        emailSheetClientName: matchedRecord ? matchedRecord.emailSheetClientName : '',
-        email1,
-        email2,
-        mobile: matchedRecord ? matchedRecord.mobile : '',
-        agentClosing,
-        agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
-        notes,
-        status,
-        paymentReceivedDate: paymentDate,
-        payoutStartDate,
-        matchedPayoutStartDate: matchedRecord ? matchedRecord.payoutStartDate : ''
-      };
-    })
-    .filter(Boolean);
+  const groupedPayments = groupPaymentRowsByClient(paymentRows);
+  results = groupedPayments.map((group) => buildMatchResult(group, emailRecords));
 
   renderStats();
   renderTable();
@@ -305,6 +260,62 @@ function filterPaymentRowsByCycle(paymentRows) {
     const monthYearMatch = firstPayoutDt.getUTCFullYear() === yr && (firstPayoutDt.getUTCMonth() + 1) === mo;
     return cycleMatch && monthYearMatch;
   });
+});
+
+function checkReady() {
+  const cycleSelected = !!(
+    document.getElementById('selMonth').value &&
+    document.getElementById('selCycle').value &&
+    document.getElementById('selYear').value
+  );
+  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData && cycleSelected);
+}
+
+function buildEmailRecords() {
+  const rows = emailSheetData.slice(1).map((row) => [...row]);
+  fillDownColumns(rows, [15, 16]);
+
+  return rows
+    .map((row) => {
+      const emailSheetClientName = String(row[0] || '').trim();
+      const normalizedName = normalizeName(emailSheetClientName, true);
+
+  return Array.from(groups.values());
+}
+
+function buildMatchResult(group, emailRecords) {
+  const byName = emailRecords.filter((record) => record.normalizedName === group.normalizedPaymentName);
+  let matchedRecord = null;
+  let notes = 'No match found';
+  let status = 'invalid';
+
+  if (byName.length > 0) {
+    const byNameAndDate = byName.filter((record) => group.paymentDates.has(record.paymentReceivedDate));
+    matchedRecord = byNameAndDate[0] || byName[0];
+
+    if (byNameAndDate.length > 0) {
+      notes = '';
+      status = 'valid';
+    } else {
+      notes = 'Date mismatch — verify';
+      status = 'warn';
+    }
+  }
+
+  const [email1, email2] = splitEmails(matchedRecord ? matchedRecord.clientEmailRaw : '');
+
+  return {
+    paymentClientName: group.paymentClientName,
+    emailSheetClientName: matchedRecord ? matchedRecord.emailSheetClientName : '',
+    units: group.units,
+    email1,
+    email2,
+    mobile: matchedRecord ? matchedRecord.mobile : '',
+    agentClosing: group.agentClosing,
+    agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
+    notes,
+    status
+  };
 }
 
 function parseNormalizedDateToUTC(ddmmyyyy) {
@@ -333,6 +344,7 @@ function renderTable() {
   const headers = [
     'Client Name (Payment Sheet)',
     'Client Name (Email Sheet)',
+    'Units',
     'Email 1',
     'Email 2',
     'Mobile',
@@ -353,6 +365,7 @@ function renderTable() {
       return `<tr>
         <td class="name-col">${esc(row.paymentClientName)}</td>
         <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
+        <td class="mono">${esc(row.units)}</td>
         <td class="mono">${esc(row.email1)}</td>
         <td class="mono">${esc(row.email2)}</td>
         <td class="mono">${esc(row.mobile)}</td>
@@ -384,6 +397,7 @@ function exportExcel() {
   const exportRows = results.map((row) => ({
     'Client Name (Payment Sheet)': row.paymentClientName,
     'Client Name (Email Sheet)': row.emailSheetClientName,
+    Units: row.units,
     'Email 1': row.email1,
     'Email 2': row.email2,
     Mobile: row.mobile,
@@ -395,7 +409,11 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(exportRows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Email Matching Results');
-  XLSX.writeFile(wb, 'email_match_results.xlsx');
+  const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  const cycle = document.getElementById('selCycle').value === '15' ? '15' : '30_31';
+  const month = monthNames[parseInt(document.getElementById('selMonth').value, 10) - 1] || 'MONTH';
+  const year = document.getElementById('selYear').value || 'YEAR';
+  XLSX.writeFile(wb, `EMAIL_MATCH_${cycle}_${month}${year}.xlsx`);
 }
 
 function esc(s) {
