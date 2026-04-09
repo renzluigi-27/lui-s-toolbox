@@ -286,12 +286,85 @@ function groupPaymentRowsByClient(paymentRows) {
         agentClosing: String(row[37] || '').trim()
       });
     }
+  }
+}
+
+async function handleFileUpload(event, targetKey, cardId, filenameId) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const data = await readFile(file);
+    if (targetKey === 'payment') {
+      paymentSheetData = data;
+    } else {
+      emailSheetData = data;
+    }
+
+    const card = document.getElementById(cardId);
+    const filename = document.getElementById(filenameId);
+    card.classList.add('has-file');
+    filename.textContent = `✓ ${file.name}`;
+    filename.style.display = 'block';
 
     const group = groups.get(normalizedPaymentName);
     group.units += 1;
     const paymentDate = parseDateValue(row[18]);
     if (paymentDate) group.paymentDates.add(paymentDate);
   }
+}
+
+document.getElementById('paymentSheetInput').addEventListener('change', (e) => {
+  handleFileUpload(e, 'payment', 'paymentSheetCard', 'paymentSheetName');
+});
+
+document.getElementById('emailSheetInput').addEventListener('change', (e) => {
+  handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
+});
+document.getElementById('selMonth').addEventListener('change', checkReady);
+document.getElementById('selCycle').addEventListener('change', checkReady);
+document.getElementById('selYear').addEventListener('change', checkReady);
+
+['paymentSheetCard', 'emailSheetCard'].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    el.classList.add('dragover');
+  });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    el.classList.remove('dragover');
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const inputId = id === 'paymentSheetCard' ? 'paymentSheetInput' : 'emailSheetInput';
+    const input = document.getElementById(inputId);
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change'));
+  });
+});
+
+function checkReady() {
+  const cycleSelected = !!(
+    document.getElementById('selMonth').value &&
+    document.getElementById('selCycle').value &&
+    document.getElementById('selYear').value
+  );
+  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData && cycleSelected);
+}
+
+function buildEmailRecords() {
+  const rows = emailSheetData.slice(1).map((row) => [...row]);
+  fillDownColumns(rows, [15, 16]);
+
+  return rows
+    .map((row) => {
+      const emailSheetClientName = String(row[0] || '').trim();
+      const normalizedName = normalizeName(emailSheetClientName, true);
 
   return Array.from(groups.values());
 }

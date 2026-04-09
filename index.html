@@ -49,6 +49,34 @@
       box-sizing: border-box;
     }
 
+    .page-container {
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .content {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .page-container {
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .content {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
     header {
       text-align: center;
       margin-bottom: 1.2rem;
@@ -162,6 +190,13 @@
       white-space: normal;
       overflow: visible;
       text-overflow: unset;
+    }
+
+
+    @media (max-width: 768px) {
+      html, body {
+        overflow-x: hidden;
+      }
     }
 
     /* ── Responsive breakpoints ── */
@@ -298,7 +333,6 @@
     ── COPY TO HERE ────────────────────────────────────────────
   -->
 
-</div>
 
 
 <!-- ─── CHANGELOG ────────────────────────────── -->
@@ -369,6 +403,8 @@
       <strong>Version 1.0</strong> — IBAN Checker (UAE banks database only)
     </div>
   </div>
+</div>
+
 </div>
     <div id="footer"></div>
     </div>
