@@ -302,7 +302,13 @@ function buildMatchResult(group, emailRecords) {
   let status = 'invalid';
 
   if (byName.length > 0) {
-    const byNameAndDate = byName.filter((record) => group.paymentDates.has(record.paymentReceivedDate));
+    const byNameAndDate = byName.filter((record) => {
+  return Array.from(group.paymentDates).some((paymentDate) => {
+    const p = parseNormalizedDateToUTC(paymentDate);
+    const e = parseNormalizedDateToUTC(record.paymentReceivedDate);
+    return p && e && p.getUTCMonth() === e.getUTCMonth() && p.getUTCFullYear() === e.getUTCFullYear();
+  });
+});
     matchedRecord = byNameAndDate[0] || byName[0];
 
     if (byNameAndDate.length > 0) {
