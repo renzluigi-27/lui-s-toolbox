@@ -75,11 +75,6 @@ function parseDateValue(value) {
     return formatDateParts(day, month, year);
   }
 
-  const fallback = new Date(raw);
-  if (!Number.isNaN(fallback.getTime())) {
-    return formatDateParts(fallback.getUTCDate(), fallback.getUTCMonth() + 1, fallback.getUTCFullYear());
-  }
-
   return '';
 }
 
