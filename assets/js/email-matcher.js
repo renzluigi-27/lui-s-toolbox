@@ -60,18 +60,12 @@ function parseDateValue(value) {
     let b = parseInt(match[2], 10);
     let c = parseInt(match[3], 10);
 
-    let day;
-    let month;
-    let year;
+    let day, month, year;
 
     if (match[1].length === 4) {
-      year = a;
-      month = b;
-      day = c;
+      year = a; month = b; day = c;
     } else {
-      day = a;
-      month = b;
-      year = c;
+      day = a; month = b; year = c;
     }
 
     if (year < 100) {
@@ -104,7 +98,6 @@ function splitEmails(value) {
     .split(/[,:;\s]+/)
     .map((part) => part.trim())
     .filter(Boolean);
-
   return [parts[0] || '', parts[1] || ''];
 }
 
@@ -113,7 +106,6 @@ function fillDownColumns(rows, columns) {
   for (const col of columns) {
     lastValues[col] = '';
   }
-
   for (const row of rows) {
     for (const col of columns) {
       const current = String(row[col] ?? '').trim();
@@ -158,6 +150,7 @@ document.getElementById('paymentSheetInput').addEventListener('change', (e) => {
 document.getElementById('emailSheetInput').addEventListener('change', (e) => {
   handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
 });
+
 document.getElementById('selMonth').addEventListener('change', checkReady);
 document.getElementById('selCycle').addEventListener('change', checkReady);
 document.getElementById('selYear').addEventListener('change', checkReady);
@@ -222,6 +215,7 @@ function runMatcher() {
     showError('Please upload both required files.');
     return;
   }
+
   if (!document.getElementById('selMonth').value || !document.getElementById('selCycle').value || !document.getElementById('selYear').value) {
     showError('Please select payout cycle (month, cycle, and year).');
     return;
@@ -245,8 +239,13 @@ function filterPaymentRowsByCycle(paymentRows) {
   const yr = parseInt(document.getElementById('selYear').value, 10);
   const mo = parseInt(document.getElementById('selMonth').value, 10);
   const cycle = document.getElementById('selCycle').value;
+  const payoutDay = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
+  const payoutDate = new Date(Date.UTC(yr, mo - 1, payoutDay));
 
   return paymentRows.filter((row) => {
+    const clientName = String(row[1] || '').trim();
+    if (!clientName) return false;
+
     const firstPayoutDate = parseDateValue(row[23]);
     if (!firstPayoutDate) return false;
 
@@ -255,30 +254,48 @@ function filterPaymentRowsByCycle(paymentRows) {
 
     const cycleMatch = cycle === '15'
       ? firstPayoutDt.getUTCDate() === 15
-      : firstPayoutDt.getUTCDate() === new Date(Date.UTC(firstPayoutDt.getUTCFullYear(), firstPayoutDt.getUTCMonth() + 1, 0)).getUTCDate();
+      : (firstPayoutDt.getUTCDate() === 30 || firstPayoutDt.getUTCDate() === 31);
 
-    const monthYearMatch = firstPayoutDt.getUTCFullYear() === yr && (firstPayoutDt.getUTCMonth() + 1) === mo;
-    return cycleMatch && monthYearMatch;
+    const alreadyStarted = firstPayoutDt <= payoutDate;
+    return cycleMatch && alreadyStarted;
   });
-});
-
-function checkReady() {
-  const cycleSelected = !!(
-    document.getElementById('selMonth').value &&
-    document.getElementById('selCycle').value &&
-    document.getElementById('selYear').value
-  );
-  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData && cycleSelected);
 }
 
-function buildEmailRecords() {
-  const rows = emailSheetData.slice(1).map((row) => [...row]);
-  fillDownColumns(rows, [15, 16]);
+function parseNormalizedDateToUTC(ddmmyyyy) {
+  const match = String(ddmmyyyy || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const day = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  const year = parseInt(match[3], 10);
+  return new Date(Date.UTC(year, month - 1, day));
+}
 
-  return rows
-    .map((row) => {
-      const emailSheetClientName = String(row[0] || '').trim();
-      const normalizedName = normalizeName(emailSheetClientName, true);
+function groupPaymentRowsByClient(paymentRows) {
+  const groups = new Map();
+
+  for (const row of paymentRows) {
+    const paymentClientName = String(row[1] || '').trim();
+    if (!paymentClientName) continue;
+
+    const normalizedPaymentName = normalizeName(paymentClientName, false);
+    if (!normalizedPaymentName) continue;
+
+    if (!groups.has(normalizedPaymentName)) {
+      groups.set(normalizedPaymentName, {
+        normalizedPaymentName,
+        paymentClientName,
+        units: 0,
+        paymentDates: new Set(),
+        agentClosing: String(row[37] || '').trim()
+      });
+    }
+
+    const group = groups.get(normalizedPaymentName);
+    group.units += 1;
+
+    const paymentDate = parseDateValue(row[18]);
+    if (paymentDate) group.paymentDates.add(paymentDate);
+  }
 
   return Array.from(groups.values());
 }
@@ -316,15 +333,6 @@ function buildMatchResult(group, emailRecords) {
     notes,
     status
   };
-}
-
-function parseNormalizedDateToUTC(ddmmyyyy) {
-  const match = String(ddmmyyyy || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return null;
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10);
-  const year = parseInt(match[3], 10);
-  return new Date(Date.UTC(year, month - 1, day));
 }
 
 function renderStats() {
@@ -397,18 +405,19 @@ function exportExcel() {
   const exportRows = results.map((row) => ({
     'Client Name (Payment Sheet)': row.paymentClientName,
     'Client Name (Email Sheet)': row.emailSheetClientName,
-    Units: row.units,
+    'Units': row.units,
     'Email 1': row.email1,
     'Email 2': row.email2,
-    Mobile: row.mobile,
+    'Mobile': row.mobile,
     'Agent Closing': row.agentClosing,
     'Agent Email': row.agentEmail,
-    Notes: row.notes
+    'Notes': row.notes
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportRows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Email Matching Results');
+
   const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
   const cycle = document.getElementById('selCycle').value === '15' ? '15' : '30_31';
   const month = monthNames[parseInt(document.getElementById('selMonth').value, 10) - 1] || 'MONTH';
