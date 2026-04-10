@@ -113,9 +113,29 @@ function fillDownColumns(rows, columns) {
   }
 }
 
+function validateFileName(file, expectedName) {
+  if (!file) return false;
+
+  const actualName = String(file.name || '');
+  const matches = actualName.toLowerCase() === expectedName.toLowerCase();
+
+  if (!matches) {
+    alert(`Incorrect file. Please upload '${expectedName}'.`);
+    return false;
+  }
+
+  return true;
+}
+
 async function handleFileUpload(event, targetKey, cardId, filenameId) {
   const file = event.target.files[0];
   if (!file) return;
+
+  const expectedName = targetKey === 'payment' ? 'payment info sheet.xlsx' : 'email sheet.xlsx';
+  if (!validateFileName(file, expectedName)) {
+    event.target.value = '';
+    return;
+  }
 
   try {
     const data = await readFile(file);
