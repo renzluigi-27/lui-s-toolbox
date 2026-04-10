@@ -214,10 +214,15 @@ function buildEmailRecords() {
       return {
         emailSheetClientName,
         normalizedName,
-        agentEmail: String(row[2] || '').trim(),
+        agentEmail: String(row[2] || '')
+        .split(/[,:;\s]+/)[0]
+        .trim(),
         paymentReceivedDate: parseDateValue(row[5]),
         clientEmailRaw: String(row[15] || '').trim(),
-        mobile: String(row[16] || '').trim()
+        mobile: String(row[16] || '')
+        .split(/[,:;\s]+/)[0]
+        .replace(/[^\d+]/g, '')
+        .trim()
       };
     })
     .filter((record) => record.emailSheetClientName && record.normalizedName);
