@@ -355,7 +355,6 @@ function renderTable() {
     'Client Name (Email Sheet)',
     'Units',
     'Email 1',
-    'Email 2',
     'Mobile',
     'Agent Closing',
     'Agent Email',
@@ -376,7 +375,6 @@ function renderTable() {
         <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
         <td class="mono">${esc(row.units)}</td>
         <td class="mono">${esc(row.email1)}</td>
-        <td class="mono">${esc(row.email2)}</td>
         <td class="mono">${esc(row.mobile)}</td>
         <td>${esc(row.agentClosing)}</td>
         <td class="mono">${esc(row.agentEmail)}</td>
