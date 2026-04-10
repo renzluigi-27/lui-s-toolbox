@@ -228,36 +228,12 @@
 <div class="container">
 
   <div class="section-label">Available</div>
-
-<!-- ─── TOOL CARD: Client Data Entry ─────────────────────────────── -->
-<a class="tool-card" href="client-data-entry.html">
-  <div class="tool-info">
-    <div class="tool-name">Client Data Entry</div>
-    <div class="tool-desc">Enter and send client details directly to Google Sheets with structured fields</div>
-  </div>
-  <div class="tool-meta">
-    <span class="tool-tag">data entry</span>
-    <span class="tool-arrow">&#8594;</span>
-  </div>
-</a>
 		
 	<!-- ─── TOOL CARD: IBAN Checker ─────────────────────────────── -->
   <a class="tool-card" href="iban-checker.html">
     <div class="tool-info">
       <div class="tool-name">IBAN Checker</div>
       <div class="tool-desc">Validate UAE &amp; international IBANs — ISO 13616 checksum</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">validation</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
-
-  <!-- ─── TOOL CARD: India Bank Checker ────────────────────────────── -->
-  <a class="tool-card" href="">
-    <div class="tool-info">
-      <div class="tool-name">India Bank Checker - Under Construction</div>
-      <div class="tool-desc">Validate IFSC and bank branch details</div>
     </div>
     <div class="tool-meta">
       <span class="tool-tag">validation</span>
@@ -343,6 +319,23 @@
     <div class="tool-name">Version History</div>
     <div class="tool-desc">
 
+<strong>Version 1.6.6</strong> — Toolbox cleanup &amp; Email Matcher rebuilt<br>
+<div style="padding-left:1rem;">
+  • Client Data Entry removed<br>
+  • India Bank Checker removed<br>
+  • Email Matcher fully rebuilt:<br>
+  &nbsp;&nbsp;– Upload Payment Info Sheet + Email Sheet with cycle selector (Month, Cycle, Year)<br>
+  &nbsp;&nbsp;– Clients grouped into one row per client — no more repeating names<br>
+  &nbsp;&nbsp;– Units column shows total container count per client<br>
+  &nbsp;&nbsp;– Matching by name + payment received date vs Welcome to LMC date (same month &amp; year)<br>
+  &nbsp;&nbsp;– Output: Client Name, Email 1, Email 2, Mobile, Agent Closing, Agent Email, Notes<br>
+  &nbsp;&nbsp;– Export to Excel with cycle-based filename (e.g. EMAIL_MATCH_15_APRIL2026.xlsx)<br>
+  &nbsp;&nbsp;– Stats: Total, Confirmed, Date Mismatch, No Match<br>
+  &nbsp;&nbsp;– Fixed date parsing — removed unsafe fallback causing false mismatches<br>
+  &nbsp;&nbsp;– Relaxed date matching to same month + year instead of exact day<br>
+  &nbsp;&nbsp;– Fixed mobile layout — no more horizontal scroll or cut text<br>
+</div><br>
+		
         <strong>Version 1.6.5</strong> — Client Data Entry added!<br>
 	  <br>
 		
