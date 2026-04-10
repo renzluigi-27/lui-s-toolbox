@@ -353,7 +353,6 @@ function renderTable() {
   const headers = [
     'Client Name (Payment Sheet)',
     'Client Name (Email Sheet)',
-    'Units',
     'Email 1',
     'Mobile',
     'Agent Closing',
@@ -373,7 +372,6 @@ function renderTable() {
       return `<tr>
         <td class="name-col">${esc(row.paymentClientName)}</td>
         <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
-        <td class="mono">${esc(row.units)}</td>
         <td class="mono">${esc(row.email1)}</td>
         <td class="mono">${esc(row.mobile)}</td>
         <td>${esc(row.agentClosing)}</td>
