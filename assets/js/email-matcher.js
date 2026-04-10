@@ -257,7 +257,18 @@ function filterPaymentRowsByCycle(paymentRows) {
   const payoutDay = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(Date.UTC(yr, mo - 1, payoutDay));
 
-  return paymentRows.filter((row) => {
+return paymentRows.filter((row) => {
+
+    const amValue = String(row[38] || '').toLowerCase();
+
+    if (
+        amValue.includes("yes") ||
+        amValue.includes("contract closed") ||
+        amValue.includes("duplicate entry")
+    ) {
+        return false; // skip row
+    }
+
     const clientName = String(row[1] || '').trim();
     if (!clientName) return false;
 
