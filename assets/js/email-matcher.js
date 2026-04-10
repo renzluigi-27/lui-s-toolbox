@@ -367,7 +367,7 @@ function renderTable() {
   document.getElementById('tableBody').innerHTML = previewRows
     .map((row) => {
       const notesCell = row.notes
-        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${esc(row.notes)}</span>`
+        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${esc((row.notes || '').replace(' — ', '\n→ '))}</span>`
         : '<span class="badge badge-valid"><span class="badge-dot"></span>Confirmed</span>';
 
       return `<tr>
