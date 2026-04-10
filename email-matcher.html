@@ -89,11 +89,11 @@
     .table-wrap { overflow-x: auto; overflow-y: auto; max-height: 600px; border-radius: var(--radius-lg); border: 0.5px solid var(--border); display: none; }
     .table-wrap.visible { display: block; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    thead th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap; border-bottom: 0.5px solid var(--border); position: sticky; top: 0; }
+    thead th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; white-space: normal; word-break: break-word; border-bottom: 0.5px solid var(--border); position: sticky; top: 0; }
     tbody tr { border-bottom: 0.5px solid var(--border); }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface2); }
-    td { padding: 10px 14px; vertical-align: middle; }
+    td { padding: 10px 14px; vertical-align: middle; word-break: break-word; }
     td.name-col { font-size: 13px; font-weight: 500; max-width: 220px; }
     td.mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-hint); }
     .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: var(--radius-md); white-space: nowrap; }
