@@ -338,6 +338,16 @@ function groupPaymentRowsByClient(paymentRows) {
 }
 
 function buildMatchResult(group, emailRecords) {
+  const parentheticalMatch = group.paymentClientName.match(/\(([^)]+)\)/);
+  const normalizedParentheticalName = parentheticalMatch
+    ? normalizeName(parentheticalMatch[1], false)
+    : '';
+  const byParentheticalName = normalizedParentheticalName
+    ? emailRecords.filter((record) =>
+      record.normalizedName === normalizedParentheticalName ||
+      record.normalizedNameInParentheses === normalizedParentheticalName
+    )
+    : [];
   const byName = emailRecords.filter((record) =>
     record.normalizedName === group.normalizedPaymentName ||
     record.normalizedNameInParentheses === group.normalizedPaymentName
@@ -346,7 +356,24 @@ function buildMatchResult(group, emailRecords) {
   let notes = 'No match found';
   let status = 'invalid';
 
-  if (byName.length > 0) {
+  if (byParentheticalName.length > 0) {
+    const byParentheticalNameAndDate = byParentheticalName.filter((record) => {
+      return Array.from(group.paymentDates).some((paymentDate) => {
+        const p = parseNormalizedDateToUTC(paymentDate);
+        const e = parseNormalizedDateToUTC(record.paymentReceivedDate);
+        return p && e && p.getUTCMonth() === e.getUTCMonth() && p.getUTCFullYear() === e.getUTCFullYear();
+      });
+    });
+    matchedRecord = byParentheticalNameAndDate[0] || byParentheticalName[0];
+
+    if (byParentheticalNameAndDate.length > 0) {
+      notes = '';
+      status = 'valid';
+    } else {
+      notes = 'Date mismatch — verify';
+      status = 'warn';
+    }
+  } else if (byName.length > 0) {
     const byNameAndDate = byName.filter((record) => {
   return Array.from(group.paymentDates).some((paymentDate) => {
     const p = parseNormalizedDateToUTC(paymentDate);
