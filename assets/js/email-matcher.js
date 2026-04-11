@@ -209,11 +209,17 @@ function buildEmailRecords() {
   return rows
     .map((row) => {
       const emailSheetClientName = String(row[0] || '').trim();
-      const normalizedName = normalizeName(emailSheetClientName, true);
+      const parentheticalMatch = emailSheetClientName.match(/\(([^)]+)\)/);
+      const mainName = emailSheetClientName.replace(/\([^)]*\)/g, ' ').trim();
+      const normalizedName = normalizeName(mainName || emailSheetClientName, true);
+      const normalizedNameInParentheses = parentheticalMatch
+        ? normalizeName(parentheticalMatch[1], true)
+        : '';
 
       return {
         emailSheetClientName,
         normalizedName,
+        normalizedNameInParentheses,
         agentEmail: String(row[2] || '')
         .split(/[,:;\s]+/)[0]
         .trim(),
@@ -225,7 +231,7 @@ function buildEmailRecords() {
         .trim()
       };
     })
-    .filter((record) => record.emailSheetClientName && record.normalizedName);
+    .filter((record) => record.emailSheetClientName && (record.normalizedName || record.normalizedNameInParentheses));
 }
 
 function runMatcher() {
@@ -332,7 +338,10 @@ function groupPaymentRowsByClient(paymentRows) {
 }
 
 function buildMatchResult(group, emailRecords) {
-  const byName = emailRecords.filter((record) => record.normalizedName === group.normalizedPaymentName);
+  const byName = emailRecords.filter((record) =>
+    record.normalizedName === group.normalizedPaymentName ||
+    record.normalizedNameInParentheses === group.normalizedPaymentName
+  );
   let matchedRecord = null;
   let notes = 'No match found';
   let status = 'invalid';
