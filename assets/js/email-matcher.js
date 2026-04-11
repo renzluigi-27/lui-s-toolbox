@@ -401,8 +401,11 @@ function renderTable() {
   const previewRows = results.slice(0, PREVIEW_LIMIT);
   document.getElementById('tableBody').innerHTML = previewRows
     .map((row) => {
+      const previewNotes = row.notes === 'Date mismatch — verify'
+        ? 'Date mismatch<br>→ verify'
+        : esc(row.notes);
       const notesCell = row.notes
-        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${esc(row.notes)}</span>`
+        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${previewNotes}</span>`
         : '<span class="badge badge-valid"><span class="badge-dot"></span>Confirmed</span>';
 
       return `<tr>
