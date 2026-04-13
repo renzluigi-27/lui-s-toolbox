@@ -614,7 +614,7 @@ function runGenerate() {
 
     const agentArr = [...g.agents];
     if (agentArr.length > 1) g.structuralNotes.push(`⚑ Multiple agents: ${agentArr.join(' / ')}`);
-    const agent = agentArr.length >= 1 ? agentArr[0] : '';
+    const agent = agentArr.length >= 1 ? agentArr[agentArr.length - 1] : '';
 
     const balanceNoteArr = [...g.balanceNotes];
     const allNotes = [...new Set(g.structuralNotes), ...deductionNotes, ...balanceNoteArr].join(' | ');
