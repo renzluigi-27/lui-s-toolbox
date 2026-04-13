@@ -131,6 +131,13 @@
         <div class="upload-zone-filename" id="emailSheetName" style="display:none"></div>
       </div>
       <input type="file" id="emailSheetInput" class="file-input" accept=".csv,.xlsx,.xls">
+
+      <div class="upload-zone" id="prevMatchCard" onclick="document.getElementById('prevMatchInput').click()" style="grid-column: 1 / -1;">
+        <div class="upload-zone-title">🗂️ Previous Email Match</div>
+        <div class="upload-zone-hint">Optional — EMAIL_MATCH_ file from previous cycle</div>
+        <div class="upload-zone-filename" id="prevMatchName" style="display:none"></div>
+      </div>
+      <input type="file" id="prevMatchInput" class="file-input" accept=".csv,.xlsx,.xls">
     </div>
     <div class="hint">Drag & drop supported · CSV and XLSX accepted</div>
 
@@ -143,8 +150,8 @@
   <div class="stats-row" id="statsBar">
     <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Total</div></div>
     <div class="stat-box"><div class="stat-num stat-confirmed" id="statConfirmed">0</div><div class="stat-label">Confirmed</div></div>
-    <div class="stat-box"><div class="stat-num stat-multiple" id="statMismatch">0</div><div class="stat-label">Date Mismatch</div></div>
-    <div class="stat-box"><div class="stat-num stat-nomatch" id="statNomatch">0</div><div class="stat-label">No Match</div></div>
+    <div class="stat-box"><div class="stat-num stat-multiple" id="statClientError">0</div><div class="stat-label">Client Error</div></div>
+    <div class="stat-box"><div class="stat-num stat-nomatch" id="statAgentError">0</div><div class="stat-label">Agent Error</div></div>
   </div>
 
   <div class="results-bar" id="resultsBar">
