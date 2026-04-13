@@ -1,5 +1,6 @@
 let paymentSheetData = null;
 let emailSheetData = null;
+let prevMatchData = null;
 let results = [];
 let payoutFileName = '';
 
@@ -138,6 +139,8 @@ async function handleFileUpload(event, targetKey, cardId, filenameId) {
       payoutFileName = String(file.name || '').replace(/\.[^.]+$/, '');
     } else {
       emailSheetData = data;
+    } else {
+      prevMatchData = data;
     }
 
     const card = document.getElementById(cardId);
@@ -175,7 +178,11 @@ document.getElementById('emailSheetInput').addEventListener('change', (e) => {
     const file = e.dataTransfer.files[0];
     if (!file) return;
 
-    const inputId = id === 'paymentSheetCard' ? 'paymentSheetInput' : 'emailSheetInput';
+    const inputId = id === 'paymentSheetCard'
+      ? 'paymentSheetInput'
+      : id === 'emailSheetCard'
+        ? 'emailSheetInput'
+        : 'prevMatchInput';
     const input = document.getElementById(inputId);
     const dt = new DataTransfer();
     dt.items.add(file);
@@ -219,6 +226,7 @@ function buildEmailRecords() {
         clientEmailRaw: String(row[15] || '').trim(),
         mobile: String(row[16] || '')
         .split(/[,:;\s]+/)[0]
+        .replace(/\s+/g, '')
         .replace(/[^\d+]/g, '')
         .trim(),
         multipleEmails: false
@@ -314,6 +322,11 @@ function groupPaymentRowsByClient(paymentRows) {
         agentClosing: String(row[12] || '').trim(),
         payoutNote: String(row[13] || '').trim()
       });
+    } else {
+      const group = groups.get(normalizedPaymentName);
+      if (!group.notes.includes('Client already in list')) {
+        group.notes.push('Client already in list');
+      }
     }
   }
 
@@ -352,7 +365,7 @@ function buildMatchResult(group, emailRecords) {
     units: group.units,
     email1,
     email2,
-    mobile: matchedRecord ? matchedRecord.mobile : '',
+    mobile,
     agentClosing: group.agentClosing,
     agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
     notes: notes.join(' | '),
@@ -363,13 +376,27 @@ function buildMatchResult(group, emailRecords) {
 function renderStats() {
   const total = results.length;
   const confirmed = results.filter((row) => row.status === 'valid').length;
-  const mismatch = results.filter((row) => row.status === 'warn').length;
-  const noMatch = results.filter((row) => row.status === 'invalid').length;
+  const clientError = results.filter((row) =>
+    row.notes && (
+      /name not found/i.test(row.notes) ||
+      /email missing/i.test(row.notes) ||
+      /client already/i.test(row.notes) ||
+      /multiple emails/i.test(row.notes)
+    )
+  ).length;
+
+  const agentError = results.filter((row) =>
+    row.notes && (
+      /agent email missing/i.test(row.notes) ||
+      /agent name missing/i.test(row.notes) ||
+      /multiple agents/i.test(row.notes)
+    )
+  ).length;
 
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statConfirmed').textContent = confirmed;
-  document.getElementById('statMismatch').textContent = mismatch;
-  document.getElementById('statNomatch').textContent = noMatch;
+  document.getElementById('statClientError').textContent = clientError;
+  document.getElementById('statAgentError').textContent = agentError;
   document.getElementById('statsBar').classList.add('visible');
 }
 
