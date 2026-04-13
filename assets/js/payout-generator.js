@@ -116,6 +116,7 @@ function parsePaymentSheet(raw) {
     contractNo:      col('contract no'),
     contractClosed:  col('contract closed'),
 	balance:         col('balance amount pending'),
+    agent:           37,
   };
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -208,6 +209,7 @@ function parsePaymentSheet(raw) {
     } else {
       groupId = '__MANUAL_CHECK__';
     }
+    const rawAgent = r[37] ? String(r[37]).trim() : '';
 
     rows.push({
       index: i,
@@ -228,6 +230,7 @@ function parsePaymentSheet(raw) {
       clientType:         r[C.clientType] ? String(r[C.clientType]).trim() : '',
       contractClosedFlag,
       balanceNote: (C.balance !== -1 && r[C.balance]) ? String(r[C.balance]).trim() : '',
+      agent: rawAgent,
     });
   }
   return rows;
@@ -472,10 +475,12 @@ function runGenerate() {
         deductionItems:  [], // accumulated structured items across all containers
         structuralNotes: [], // flags: shared, mismatch, manual check, contract closed
 		balanceNotes:    new Set(),
+        agents:          new Set(),
       };
     }
 
     groups[key].containers.push(r.container);
+    if (r.agent) groups[key].agents.add(r.agent);
     groups[key].totalReturn += r.returnAmt;
 
     if (r.contractClosedFlag) groups[key].structuralNotes.push(r.contractClosedFlag);
@@ -607,6 +612,10 @@ function runGenerate() {
       deductionNotes.push('HC 1,000 applied');
     }
 
+    const agentArr = [...g.agents];
+    if (agentArr.length > 1) g.structuralNotes.push(`⚑ Multiple agents: ${agentArr.join(' / ')}`);
+    const agent = agentArr.length >= 1 ? agentArr[agentArr.length - 1] : '';
+
     const balanceNoteArr = [...g.balanceNotes];
     const allNotes = [...new Set(g.structuralNotes), ...deductionNotes, ...balanceNoteArr].join(' | ');
 
@@ -617,6 +626,7 @@ function runGenerate() {
 
     return {
       ...g,
+      agent,
       totalDeduction:    roundedDeduction,
       rentalDue:         hasBalance ? null : (g.totalReturn - roundedDeduction),
       balanceAddition:   balanceNumeric,
@@ -738,6 +748,7 @@ function exportExcel() {
     'IBAN NUMBER',
     'SWIFT CODE',
     'BANK NAME',
+    'Agent Name',
     'NOTES',
   ];
 
@@ -754,6 +765,7 @@ function exportExcel() {
     r.iban,
     r.swift,
     r.bankName,
+    r.agent || '',
     r.note || '',
   ]);
 
@@ -761,7 +773,7 @@ function exportExcel() {
   const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['', 'TOTAL', '', '', totReturn, totDeduct, '', totDue, '', '', '', '', '']);
+  rows.push(['', 'TOTAL', '', '', totReturn, totDeduct, '', totDue, '', '', '', '', '', '']);
 
   const wb   = XLSX.utils.book_new();
   const data = [headers, ...rows];
@@ -780,6 +792,7 @@ function exportExcel() {
     { wch: 30 }, // IBAN
     { wch: 18 }, // SWIFT
     { wch: 28 }, // Bank
+    { wch: 20 }, // Agent Name
     { wch: 50 }, // Notes
   ];
 
