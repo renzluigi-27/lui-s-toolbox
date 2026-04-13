@@ -310,7 +310,8 @@ function groupPaymentRowsByClient(paymentRows) {
     const paymentClientName = String(row[1] || '').trim();
     if (!paymentClientName) continue;
 
-    const normalizedPaymentName = normalizeName(paymentClientName, true);
+    const paymentNameWithoutParentheses = paymentClientName.replace(/\([^)]*\)/g, ' ').trim();
+    const normalizedPaymentName = normalizeName(paymentNameWithoutParentheses || paymentClientName, false);
     if (!normalizedPaymentName) continue;
 
     if (!groups.has(normalizedPaymentName)) {
