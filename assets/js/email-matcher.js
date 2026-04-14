@@ -407,6 +407,7 @@ function buildMatchResult(group, emailRecords) {
     'athul':             'athul@coraluae.com',
     'sanjana':           'sanjana@legendmaritime.com',
     'khadija':           'khadija@coraluae.com',
+    'renz':              'renz@legendmaritime.com',
   };
 
   const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agentClosing.toLowerCase().trim()]
@@ -420,7 +421,12 @@ function buildMatchResult(group, emailRecords) {
     if (matchedRecord && matchedRecord.multipleEmails) notes.push('Multiple emails detected');
     if (!matchedRecord) notes.push('Name not found in email sheet');
     if (matchedRecord && !email1) notes.push('Email missing in email sheet');
-    if (matchedRecord && !resolvedAgentEmail) notes.push('Agent email missing in email sheet');
+    const sheetAgentEmail = matchedRecord ? matchedRecord.agentEmail : '';
+if (matchedRecord && !resolvedAgentEmail) {
+  notes.push('Agent email missing');
+} else if (matchedRecord && sheetAgentEmail && sheetAgentEmail !== resolvedAgentEmail) {
+  notes.push('Agent email mismatch');
+}
     if (matchedRecord && !group.agentClosing) notes.push('Agent name missing');
   }
 
@@ -470,9 +476,8 @@ function renderTable() {
     'Client Name (Payout Sheet)',
     'Client Name (Email Sheet)',
     'Email 1',
-    'Mobile',
+    'Email 2',
     'Agent Closing',
-    'Agent Email',
     'Notes'
   ];
 
@@ -489,9 +494,8 @@ function renderTable() {
         <td class="name-col">${esc(row.paymentClientName)}</td>
         <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
         <td class="mono">${esc(row.email1)}</td>
-        <td class="mono">${esc(row.mobile)}</td>
+        <td class="mono">${esc(row.email2)}</td>
         <td>${esc(row.agentClosing)}</td>
-        <td class="mono">${esc(row.agentEmail)}</td>
         <td>${notesCell}</td>
       </tr>`;
     })
