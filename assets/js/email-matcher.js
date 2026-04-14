@@ -473,10 +473,9 @@ function renderStats() {
 
 function renderTable() {
   const headers = [
-    'Client Name (Payout Sheet)',
-    'Client Name (Email Sheet)',
+    'Client Name (Payout)',
+    'Client Name (Email)',
     'Email 1',
-    'Email 2',
     'Agent Closing',
     'Notes'
   ];
@@ -494,7 +493,6 @@ function renderTable() {
         <td class="name-col">${esc(row.paymentClientName)}</td>
         <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
         <td class="mono">${esc(row.email1)}</td>
-        <td class="mono">${esc(row.email2)}</td>
         <td>${esc(row.agentClosing)}</td>
         <td>${notesCell}</td>
       </tr>`;
@@ -520,7 +518,7 @@ function exportExcel() {
   if (!results.length) return;
 
   const exportRows = results.map((row) => ({
-    'Client Name (Payout Sheet)': row.paymentClientName,
+    'Client Name (LMC Sheet)': row.paymentClientName,
     'Client Name (Email Sheet)': row.emailSheetClientName,
     'Units': row.units,
     'Email 1': row.email1,
