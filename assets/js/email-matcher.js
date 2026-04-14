@@ -139,8 +139,6 @@ async function handleFileUpload(event, targetKey, cardId, filenameId) {
       payoutFileName = String(file.name || '').replace(/\.[^.]+$/, '');
     } else {
       emailSheetData = data;
-    } else {
-      prevMatchData = data;
     }
 
     const card = document.getElementById(cardId);
@@ -324,9 +322,7 @@ function groupPaymentRowsByClient(paymentRows) {
       });
     } else {
       const group = groups.get(normalizedPaymentName);
-      if (!group.notes.includes('Client already in list')) {
-        group.notes.push('Client already in list');
-      }
+      group.units += Number(row[2]) || 0;
     }
   }
 
@@ -365,7 +361,7 @@ function buildMatchResult(group, emailRecords) {
     units: group.units,
     email1,
     email2,
-    mobile,
+    mobile: matchedRecord ? matchedRecord.mobile : '',
     agentClosing: group.agentClosing,
     agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
     notes: notes.join(' | '),
