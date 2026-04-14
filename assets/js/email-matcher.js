@@ -263,7 +263,12 @@ function buildEmailRecords() {
 
   return Array.from(grouped.values()).map((record) => ({
     ...record,
-    multipleEmails: record._emailSet.size > 1
+    multipleEmails: new Set(
+      String(record.clientEmailRaw || '')
+        .split(/[,:;\s]+/)
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean)
+    ).size > 1
   }));
 }
 
@@ -345,13 +350,39 @@ function buildMatchResult(group, emailRecords) {
   const notes = [];
   const hasMultipleAgentsNote = group.payoutNote && /multiple agents/i.test(group.payoutNote);
 
+  const AGENT_EMAIL_MAP = {
+    'faiqa':             'bdm@legendmaritime.com',
+    'naushad':           'manager@coraluae.com',
+    'numan':             'wm@aim-bc.com',
+    'kate':              'wm@aim-bc.com',
+    'ali altawel':       'ali_altawel@legendmaritime.com',
+    'mustafa':           'ali_altawel@legendmaritime.com',
+    'janagan':           'janagan@legendmaritime.com',
+    'christian':         'christian@legendmaritime.com',
+    'himali':            'renz@legendmaritime.com',
+    'ms. sagithra nath': 'cfo@legendmaritime.com',
+    'sagithra nath':     'cfo@legendmaritime.com',
+    'mag':               'lauriane@legendmaritime.com',
+    'mr. ahnaf':         'mohamedahnaf@legendmaritime.com',
+    'ahnaf':             'mohamedahnaf@legendmaritime.com',
+    'ruheed':            'ruheed@coraluae.com',
+    'athul':             'athul@coraluae.com',
+    'sanjana':           'sanjana@legendmaritime.com',
+    'khadija':           'khadija@coraluae.com',
+  };
+
+  const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agentClosing.toLowerCase().trim()]
+    || (matchedRecord ? matchedRecord.agentEmail : '')
+    || '';
+
   if (hasMultipleAgentsNote) {
-    notes.push(group.payoutNote);
+    const multipleAgentsPart = group.payoutNote.split('|').find(p => /multiple agents/i.test(p));
+    if (multipleAgentsPart) notes.push(multipleAgentsPart.trim());
   } else {
     if (matchedRecord && matchedRecord.multipleEmails) notes.push('Multiple emails detected');
     if (!matchedRecord) notes.push('Name not found in email sheet');
     if (matchedRecord && !email1) notes.push('Email missing in email sheet');
-    if (matchedRecord && !matchedRecord.agentEmail) notes.push('Agent email missing in email sheet');
+    if (matchedRecord && !resolvedAgentEmail) notes.push('Agent email missing in email sheet');
     if (matchedRecord && !group.agentClosing) notes.push('Agent name missing');
   }
 
@@ -363,7 +394,7 @@ function buildMatchResult(group, emailRecords) {
     email2,
     mobile: matchedRecord ? matchedRecord.mobile : '',
     agentClosing: group.agentClosing,
-    agentEmail: matchedRecord ? matchedRecord.agentEmail : '',
+    agentEmail: resolvedAgentEmail,
     notes: notes.join(' | '),
     status
   };
