@@ -111,10 +111,16 @@ function validateFileName(file, expectedName) {
   const baseName = actualName.replace(/\.[^.]+$/, '');
   const matches = expectedName === 'PAYOUT_PREFIX'
     ? baseName.toLowerCase().startsWith('payout_')
-    : actualName.toLowerCase() === expectedName.toLowerCase();
+    : expectedName === 'EMAIL_MATCH_PREFIX'
+      ? baseName.toLowerCase().startsWith('email_match_')
+      : actualName.toLowerCase() === expectedName.toLowerCase();
 
   if (!matches) {
-    const expectedText = expectedName === 'PAYOUT_PREFIX' ? "a file starting with 'PAYOUT_'" : `'${expectedName}'`;
+    const expectedText = expectedName === 'PAYOUT_PREFIX'
+      ? "a file starting with 'PAYOUT_'"
+      : expectedName === 'EMAIL_MATCH_PREFIX'
+        ? "a file starting with 'EMAIL_MATCH_'"
+        : `'${expectedName}'`;
     alert(`Incorrect file. Please upload ${expectedText}.`);
     return false;
   }
@@ -126,7 +132,11 @@ async function handleFileUpload(event, targetKey, cardId, filenameId) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const expectedName = targetKey === 'payment' ? 'PAYOUT_PREFIX' : 'email sheet.xlsx';
+  const expectedName = targetKey === 'payment'
+    ? 'PAYOUT_PREFIX'
+    : targetKey === 'prevMatch'
+      ? 'EMAIL_MATCH_PREFIX'
+      : 'email sheet.xlsx';
   if (!validateFileName(file, expectedName)) {
     event.target.value = '';
     return;
@@ -137,6 +147,8 @@ async function handleFileUpload(event, targetKey, cardId, filenameId) {
     if (targetKey === 'payment') {
       paymentSheetData = data;
       payoutFileName = String(file.name || '').replace(/\.[^.]+$/, '');
+    } else if (targetKey === 'prevMatch') {
+      prevMatchData = data;
     } else {
       emailSheetData = data;
     }
@@ -162,7 +174,11 @@ document.getElementById('emailSheetInput').addEventListener('change', (e) => {
   handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
 });
 
-['paymentSheetCard', 'emailSheetCard'].forEach((id) => {
+document.getElementById('prevMatchInput').addEventListener('change', (e) => {
+  handleFileUpload(e, 'prevMatch', 'prevMatchCard', 'prevMatchName');
+});
+
+['paymentSheetCard', 'emailSheetCard', 'prevMatchCard'].forEach((id) => {
   const el = document.getElementById(id);
   el.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -223,7 +239,7 @@ function buildEmailRecords() {
         paymentReceivedDate: parseDateValue(row[5]),
         clientEmailRaw: String(row[15] || '').trim(),
         mobile: String(row[16] || '')
-        .split(/[,:;\s]+/)[0]
+        .split(/[,;]+/)[0]
         .replace(/\s+/g, '')
         .replace(/[^\d+]/g, '')
         .trim(),
@@ -251,14 +267,17 @@ function buildEmailRecords() {
       normalizeEmailList(record.clientEmailRaw).forEach((email) => existing._emailSet.add(email));
 
       if (useCurrent) {
-        grouped.set(key, {
-          ...record,
-          _count: existing._count + 1,
-          _emailSet: existing._emailSet
-        });
+        existing.emailSheetClientName = record.emailSheetClientName || existing.emailSheetClientName;
+        existing.agentEmail = record.agentEmail || existing.agentEmail;
+        existing.paymentReceivedDate = record.paymentReceivedDate || existing.paymentReceivedDate;
+        existing.clientEmailRaw = record.clientEmailRaw || existing.clientEmailRaw;
+        existing.mobile = record.mobile || existing.mobile;
       } else {
-        existing._count += 1;
+        existing.mobile = existing.mobile || record.mobile;
+        existing.clientEmailRaw = existing.clientEmailRaw || record.clientEmailRaw;
+        existing.agentEmail = existing.agentEmail || record.agentEmail;
       }
+      existing._count += 1;
     });
 
   return Array.from(grouped.values()).map((record) => ({
@@ -347,6 +366,25 @@ function buildMatchResult(group, emailRecords) {
   const status = matchedRecord ? 'valid' : 'invalid';
 
   const [email1, email2] = splitEmails(matchedRecord ? matchedRecord.clientEmailRaw : '');
+  let resolvedEmail1 = email1;
+  let resolvedEmail2 = email2;
+  let resolvedMobile = matchedRecord ? matchedRecord.mobile : '';
+
+  if (prevMatchData && prevMatchData.length > 1) {
+    const normalizedGroupName = group.normalizedPaymentName;
+    const prevRow = prevMatchData.slice(1).find((r) =>
+      normalizeName(String(r[0] || ''), true) === normalizedGroupName
+    );
+    if (prevRow) {
+      if (!resolvedEmail1 && String(prevRow[3] || '').trim()) {
+        resolvedEmail1 = String(prevRow[3] || '').trim();
+        resolvedEmail2 = String(prevRow[4] || '').trim();
+      }
+      if (!resolvedMobile && String(prevRow[5] || '').trim()) {
+        resolvedMobile = String(prevRow[5] || '').trim();
+      }
+    }
+  }
   const notes = [];
   const hasMultipleAgentsNote = group.payoutNote && /multiple agents/i.test(group.payoutNote);
 
@@ -390,9 +428,9 @@ function buildMatchResult(group, emailRecords) {
     paymentClientName: group.paymentClientName,
     emailSheetClientName: matchedRecord ? matchedRecord.emailSheetClientName : '',
     units: group.units,
-    email1,
-    email2,
-    mobile: matchedRecord ? matchedRecord.mobile : '',
+    email1: resolvedEmail1,
+    email2: resolvedEmail2,
+    mobile: resolvedMobile,
     agentClosing: group.agentClosing,
     agentEmail: resolvedAgentEmail,
     notes: notes.join(' | '),
