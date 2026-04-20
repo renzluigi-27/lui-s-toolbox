@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIO Tool</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
+  <link rel="stylesheet" href="/assets/css/aio-tool.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="page-container">
+    <div class="content">
+
+      <header>
+        <h1>AIO Tool</h1>
+        <p>Payout · IP Deduction · Container Info · Email Matcher — runs entirely in your browser</p>
+      </header>
+
+      <div class="container">
+        <a class="back-link" href="index.html">&#8592; Back to Tools</a>
+
+        <!-- Shared: Payment Info Sheet + Selectors -->
+        <div class="card">
+          <div class="section-label">Payment Info Sheet</div>
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <div class="upload-zone-text">
+              <strong>Click to upload or drag &amp; drop</strong>
+              Payment info sheet &middot; .xlsx or .xls
+            </div>
+          </div>
+          <div class="file-loaded" id="fileLoaded">
+            <span>&#10003;</span>
+            <div>
+              <div class="file-loaded-name" id="loadedName">&mdash;</div>
+              <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+            </div>
+          </div>
+          <div class="msg error" id="fileError"></div>
+          <div class="selector-row" style="margin-top:1rem;">
+            <div class="selector-group">
+              <label>Month</label>
+              <select id="selMonth">
+                <option value="1">January</option><option value="2">February</option>
+                <option value="3">March</option><option value="4">April</option>
+                <option value="5">May</option><option value="6">June</option>
+                <option value="7">July</option><option value="8">August</option>
+                <option value="9">September</option><option value="10">October</option>
+                <option value="11">November</option><option value="12">December</option>
+              </select>
+            </div>
+            <div class="selector-group">
+              <label>Cycle</label>
+              <select id="selCycle">
+                <option value="15">15th &mdash; Mid-Month</option>
+                <option value="30/31">30/31 &mdash; End of Month</option>
+              </select>
+            </div>
+            <div class="selector-group">
+              <label>Year</label>
+              <select id="selYear"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="mode-tabs" id="modeTabs">
+          <button class="mode-tab active" data-mode="payout">Payout Generator</button>
+          <button class="mode-tab" data-mode="ip">IP Deduction</button>
+          <button class="mode-tab" data-mode="container">Container Info</button>
+          <button class="mode-tab" data-mode="email">Email Matcher</button>
+        </div>
+
+        <!-- Reference Upload -->
+        <div class="card">
+          <div class="section-label">Previous Output Reference <span class="optional-label">optional</span></div>
+          <p class="card-hint" id="refHint"></p>
+          <div class="upload-zone upload-zone-sm" id="refUploadZone">
+            <input type="file" id="refFileInput" accept=".xlsx" />
+            <div class="upload-zone-text">
+              <strong>Click to upload previous output</strong>
+              <span id="refExpected" style="font-size:12px;color:var(--text-hint);">&mdash;</span>
+            </div>
+          </div>
+          <div class="file-loaded" id="refFileLoaded">
+            <span>&#10003;</span>
+            <div>
+              <div class="file-loaded-name" id="refLoadedName">&mdash;</div>
+              <div class="file-loaded-meta" id="refLoadedMeta">&mdash;</div>
+            </div>
+          </div>
+          <div class="msg error" id="refError"></div>
+        </div>
+
+        <!-- Email Sheet Upload (Mode 4 only) -->
+        <div class="card" id="emailSheetCard" style="display:none;">
+          <div class="section-label">Email Sheet</div>
+          <div class="upload-zone" id="emailUploadZone">
+            <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
+            <div class="upload-zone-text">
+              <strong>Click to upload email sheet</strong>
+              Client Name &middot; Agent Email &middot; Payment Date &middot; Contact
+            </div>
+          </div>
+          <div class="file-loaded" id="emailFileLoaded">
+            <span>&#10003;</span>
+            <div>
+              <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
+            </div>
+          </div>
+          <div class="msg error" id="emailError"></div>
+        </div>
+
+        <!-- Generate Row -->
+        <div class="btn-row">
+          <button class="btn-primary" id="generateBtn" onclick="runGenerate()" disabled>Generate</button>
+          <span class="generate-hint" id="generateHint">Upload payment info sheet to continue</span>
+        </div>
+        <div class="msg error" id="genError"></div>
+
+        <!-- Results -->
+        <div id="resultsSection" style="display:none;">
+          <div class="card" style="margin-top:1rem;">
+            <div class="results-header">
+              <div>
+                <div class="section-label" style="margin-bottom:2px;">Results</div>
+                <div class="results-title" id="resultsTitle">&mdash;</div>
+              </div>
+              <button class="btn-primary" onclick="exportResults()">&#8595; Export to Excel</button>
+            </div>
+            <div class="stats-grid" id="statsGrid"></div>
+            <div id="flagsBox" style="display:none;">
+              <div class="msg warn show" id="flagsMsg"></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+              <div class="more-rows" id="moreRows" style="display:none;"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /.container -->
+      <div id="footer"></div>
+    </div><!-- /.content -->
+  </div><!-- /.page-container -->
+
+  <script src="/assets/js/aio-tool.js"></script>
+  <script src="/assets/js/security.js"></script>
+</body>
+</html>
