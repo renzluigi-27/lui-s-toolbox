@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WA Media Downloader — by Renz Luigi</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --green: #25d366;
+      --green-dim: rgba(37, 211, 102, 0.15);
+      --green-border: rgba(37, 211, 102, 0.35);
+      --purple: #6c3fc5;
+      --white: #ffffff;
+      --white-60: rgba(255,255,255,0.6);
+      --white-30: rgba(255,255,255,0.3);
+      --white-10: rgba(255,255,255,0.1);
+      --white-06: rgba(255,255,255,0.06);
+      --bg: #080d1a;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--white);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Background orbs ── */
+    .bg-orbs {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: orbFloat 8s ease-in-out infinite alternate;
+    }
+
+    .orb-1 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, var(--green) 0%, transparent 70%);
+      top: -150px; left: -150px;
+    }
+
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, var(--purple) 0%, transparent 70%);
+      bottom: 10%; right: -100px;
+      animation-delay: 4s;
+    }
+
+    .orb-3 {
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, #1a6b8a 0%, transparent 70%);
+      top: 50%; left: 40%;
+      animation-delay: 2s;
+    }
+
+    @keyframes orbFloat {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, 40px) scale(1.08); }
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 16px 0;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--white-10);
+      background: rgba(8, 13, 26, 0.6);
+    }
+
+    nav .inner {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-logo span {
+      font-size: 20px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .nav-links a {
+      font-size: 13px;
+      color: var(--white-60);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--white); }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 100px 0 80px;
+      text-align: center;
+    }
+
+    .review-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #f5a623;
+      background: rgba(245, 166, 35, 0.1);
+      border: 1px solid rgba(245, 166, 35, 0.3);
+      border-radius: 99px;
+      padding: 5px 14px;
+      margin-bottom: 28px;
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+
+    .review-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #f5a623;
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245,166,35,0.2); }
+      50% { box-shadow: 0 0 0 6px rgba(245,166,35,0); }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(36px, 6vw, 62px);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--green), #128c7e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: var(--white-60);
+      max-width: 520px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: linear-gradient(135deg,
+        rgba(37,211,102,0.3),
+        rgba(18,140,126,0.3));
+      border: 1px solid var(--green-border);
+      border-top-color: rgba(37,211,102,0.6);
+      border-radius: 14px;
+      color: var(--white);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.15),
+        0 4px 20px rgba(37,211,102,0.15);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.2),
+        0 8px 28px rgba(37,211,102,0.25);
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.2);
+      border-radius: 14px;
+      color: var(--white-60);
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-secondary:hover {
+      color: var(--white);
+      background: var(--white-10);
+      transform: translateY(-2px);
+    }
+
+    .btn-disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* ── Extension preview mockup ── */
+    .preview-wrap {
+      margin: 60px auto 0;
+      max-width: 320px;
+      position: relative;
+    }
+
+    .preview-glow {
+      position: absolute;
+      inset: -30px;
+      background: radial-gradient(circle, rgba(37,211,102,0.15) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .preview-card {
+      background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(32px) saturate(180%);
+      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-top-color: rgba(255,255,255,0.35);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.25);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; width: 80%; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .preview-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--green), #128c7e);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .preview-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+    .preview-sub { font-size: 10px; color: var(--white-30); margin-top: 1px; }
+
+    .preview-tip {
+      font-size: 10px;
+      color: var(--white-30);
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-radius: 10px;
+      padding: 7px 10px;
+      margin-bottom: 12px;
+    }
+
+    .preview-stats {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .preview-stat {
+      flex: 1;
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-radius: 12px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .preview-stat strong { display: block; font-size: 20px; font-weight: 700; }
+    .preview-stat span { font-size: 9px; color: var(--white-30); text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .preview-filters {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .preview-filter {
+      flex: 1 1 calc(50% - 5px);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 6px 4px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid rgba(37,211,102,0.3);
+      background: rgba(37,211,102,0.12);
+    }
+
+    .preview-filter.dim {
+      border-color: var(--white-10);
+      background: var(--white-06);
+      color: var(--white-30);
+    }
+
+    .preview-btn {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, rgba(37,211,102,0.35), rgba(18,140,126,0.35));
+      border: 1px solid var(--green-border);
+      border-radius: 12px;
+      color: var(--white);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .preview-footer-text {
+      font-size: 9px;
+      color: var(--white-30);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .preview-footer-text a { color: rgba(37,211,102,0.6); text-decoration: none; }
+
+    /* ── Features ── */
+    .section {
+      padding: 80px 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(26px, 4vw, 38px);
+      font-weight: 800;
+      margin-bottom: 48px;
+      line-height: 1.2;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 24px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+    }
+
+    .feature-icon {
+      font-size: 28px;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: var(--white-60);
+      line-height: 1.6;
+    }
+
+    /* ── How it works ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 560px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .step-num {
+      min-width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--green-dim);
+      border: 1px solid var(--green-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--green);
+    }
+
+    .step h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .step p { font-size: 13px; color: var(--white-60); line-height: 1.5; }
+
+    /* ── Privacy ── */
+    .privacy-card {
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.18);
+      border-radius: 24px;
+      padding: 40px;
+      display: flex;
+      gap: 32px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+
+    .privacy-icon { font-size: 48px; }
+
+    .privacy-content h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+
+    .privacy-content p {
+      font-size: 14px;
+      color: var(--white-60);
+      line-height: 1.7;
+      max-width: 500px;
+    }
+
+    /* ── Donation ── */
+    .donation-section {
+      padding: 80px 0;
+      text-align: center;
+    }
+
+    .donation-card {
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.2);
+      border-radius: 28px;
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .donation-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(37,211,102,0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .donation-card h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+
+    .donation-card p {
+      font-size: 15px;
+      color: var(--white-60);
+      max-width: 480px;
+      margin: 0 auto 32px;
+      line-height: 1.7;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--white-10);
+      padding: 32px 0;
+      text-align: center;
+    }
+
+    footer p {
+      font-size: 12px;
+      color: var(--white-30);
+      line-height: 1.8;
+    }
+
+    footer a {
+      color: rgba(37,211,102,0.6);
+      text-decoration: none;
+    }
+
+    footer a:hover { color: var(--green); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .hero { padding: 70px 0 60px; }
+      .privacy-card { flex-direction: column; gap: 16px; padding: 28px; }
+      .donation-card { padding: 36px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- Nav -->
+  <nav>
+    <div class="inner">
+      <div class="nav-logo">
+        <span>📥</span> WA Media Downloader
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="https://ko-fi.com/renzluigi" target="_blank">Support ☕</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+
+      <div class="review-badge">
+        ⏳ Under Review on Edge Add-ons
+      </div>
+
+      <h1>Bulk download<br/><em>WhatsApp media</em><br/>in one click.</h1>
+
+      <p>Back up documents, images, videos, and audio from any WhatsApp Web chat — all saved neatly to a dedicated folder.</p>
+
+      <div class="hero-actions">
+        <a href="#" class="btn-primary btn-disabled">
+          🧩 Add to Edge — Coming Soon
+        </a>
+        <a href="https://github.com/renzluigi" target="_blank" class="btn-secondary">
+          ⬇️ Manual Install (GitHub)
+        </a>
+      </div>
+
+      <!-- Extension mockup -->
+      <div class="preview-wrap">
+        <div class="preview-glow"></div>
+        <div class="preview-card">
+          <div class="preview-header">
+            <div class="preview-icon">📥</div>
+            <div>
+              <div class="preview-title">Media Downloader</div>
+              <div class="preview-sub">WhatsApp Web</div>
+            </div>
+          </div>
+          <div class="preview-tip">💡 Scroll up in the chat first to load older media.</div>
+          <div class="preview-stats">
+            <div class="preview-stat">
+              <strong>11</strong>
+              <span>Found</span>
+            </div>
+            <div class="preview-stat">
+              <strong>—</strong>
+              <span>Downloaded</span>
+            </div>
+          </div>
+          <div class="preview-filters">
+            <div class="preview-filter">📄 Docs 6</div>
+            <div class="preview-filter dim">🖼️ Images 5</div>
+            <div class="preview-filter dim">🎥 Video 0</div>
+            <div class="preview-filter dim">🎵 Audio 0</div>
+          </div>
+          <div class="preview-btn">Download Selected (6)</div>
+          <div class="preview-footer-text">
+            Free forever · <a href="#">Support on Ko-fi ☕</a><br/>
+            If it saved you time, a small coffee means the world. 🙏
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="container">
+      <div class="section-label">What it does</div>
+      <div class="section-title">Everything you need,<br/>nothing you don't.</div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">📄</span>
+          <h3>Documents First</h3>
+          <p>Download PDFs, Word files, Excel sheets, and more — directly from your chat in one go.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🖼️</span>
+          <h3>All Media Types</h3>
+          <p>Images, videos, and audio messages — choose exactly what you want before downloading.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">📁</span>
+          <h3>Organized Folder</h3>
+          <p>All files are saved to a dedicated <code style="background:var(--white-10);padding:1px 6px;border-radius:4px;font-size:11px;">WA_Media/</code> folder inside your Downloads.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🎛️</span>
+          <h3>Pick & Choose</h3>
+          <p>Scan first, then toggle which media types to include before downloading anything.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">🔒</span>
+          <h3>100% Private</h3>
+          <p>Runs entirely in your browser. No servers, no tracking, no data collection whatsoever.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">♾️</span>
+          <h3>Free Forever</h3>
+          <p>No subscription, no premium plan, no paywalls. Built for personal use and kept free.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="section" id="how">
+    <div class="container">
+      <div class="section-label">How it works</div>
+      <div class="section-title">Simple as 1, 2, 3.</div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <h3>Open a chat on WhatsApp Web</h3>
+            <p>Scroll up in the chat to load older media into the page before scanning.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <h3>Click the extension → Scan</h3>
+            <p>The extension scans the visible chat and shows you what was found — docs, images, videos, and audio.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <h3>Select types → Download</h3>
+            <p>Toggle which media types you want, then hit Download. Files are saved to your <code style="background:var(--white-10);padding:1px 6px;border-radius:4px;font-size:11px;">WA_Media/</code> folder.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Privacy -->
+  <section class="section">
+    <div class="container">
+      <div class="privacy-card">
+        <div class="privacy-icon">🔐</div>
+        <div class="privacy-content">
+          <h2>Your privacy is non-negotiable.</h2>
+          <p>This extension runs entirely in your browser. It does not send any data to external servers, does not store your messages or files, and does not track any activity. Everything stays on your device.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Donation -->
+  <section class="donation-section">
+    <div class="container">
+      <div class="donation-card">
+        <h2>Free forever. Always. ☕</h2>
+        <p>This tool is free, and always will be. If it saved you time, a small coffee means the world. Thank you. 🙏</p>
+        <a href="https://ko-fi.com/renzluigi" target="_blank" class="btn-primary">
+          ☕ Support on Ko-fi
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>
+        Built with ❤️ by <a href="https://ko-fi.com/renzluigi" target="_blank">Renz Luigi</a> ·
+        <a href="https://github.com/renzluigi" target="_blank">GitHub</a> ·
+        Free & open for personal use
+      </p>
+      <p style="margin-top:6px;">Not affiliated with WhatsApp or Meta.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
+```
