@@ -6,10 +6,10 @@
 // ─────────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────────
-let paymentData   = [];   // parsed rows from payment info sheet
-let refData       = [];   // parsed rows from previous output (optional)
-let emailData     = [];   // parsed rows from email sheet (mode 4 only)
-let results       = [];   // final processed rows
+let paymentData   = [];
+let refData       = [];
+let emailData     = [];
+let results       = [];
 let activeMode    = 'payout';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -29,11 +29,7 @@ const PREVIEW_COUNT = 10;
     yearSel.appendChild(o);
   }
   document.getElementById('selMonth').value = now.getMonth() + 1;
-
-  // Init tab UI
   updateTabUI();
-
-  // Selectors trigger ref hint update
   document.getElementById('selMonth').addEventListener('change', updateRefHint);
   document.getElementById('selCycle').addEventListener('change', updateRefHint);
   document.getElementById('selYear').addEventListener('change', updateRefHint);
@@ -73,21 +69,15 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 });
 
 function updateTabUI() {
-  // Email sheet card: only show on email mode
   document.getElementById('emailSheetCard').style.display =
     activeMode === 'email' ? 'block' : 'none';
-
-  // Update ref hint
   updateRefHint();
-
-  // Update generate button state
   updateGenerateBtn();
 }
 
 function updateRefHint() {
   const expected = getExpectedRefFilename();
   document.getElementById('refExpected').textContent = expected ? `e.g. ${expected}` : '—';
-
   const hints = {
     payout:    'Upload the previous cycle\'s payout export to auto-detect pending HC deductions.',
     ip:        'Upload the previous cycle\'s IP Deduction export for reference.',
@@ -102,19 +92,10 @@ function getExpectedRefFilename() {
   const yr    = parseInt(document.getElementById('selYear').value);
   const cycle = document.getElementById('selCycle').value;
   const cycleTag = cycle === '15' ? '15' : '30';
-
-  // Previous month
   const prevDate  = new Date(yr, mo - 2, 1);
   const prevMonth = MONTHS[prevDate.getMonth()].toUpperCase();
   const prevYear  = prevDate.getFullYear();
-
-  const prefixes = {
-    payout:    'PAYOUT',
-    ip:        'IP_DEDUCTION',
-    container: 'CONTAINER_INFO',
-    email:     'EMAIL_MATCHER',
-  };
-
+  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO', email:'EMAIL_MATCHER' };
   return `${prefixes[activeMode]}_${cycleTag}_${prevMonth}${prevYear}.xlsx`;
 }
 
@@ -124,14 +105,7 @@ function getExpectedOutputFilename() {
   const cycle = document.getElementById('selCycle').value;
   const cycleTag = cycle === '15' ? '15' : '30';
   const monthStr = MONTHS[mo - 1].toUpperCase();
-
-  const prefixes = {
-    payout:    'PAYOUT',
-    ip:        'IP_DEDUCTION',
-    container: 'CONTAINER_INFO',
-    email:     'EMAIL_MATCHER',
-  };
-
+  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO', email:'EMAIL_MATCHER' };
   return `${prefixes[activeMode]}_${cycleTag}_${monthStr}${yr}.xlsx`;
 }
 
@@ -212,22 +186,16 @@ function handleRefFile(file) {
   if (!file.name.match(/\.xlsx$/i)) {
     showMsg('refError', 'Reference file must be .xlsx', 'error'); return;
   }
-
-  // Validate filename matches expected
   const expected = getExpectedRefFilename();
   const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
   const prefix   = prefixes[activeMode];
   const baseName = file.name.replace(/\.xlsx$/i, '').toUpperCase();
-
   if (!baseName.startsWith(prefix)) {
     showMsg('refError', `Wrong file. Expected a file starting with "${prefix}" — e.g. ${expected}`, 'error'); return;
   }
-
-  // Warn if not exact expected filename but allow
   if (file.name.toUpperCase() !== expected.toUpperCase()) {
     showMsg('refError', `⚠ Expected ${expected} but got ${file.name} — loaded anyway`, 'warn');
   }
-
   readExcel(file, rows => {
     refData = rows;
     document.getElementById('refFileLoaded').classList.add('show');
@@ -284,7 +252,6 @@ function readExcel(file, onSuccess, onError) {
 // PARSE PAYMENT INFO SHEET — shared by all modes
 // ─────────────────────────────────────────────────────────────────
 function parsePaymentSheet(raw) {
-  // Find header row
   let hi = 0;
   for (let i = 0; i < Math.min(5, raw.length); i++) {
     if (raw[i] && raw[i].some(v => v && String(v).toLowerCase().includes('client name'))) { hi = i; break; }
@@ -319,11 +286,11 @@ function parsePaymentSheet(raw) {
   const today = new Date(); today.setHours(0,0,0,0);
 
   // Fill-down trackers
-  let lastContractNo  = '';
-  let lastContainer   = '';
-  let lastClientName  = '';
-  let lastPayoutCycle = '';
-  let lastClientType  = '';
+  let lastContractNo    = '';
+  let lastContainer     = '';
+  let lastClientName    = '';
+  let lastPayoutCycle   = '';
+  let lastClientType    = '';
   let lastContainerType = '';
 
   const rows = [];
@@ -357,21 +324,20 @@ function parsePaymentSheet(raw) {
 
     if (!clientName) continue;
 
-    // ── Payout cycle fill-down ──
+    // ── Payout cycle fill-down (no flag generated, just fill) ──
     const rawCycleDirect = (C.payoutCycle !== -1 && r[C.payoutCycle]) ? String(r[C.payoutCycle]).trim() : '';
-    const cycleFilledDown = !rawCycleDirect && !!lastPayoutCycle;
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
     const payoutCycle = rawCycleDirect || lastPayoutCycle;
 
-    // ── Client Type fill-down ──
+    // ── Client Type — flag if blank, fill-down for value ──
     const rawClientType = (C.clientType !== -1 && r[C.clientType]) ? String(r[C.clientType]).trim() : '';
-    const clientTypeFilledDown = !rawClientType && !!lastClientType;
+    const clientTypeBlank = !rawClientType;   // PATCH: flag blank, not fill-down
     if (rawClientType) lastClientType = rawClientType;
     const clientType = rawClientType || lastClientType;
 
-    // ── Container Type fill-down ──
+    // ── Container Type — flag if blank, fill-down for value ──
     const rawContainerType = (C.containerType !== -1 && r[C.containerType]) ? String(r[C.containerType]).trim() : '';
-    const containerTypeFilledDown = !rawContainerType && !!lastContainerType;
+    const containerTypeBlank = !rawContainerType;   // PATCH: flag blank, not fill-down
     if (rawContainerType) lastContainerType = rawContainerType;
     const containerType = rawContainerType || lastContainerType;
 
@@ -384,9 +350,9 @@ function parsePaymentSheet(raw) {
       ? `⚑ Contract Closed field: "${r[C.contractClosed]}" — review` : '';
 
     // ── Dates — contractEnd is direct read only, no fill-down ──
-    const firstPayout = parseDate(r[C.firstPayout]);
-    const payReceived = parseDate(r[C.payReceived]);
-    const contractEnd = (C.contractEnd !== -1 && r[C.contractEnd]) ? parseDate(r[C.contractEnd]) : null;
+    const firstPayout  = parseDate(r[C.firstPayout]);
+    const payReceived  = parseDate(r[C.payReceived]);
+    const contractEnd  = (C.contractEnd !== -1 && r[C.contractEnd]) ? parseDate(r[C.contractEnd]) : null;
     const payCalcStart = (C.payCalcStart !== -1 && r[C.payCalcStart]) ? parseDate(r[C.payCalcStart]) : null;
 
     // ── IBAN / Account ──
@@ -394,7 +360,6 @@ function parsePaymentSheet(raw) {
     let accountNo = r[C.accountNo] ? String(r[C.accountNo]).trim() : '';
     if (accountNo && accountNo.includes('E+')) accountNo = Number(accountNo).toLocaleString('fullwide', {useGrouping:false});
     if (iban      && iban.includes('E+'))      iban      = Number(iban).toLocaleString('fullwide', {useGrouping:false});
-
     const noIban = !iban && !accountNo;
 
     // ── Total Trips — direct read, no fill-down ──
@@ -403,10 +368,12 @@ function parsePaymentSheet(raw) {
     const totalTrips = (totalTripsRaw !== null && !isNaN(totalTripsRaw)) ? totalTripsRaw : null;
 
     // ── Return Amount + Flexible detection ──
-    const returnRaw = (C.returnAmt !== -1 && r[C.returnAmt]) ? String(r[C.returnAmt]).trim() : '';
-    const returnNum = parseFloat(returnRaw.replace(/[^\d.\-]/g, ''));
+    // PATCH: strip parenthetical note before numeric parsing (e.g. "4307 (1172.61$)" → "4307")
+    const returnRaw  = (C.returnAmt !== -1 && r[C.returnAmt]) ? String(r[C.returnAmt]).trim() : '';
+    const returnBase = returnRaw.split('(')[0].trim();
+    const returnNum  = parseFloat(returnBase.replace(/[^0-9.\-]/g, ''));
     const isFlexible = /\d+%/.test(returnRaw) || (!isNaN(returnNum) && returnNum > 0 && returnNum < 1);
-    const returnAmt  = isFlexible ? 0 : (parseNumber(r[C.returnAmt]));
+    const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
 
     const insuranceRaw          = r[C.insurance];
     const insuranceYearsCovered = parseInsuranceYears(insuranceRaw);
@@ -431,20 +398,19 @@ function parsePaymentSheet(raw) {
       payCalcStart,
       container,
       containerType,
-      containerTypeFilledDown,
+      containerTypeBlank,   // PATCH: renamed from containerTypeFilledDown
       returnAmt,
       returnRaw,
       isFlexible,
       firstPayout,
       payoutCycle,
-      cycleFilledDown,
       contractEnd,
       accountNo,
       iban,
       swift:         r[C.swift]    ? String(r[C.swift]).trim()    : '',
       bankName:      r[C.bankName] ? String(r[C.bankName]).trim() : '',
       clientType,
-      clientTypeFilledDown,
+      clientTypeBlank,      // PATCH: renamed from clientTypeFilledDown
       contractClosedFlag,
       balanceNote,
       noIban,
@@ -462,11 +428,9 @@ function runGenerate() {
   if (!paymentData.length) { showMsg('genError', 'Please upload the payment info sheet first.', 'error'); return; }
   showMsg('genError', '');
   clearResults();
-
   const yr    = parseInt(document.getElementById('selYear').value);
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
-
   if      (activeMode === 'payout')    runPayout(yr, mo, cycle);
   else if (activeMode === 'ip')        runIPDeduction(yr, mo, cycle);
   else if (activeMode === 'container') runContainerInfo(yr, mo, cycle);
@@ -528,7 +492,6 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
     const hc2 = subtractOneMonth(addYears(firstPayout, 1));
     const hc3 = addYears(firstPayout, 2);
     const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
-
     if (hcPendingFromRef)                          items.push({ type: 'HC',         amount: 1000, firstPayout, note: 'applied from previous payout' });
     else if (hcDueThisCycle && insuranceTotal > 0) items.push({ type: 'HC Pending', amount: 0,    firstPayout, note: 'pending — deduct next cycle' });
     else if (hcDueThisCycle)                       items.push({ type: 'HC',         amount: 1000, firstPayout });
@@ -633,13 +596,16 @@ function parseDate(val) {
   }
   if (val instanceof Date) return isNaN(val) ? null : val;
   const s = String(val).trim();
+  // PATCH: enforce DD/MM/YYYY — first part is always day when ambiguous
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
-    let a = parseInt(m[1]), b = parseInt(m[2]);
-    let y = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
-    if (a > 12) return new Date(y, b - 1, a);
-    if (b > 12) return new Date(y, a - 1, b);
-    return new Date(y, b - 1, a);
+    let day = parseInt(m[1]), mo = parseInt(m[2]);
+    let y   = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
+    // if first part > 12, it must be day (DD/MM)
+    // if second part > 12, it must be day (MM/DD anomaly — swap to be safe)
+    // otherwise, always treat as DD/MM (day first)
+    if (mo > 12) { [day, mo] = [mo, day]; }  // second part can't be month, swap
+    return new Date(y, mo - 1, day);
   }
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
@@ -647,9 +613,11 @@ function parseDate(val) {
   return isNaN(d) ? null : d;
 }
 
+// PATCH: strip parenthetical note before parsing (e.g. "4307 (1172.61$)" → reads 4307)
 function parseNumber(val) {
   if (val === null || val === undefined || val === '') return 0;
-  return parseFloat(String(val).replace(/[^0-9.\-]/g, '')) || 0;
+  const s = String(val).trim().split('(')[0].trim();
+  return parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
 }
 
 function fmtDate(d) {
@@ -713,6 +681,13 @@ function runPayout(yr, mo, cycle) {
     return cycleMatch && started;
   });
 
+  // PATCH: pre-pass — which clients have at least one contract end date across all their rows
+  const clientHasContractEnd = {};
+  filtered.forEach(r => {
+    if (!clientHasContractEnd[r.clientName]) clientHasContractEnd[r.clientName] = false;
+    if (r.contractEnd) clientHasContractEnd[r.clientName] = true;
+  });
+
   const { sharedGroups, mismatchFlags } = analyzeGroups(filtered);
   const mismatchContainers = new Set(mismatchFlags.map(f => f.container));
 
@@ -742,14 +717,28 @@ function runPayout(yr, mo, cycle) {
     if (r.agent) g.agents.add(r.agent);
     g.totalReturn += r.returnAmt;
 
-    // Data quality notes
+    // ── Data quality notes ──
     if (r.contractClosedFlag) g.structuralNotes.push(r.contractClosedFlag);
     if (r.groupId === '__MANUAL_CHECK__') g.structuralNotes.push('⚑ No container or contract number — manual check required');
     if (r.noIban) g.structuralNotes.push('⚑ No IBAN and no account number — verify');
-    if (!r.contractEnd) g.structuralNotes.push('⚑ No contract end date');
-    else if (r.contractEnd < new Date()) g.structuralNotes.push('⚑ Contract end date has passed — verify');
-    if (r.cycleFilledDown)      g.structuralNotes.push('⚑ Payout cycle filled down — verify col Z');
-    if (r.clientTypeFilledDown) g.structuralNotes.push('⚑ Client type filled down — verify col AJ');
+
+    // PATCH: client type blank (was clientTypeFilledDown)
+    if (r.clientTypeBlank) g.structuralNotes.push('⚑ Blank client type');
+
+    // PATCH: contract end date — check all rows for client, skip commission
+    const isCommission = r.container && r.container.toLowerCase() === 'commission';
+    if (!isCommission) {
+      if (!clientHasContractEnd[r.clientName]) {
+        g.structuralNotes.push('⚑ No contract end date');
+      } else if (r.contractEnd && r.contractEnd < new Date()) {
+        g.structuralNotes.push('⚑ Contract end date has passed — verify');
+      }
+    }
+
+    // PATCH: Abbas Zaigham / Zaigham Abbas — flag for contract review
+    if (r.clientName === 'Abbas Zaigham' || r.clientName === 'Zaigham Abbas') {
+      g.structuralNotes.push('⚑ For contract review — verify if same person as Abbas Zaigham / Zaigham Abbas');
+    }
 
     // Balance note
     if (r.balanceNote) {
@@ -835,7 +824,6 @@ function runPayout(yr, mo, cycle) {
 
   results.sort((a, b) => a.index - b.index);
 
-  // Render
   const cycleLabel = cycle === '15' ? '15th' : 'End of Month';
   showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${results.length} payees`);
 
@@ -843,7 +831,7 @@ function runPayout(yr, mo, cycle) {
   const totalDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totalDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
   renderStats([
-    { val: results.length,        lbl: 'Payees' },
+    { val: results.length,            lbl: 'Payees' },
     { val: `AED ${fmt(totalReturn)}`, lbl: 'Total Rental' },
     { val: `AED ${fmt(totalDeduct)}`, lbl: 'Total Deductions' },
     { val: `AED ${fmt(totalDue)}`,    lbl: 'Total Due' },
@@ -924,7 +912,6 @@ function runIPDeduction(yr, mo, cycle) {
   const payoutDate = new Date(yr, mo - 1, payoutDay);
   const hcCutoff   = new Date(2025, 5, 30);
 
-  // Filter by cycle
   const filtered = paymentData.filter(r => {
     const c = String(r.payoutCycle).replace(/\s/g, '');
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
@@ -935,7 +922,6 @@ function runIPDeduction(yr, mo, cycle) {
   const { sharedGroups, mismatchFlags } = analyzeGroups(filtered);
   const mismatchContainers = new Set(mismatchFlags.map(f => f.container));
 
-  // Group by IBAN/account
   const groups = {};
   filtered.forEach(r => {
     const ibanValid = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
@@ -976,12 +962,10 @@ function runIPDeduction(yr, mo, cycle) {
     g.deductionItems.push(...ded.items.map(it => ({ ...it, amount: it.amount * clientShare })));
   });
 
-  // Only show rows with deductions > 0
   results = Object.values(groups)
     .filter(g => g.totalDeduction > 0)
     .sort((a, b) => a.index - b.index)
     .map(g => {
-      // Build explicit deduction note showing Y1/Y2/Y3/HC
       const dedNotes = [];
       const byType = {};
       g.deductionItems.forEach(it => {
@@ -1084,7 +1068,6 @@ function runContainerInfo(yr, mo, cycle) {
   payoutDate.setHours(0,0,0,0);
   const today = new Date(); today.setHours(0,0,0,0);
 
-  // Filter by cycle
   const filtered = paymentData.filter(r => {
     const c = String(r.payoutCycle).replace(/\s/g, '');
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
@@ -1111,14 +1094,23 @@ function runContainerInfo(yr, mo, cycle) {
     const pendPmt    = (!r.isFlexible && tripsRem  !== null) ? r.returnAmt * tripsRem  : null;
 
     const notes = [];
-    if (r.contractClosedFlag)      notes.push(r.contractClosedFlag);
-    if (cycleMismatch)             notes.push('⚑ Cycle mismatch — check first payout date');
-    if (r.cycleFilledDown)         notes.push('⚑ Payout cycle filled down — verify col Z');
-    if (r.containerTypeFilledDown) notes.push('⚑ Container type filled down — verify col Q');
-    if (r.clientTypeFilledDown)    notes.push('⚑ Client type filled down — verify col AJ');
-    if (r.noIban)                  notes.push('⚑ No IBAN and no account number — verify');
-    if (!r.contractEnd)            notes.push('⚑ No contract end date');
-    else if (r.contractEnd < today) notes.push('⚑ Contract end date has passed — verify');
+    if (r.contractClosedFlag)  notes.push(r.contractClosedFlag);
+    if (cycleMismatch)         notes.push('⚑ Cycle mismatch — check first payout date');
+
+    // PATCH: container type blank (removed "filled down" message)
+    if (r.containerTypeBlank)  notes.push('⚑ No container type — verify database');
+    // PATCH: client type blank (removed "filled down" message)
+    if (r.clientTypeBlank)     notes.push('⚑ Blank client type');
+
+    if (r.noIban)              notes.push('⚑ No IBAN and no account number — verify');
+
+    // PATCH: commission clients skip the contract end date check
+    const isCommission = r.container && r.container.toLowerCase() === 'commission';
+    if (!isCommission) {
+      if (!r.contractEnd)              notes.push('⚑ No contract end date');
+      else if (r.contractEnd < today)  notes.push('⚑ Contract end date has passed — verify');
+    }
+
     if (r.groupId === '__MANUAL_CHECK__') notes.push('⚑ No container or contract number — manual check');
     if (r.container && mismatchContainers.has(r.container)) {
       const mf = mismatchFlags.find(f => f.container === r.container);
@@ -1128,8 +1120,6 @@ function runContainerInfo(yr, mo, cycle) {
     }
     if (!r.isFlexible && !hasTotalTrips) notes.push('⚑ Trips not in sheet');
     if (r.isFlexible) notes.push('⚑ Flexible leasing — no trips or payments computed');
-
-    // Deduction: only show if col AQ (balanceNote) has a value
     if (r.balanceNote) notes.push(`Balance pending: ${r.balanceNote}`);
 
     return { ...r, age, tripsDone, tripsTotal, tripsRem, compPmt, pendPmt, note: notes.join(' | ') };
@@ -1191,8 +1181,8 @@ function runContainerInfo(yr, mo, cycle) {
 }
 
 function exportContainerInfo() {
-  const yr  = parseInt(document.getElementById('selYear').value);
-  const mo  = parseInt(document.getElementById('selMonth').value);
+  const yr    = parseInt(document.getElementById('selYear').value);
+  const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
 
   const hdr = ['TYPE','NAME','PAYMENT DATE','LEASE DATE','FIRST PAYOUT',
@@ -1267,8 +1257,6 @@ function splitEmails(value) {
 
 function buildEmailRecords() {
   const rows = emailData.slice(1);
-
-  // Fill down cols 15 and 16 (email, mobile)
   let lastEmail = '', lastMobile = '';
   rows.forEach(row => {
     const e = row[15] != null ? String(row[15]).trim() : '';
@@ -1279,13 +1267,13 @@ function buildEmailRecords() {
 
   const grouped = new Map();
   rows.forEach(row => {
-    const rawName   = String(row[0] || '').trim();
+    const rawName    = String(row[0] || '').trim();
     const parenMatch = rawName.match(/\(([^)]+)\)/);
-    const mainName  = rawName.replace(/\([^)]*\)/g, ' ').trim();
-    const normName  = normalizeName(mainName || rawName, true);
-    const normParen = parenMatch ? normalizeName(parenMatch[1], true) : '';
-    const emailRaw  = String(row[15] || '').trim();
-    const emails    = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+    const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
+    const normName   = normalizeName(mainName || rawName, true);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const emailRaw   = String(row[15] || '').trim();
+    const emails     = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
 
     const record = {
       emailSheetClientName: rawName, normName, normParen,
@@ -1329,7 +1317,6 @@ function runEmailMatcher(yr, mo, cycle) {
 
   const emailRecords = buildEmailRecords();
 
-  // Build prev match map from refData
   const prevMatchMap = new Map();
   if (refData.length > 1) {
     refData.slice(1).forEach(r => {
@@ -1342,12 +1329,6 @@ function runEmailMatcher(yr, mo, cycle) {
     });
   }
 
-  // Group payout results by client — use existing results if payout was run, else use paymentData
-  const payoutRows = results.length > 0 && activeMode === 'email'
-    ? [] // will re-derive below
-    : [];
-
-  // Derive client groups from paymentData for this cycle
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
@@ -1357,7 +1338,6 @@ function runEmailMatcher(yr, mo, cycle) {
     return cycleMatch && (!r.firstPayout || r.firstPayout <= payoutDate);
   });
 
-  // Group by client
   const clientGroups = new Map();
   filtered.forEach(r => {
     const norm = normalizeName(r.clientName, false);
@@ -1370,18 +1350,17 @@ function runEmailMatcher(yr, mo, cycle) {
   });
 
   results = Array.from(clientGroups.values()).map(group => {
-    const normName  = group.norm;
+    const normName   = group.norm;
     const parenMatch = group.clientName.match(/\(([^)]+)\)/);
     const normParen  = parenMatch ? normalizeName(parenMatch[1], false) : '';
     const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), false);
 
-    const lookup = n => emailRecords.find(r => r.normName === n || r.normParen === n);
+    const lookup  = n => emailRecords.find(r => r.normName === n || r.normParen === n);
     const matched = (normParen && lookup(normParen)) || lookup(normOuter) || null;
 
     const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
     let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
 
-    // Fill from prev match if missing
     const prev = prevMatchMap.get(normName);
     if (prev) {
       if (!email1 && prev.email1) { email1 = prev.email1; email2 = prev.email2; }
@@ -1457,19 +1436,19 @@ function runEmailMatcher(yr, mo, cycle) {
 }
 
 function exportEmailMatcher() {
-  const yr    = parseInt(document.getElementById('selYear').value);
-  const mo    = parseInt(document.getElementById('selMonth').value);
+  const yr = parseInt(document.getElementById('selYear').value);
+  const mo = parseInt(document.getElementById('selMonth').value);
 
   const exportRows = results.map(r => ({
     'Client Name (LMC Sheet)':   r.clientName,
     'Client Name (Email Sheet)': r.emailSheetClientName,
-    'Units':        r.units,
-    'Email 1':      r.email1,
-    'Email 2':      r.email2,
-    'Mobile':       r.mobile,
+    'Units':         r.units,
+    'Email 1':       r.email1,
+    'Email 2':       r.email2,
+    'Mobile':        r.mobile,
     'Agent Closing': r.agentClosing,
-    'Agent Email':  r.agentEmail,
-    'Notes':        r.notes,
+    'Agent Email':   r.agentEmail,
+    'Notes':         r.notes,
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportRows);
