@@ -1073,6 +1073,7 @@ function runContainerInfo(yr, mo, cycle) {
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
     if (!cycleMatch) return false;
     if (!r.firstPayout) return false;
+    if (r.container && r.container.toLowerCase() === 'commission') return false;
     return r.firstPayout <= payoutDate;
   });
 
