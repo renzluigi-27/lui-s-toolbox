@@ -279,6 +279,7 @@ function parsePaymentSheet(raw) {
     balance:        col('balance amount pending'),
     containerType:  16,   // col Q
     agent:          37,   // col AL
+    company:        col('company'),
     totalTrips:     36,   // col AK
     payCalcStart:   col('payout calculation start date'),
   };
@@ -324,6 +325,10 @@ function parsePaymentSheet(raw) {
 
     if (!clientName) continue;
 
+    // ── Skip non-LMC rows ──
+    const companyVal = (C.company !== -1 && r[C.company]) ? String(r[C.company]).trim().toLowerCase() : '';
+    if (companyVal && companyVal !== 'lmc') continue;
+    
     // ── Payout cycle fill-down (no flag generated, just fill) ──
     const rawCycleDirect = (C.payoutCycle !== -1 && r[C.payoutCycle]) ? String(r[C.payoutCycle]).trim() : '';
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
