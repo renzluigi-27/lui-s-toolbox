@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>WA Media Downloader — by Renz Luigi</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -24,7 +23,7 @@
     html { scroll-behavior: smooth; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
       background: var(--bg);
       color: var(--white);
       min-height: 100vh;
@@ -86,7 +85,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      padding: 16px 0;
+      padding: 14px 0;
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--white-10);
@@ -103,22 +102,19 @@
     }
 
     .nav-logo {
-      font-family: 'Syne', sans-serif;
-      font-weight: 800;
-      font-size: 16px;
+      font-weight: 700;
+      font-size: 15px;
       color: var(--white);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .nav-logo span {
-      font-size: 20px;
-    }
+    .nav-logo span { font-size: 18px; }
 
     .nav-links {
       display: flex;
-      gap: 24px;
+      gap: 20px;
       align-items: center;
     }
 
@@ -133,39 +129,60 @@
 
     /* ── Hero ── */
     .hero {
-      padding: 100px 0 80px;
+      padding: 80px 0 60px;
       text-align: center;
     }
 
-    .review-badge {
+    /* ── Store badges row ── */
+    .store-badges {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .store-badge {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: #f5a623;
-      background: rgba(245, 166, 35, 0.1);
-      border: 1px solid rgba(245, 166, 35, 0.3);
+      letter-spacing: 0.6px;
       border-radius: 99px;
-      padding: 5px 14px;
-      margin-bottom: 28px;
-      animation: pulse 2.5s ease-in-out infinite;
+      padding: 5px 12px;
     }
 
-    .review-badge::before {
+    .store-badge::before {
       content: '';
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: #f5a623;
       animation: blink 1.2s ease-in-out infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(245,166,35,0.2); }
-      50% { box-shadow: 0 0 0 6px rgba(245,166,35,0); }
+    .badge-orange {
+      color: #f5a623;
+      background: rgba(245, 166, 35, 0.1);
+      border: 1px solid rgba(245, 166, 35, 0.3);
     }
+
+    .badge-orange::before { background: #f5a623; }
+
+    .badge-blue {
+      color: #5b9cf6;
+      background: rgba(91, 156, 246, 0.1);
+      border: 1px solid rgba(91, 156, 246, 0.3);
+    }
+
+    .badge-blue::before { background: #5b9cf6; }
+
+    .badge-gray {
+      color: var(--white-30);
+      background: var(--white-06);
+      border: 1px solid var(--white-10);
+    }
+
+    .badge-gray::before { background: rgba(255,255,255,0.3); }
 
     @keyframes blink {
       0%, 100% { opacity: 1; }
@@ -173,12 +190,11 @@
     }
 
     .hero h1 {
-      font-family: 'Syne', sans-serif;
-      font-size: clamp(36px, 6vw, 62px);
-      font-weight: 800;
+      font-size: clamp(28px, 5vw, 56px);
+      font-weight: 700;
       line-height: 1.1;
-      margin-bottom: 20px;
-      letter-spacing: -1px;
+      margin-bottom: 16px;
+      letter-spacing: -0.5px;
     }
 
     .hero h1 em {
@@ -190,16 +206,16 @@
     }
 
     .hero p {
-      font-size: 17px;
+      font-size: clamp(14px, 2vw, 16px);
       color: var(--white-60);
-      max-width: 520px;
-      margin: 0 auto 40px;
+      max-width: 480px;
+      margin: 0 auto 36px;
       line-height: 1.7;
     }
 
     .hero-actions {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       justify-content: center;
       flex-wrap: wrap;
     }
@@ -208,45 +224,39 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 14px 28px;
-      background: linear-gradient(135deg,
-        rgba(37,211,102,0.3),
-        rgba(18,140,126,0.3));
+      padding: 12px 22px;
+      background: linear-gradient(135deg, rgba(37,211,102,0.3), rgba(18,140,126,0.3));
       border: 1px solid var(--green-border);
       border-top-color: rgba(37,211,102,0.6);
-      border-radius: 14px;
+      border-radius: 12px;
       color: var(--white);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
-      font-family: 'DM Sans', sans-serif;
+      font-family: inherit;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.2s ease;
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.15),
-        0 4px 20px rgba(37,211,102,0.15);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 20px rgba(37,211,102,0.15);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,0.2),
-        0 8px 28px rgba(37,211,102,0.25);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 8px 28px rgba(37,211,102,0.25);
     }
 
     .btn-secondary {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 14px 28px;
+      padding: 12px 22px;
       background: var(--white-06);
       border: 1px solid var(--white-10);
       border-top-color: rgba(255,255,255,0.2);
-      border-radius: 14px;
+      border-radius: 12px;
       color: var(--white-60);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
-      font-family: 'DM Sans', sans-serif;
+      font-family: inherit;
       cursor: pointer;
       text-decoration: none;
       transition: all 0.2s ease;
@@ -266,8 +276,8 @@
 
     /* ── Extension preview mockup ── */
     .preview-wrap {
-      margin: 60px auto 0;
-      max-width: 320px;
+      margin: 48px auto 0;
+      max-width: 300px;
       position: relative;
     }
 
@@ -286,10 +296,8 @@
       border: 1px solid rgba(255,255,255,0.18);
       border-top-color: rgba(255,255,255,0.35);
       border-radius: 24px;
-      padding: 20px;
-      box-shadow:
-        0 24px 64px rgba(0,0,0,0.6),
-        inset 0 1px 0 rgba(255,255,255,0.25);
+      padding: 18px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.25);
       position: relative;
       overflow: hidden;
     }
@@ -301,295 +309,169 @@
       background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
     }
 
-    .preview-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
+    .preview-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 
     .preview-icon {
-      width: 36px; height: 36px;
+      width: 34px; height: 34px;
       background: linear-gradient(135deg, var(--green), #128c7e);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
     }
 
-    .preview-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+    .preview-title { font-size: 13px; font-weight: 700; }
     .preview-sub { font-size: 10px; color: var(--white-30); margin-top: 1px; }
 
     .preview-tip {
-      font-size: 10px;
-      color: var(--white-30);
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-radius: 10px;
-      padding: 7px 10px;
-      margin-bottom: 12px;
+      font-size: 10px; color: var(--white-30);
+      background: var(--white-06); border: 1px solid var(--white-10);
+      border-radius: 10px; padding: 6px 10px; margin-bottom: 10px;
     }
 
-    .preview-stats {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
+    .preview-stats { display: flex; gap: 8px; margin-bottom: 10px; }
 
     .preview-stat {
-      flex: 1;
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-radius: 12px;
-      padding: 8px;
-      text-align: center;
+      flex: 1; background: var(--white-06);
+      border: 1px solid var(--white-10); border-radius: 12px;
+      padding: 8px; text-align: center;
     }
 
-    .preview-stat strong { display: block; font-size: 20px; font-weight: 700; }
+    .preview-stat strong { display: block; font-size: 18px; font-weight: 700; }
     .preview-stat span { font-size: 9px; color: var(--white-30); text-transform: uppercase; letter-spacing: 0.5px; }
 
-    .preview-filters {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-      margin-bottom: 10px;
-    }
+    .preview-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
 
     .preview-filter {
-      flex: 1 1 calc(50% - 5px);
-      font-size: 10px;
-      font-weight: 600;
-      padding: 6px 4px;
-      border-radius: 10px;
-      text-align: center;
-      border: 1px solid rgba(37,211,102,0.3);
-      background: rgba(37,211,102,0.12);
+      flex: 1 1 calc(50% - 5px); font-size: 10px; font-weight: 600;
+      padding: 5px 4px; border-radius: 10px; text-align: center;
+      border: 1px solid rgba(37,211,102,0.3); background: rgba(37,211,102,0.12);
     }
 
     .preview-filter.dim {
-      border-color: var(--white-10);
-      background: var(--white-06);
-      color: var(--white-30);
+      border-color: var(--white-10); background: var(--white-06); color: var(--white-30);
     }
 
     .preview-btn {
-      width: 100%;
-      padding: 10px;
+      width: 100%; padding: 9px;
       background: linear-gradient(135deg, rgba(37,211,102,0.35), rgba(18,140,126,0.35));
-      border: 1px solid var(--green-border);
-      border-radius: 12px;
-      color: var(--white);
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: 10px;
+      border: 1px solid var(--green-border); border-radius: 11px;
+      color: var(--white); font-size: 11px; font-weight: 600;
+      text-align: center; margin-bottom: 10px;
     }
 
     .preview-footer-text {
-      font-size: 9px;
-      color: var(--white-30);
-      text-align: center;
-      line-height: 1.5;
+      font-size: 9px; color: var(--white-30); text-align: center; line-height: 1.5;
     }
 
     .preview-footer-text a { color: rgba(37,211,102,0.6); text-decoration: none; }
 
-    /* ── Features ── */
-    .section {
-      padding: 80px 0;
-    }
+    /* ── Sections ── */
+    .section { padding: 64px 0; }
 
     .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 12px;
+      font-size: 11px; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--green); margin-bottom: 10px;
     }
 
     .section-title {
-      font-family: 'Syne', sans-serif;
-      font-size: clamp(26px, 4vw, 38px);
-      font-weight: 800;
-      margin-bottom: 48px;
-      line-height: 1.2;
+      font-size: clamp(22px, 3.5vw, 34px);
+      font-weight: 700; margin-bottom: 40px; line-height: 1.2;
     }
 
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
     }
 
     .feature-card {
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-top-color: rgba(255,255,255,0.18);
-      border-radius: 20px;
-      padding: 24px;
-      transition: transform 0.2s, box-shadow 0.2s;
+      background: var(--white-06); border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.18); border-radius: 18px;
+      padding: 22px; transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .feature-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
-    }
+    .feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
 
-    .feature-icon {
-      font-size: 28px;
-      margin-bottom: 14px;
-      display: block;
-    }
+    .feature-icon { font-size: 26px; margin-bottom: 12px; display: block; }
 
-    .feature-card h3 {
-      font-family: 'Syne', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
+    .feature-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
 
-    .feature-card p {
-      font-size: 13px;
-      color: var(--white-60);
-      line-height: 1.6;
-    }
+    .feature-card p { font-size: 13px; color: var(--white-60); line-height: 1.6; }
 
-    /* ── How it works ── */
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 560px;
-    }
+    /* ── Steps ── */
+    .steps { display: flex; flex-direction: column; gap: 12px; max-width: 540px; }
 
     .step {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-radius: 16px;
-      padding: 20px;
+      display: flex; align-items: flex-start; gap: 14px;
+      background: var(--white-06); border: 1px solid var(--white-10);
+      border-radius: 14px; padding: 18px;
     }
 
     .step-num {
-      min-width: 32px; height: 32px;
-      border-radius: 50%;
-      background: var(--green-dim);
-      border: 1px solid var(--green-border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Syne', sans-serif;
-      font-size: 13px;
-      font-weight: 800;
-      color: var(--green);
+      min-width: 30px; height: 30px; border-radius: 50%;
+      background: var(--green-dim); border: 1px solid var(--green-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: var(--green);
     }
 
-    .step h3 {
-      font-family: 'Syne', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
+    .step h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
     .step p { font-size: 13px; color: var(--white-60); line-height: 1.5; }
 
     /* ── Privacy ── */
     .privacy-card {
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-top-color: rgba(255,255,255,0.18);
-      border-radius: 24px;
-      padding: 40px;
-      display: flex;
-      gap: 32px;
-      align-items: flex-start;
-      flex-wrap: wrap;
+      background: var(--white-06); border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.18); border-radius: 22px;
+      padding: 36px; display: flex; gap: 28px;
+      align-items: flex-start; flex-wrap: wrap;
     }
 
-    .privacy-icon { font-size: 48px; }
+    .privacy-icon { font-size: 42px; }
 
-    .privacy-content h2 {
-      font-family: 'Syne', sans-serif;
-      font-size: 22px;
-      font-weight: 800;
-      margin-bottom: 12px;
-    }
+    .privacy-content h2 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
 
-    .privacy-content p {
-      font-size: 14px;
-      color: var(--white-60);
-      line-height: 1.7;
-      max-width: 500px;
-    }
+    .privacy-content p { font-size: 13px; color: var(--white-60); line-height: 1.7; max-width: 480px; }
 
     /* ── Donation ── */
-    .donation-section {
-      padding: 80px 0;
-      text-align: center;
-    }
+    .donation-section { padding: 64px 0; text-align: center; }
 
     .donation-card {
-      background: var(--white-06);
-      border: 1px solid var(--white-10);
-      border-top-color: rgba(255,255,255,0.2);
-      border-radius: 28px;
-      padding: 48px 40px;
-      position: relative;
-      overflow: hidden;
+      background: var(--white-06); border: 1px solid var(--white-10);
+      border-top-color: rgba(255,255,255,0.2); border-radius: 26px;
+      padding: 44px 36px; position: relative; overflow: hidden;
     }
 
     .donation-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
+      content: ''; position: absolute; inset: 0;
       background: radial-gradient(ellipse at 50% 0%, rgba(37,211,102,0.08) 0%, transparent 60%);
       pointer-events: none;
     }
 
-    .donation-card h2 {
-      font-family: 'Syne', sans-serif;
-      font-size: 28px;
-      font-weight: 800;
-      margin-bottom: 16px;
-    }
+    .donation-card h2 { font-size: clamp(20px, 3vw, 26px); font-weight: 700; margin-bottom: 14px; }
 
     .donation-card p {
-      font-size: 15px;
-      color: var(--white-60);
-      max-width: 480px;
-      margin: 0 auto 32px;
-      line-height: 1.7;
+      font-size: 14px; color: var(--white-60);
+      max-width: 440px; margin: 0 auto 28px; line-height: 1.7;
     }
 
     /* ── Footer ── */
-    footer {
-      border-top: 1px solid var(--white-10);
-      padding: 32px 0;
-      text-align: center;
-    }
+    footer { border-top: 1px solid var(--white-10); padding: 28px 0; text-align: center; }
 
-    footer p {
-      font-size: 12px;
-      color: var(--white-30);
-      line-height: 1.8;
-    }
+    footer p { font-size: 12px; color: var(--white-30); line-height: 1.8; }
 
-    footer a {
-      color: rgba(37,211,102,0.6);
-      text-decoration: none;
-    }
-
+    footer a { color: rgba(37,211,102,0.6); text-decoration: none; }
     footer a:hover { color: var(--green); }
 
     /* ── Responsive ── */
-    @media (max-width: 600px) {
-      .hero { padding: 70px 0 60px; }
-      .privacy-card { flex-direction: column; gap: 16px; padding: 28px; }
-      .donation-card { padding: 36px 24px; }
+    @media (max-width: 480px) {
+      .nav-links { gap: 14px; }
+      .nav-links a { font-size: 12px; }
+      .hero { padding: 60px 0 40px; }
+      .hero-actions { flex-direction: column; align-items: center; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+      .privacy-card { flex-direction: column; gap: 14px; padding: 22px; }
+      .donation-card { padding: 28px 20px; }
+      .store-badges { gap: 6px; }
+      .store-badge { font-size: 10px; padding: 4px 10px; }
     }
   </style>
 </head>
@@ -605,7 +487,7 @@
   <nav>
     <div class="inner">
       <div class="nav-logo">
-        <a href="https://renzluigi.pages.dev" style="font-size:12px; color:rgba(255,255,255,0.4); text-decoration:none; margin-right:12px;">← Toolbox</a>
+        <a href="https://renzluigi.pages.dev" style="font-size:12px; color:rgba(255,255,255,0.4); text-decoration:none; margin-right:10px;">← Toolbox</a>
         <span>📥</span> WA Media Downloader
       </div>
       <div class="nav-links">
@@ -620,8 +502,11 @@
   <section class="hero">
     <div class="container">
 
-      <div class="review-badge">
-        ⏳ Under Review on Edge Add-ons
+      <!-- Store badges -->
+      <div class="store-badges">
+        <span class="store-badge badge-orange">⏳ Edge — Under Review</span>
+        <span class="store-badge badge-blue">⏳ Firefox — Under Review</span>
+        <span class="store-badge badge-gray">🌐 Chrome — Install via Edge Add-ons</span>
       </div>
 
       <h1>Bulk download<br/><em>WhatsApp media</em><br/>in one click.</h1>
@@ -629,12 +514,9 @@
       <p>Back up documents, images, videos, and audio from any WhatsApp Web chat — all saved neatly to a dedicated folder.</p>
 
       <div class="hero-actions">
-        <a href="#" class="btn-primary btn-disabled">
-          🧩 Add to Edge — Coming Soon
-        </a>
-        <a href="https://github.com/renzluigi-27/wa-media-downloader" target="_blank" class="btn-secondary">
-          ⬇️ Manual Install (GitHub)
-        </a>
+        <a href="#" class="btn-primary btn-disabled">🧩 Add to Edge — Coming Soon</a>
+        <a href="#" class="btn-primary btn-disabled">🦊 Add to Firefox — Coming Soon</a>
+        <a href="https://github.com/renzluigi-27/wa-media-downloader" target="_blank" class="btn-secondary">⬇️ Early Access — GitHub</a>
       </div>
 
       <!-- Extension mockup -->
@@ -650,14 +532,8 @@
           </div>
           <div class="preview-tip">💡 Scroll up in the chat first to load older media.</div>
           <div class="preview-stats">
-            <div class="preview-stat">
-              <strong>11</strong>
-              <span>Found</span>
-            </div>
-            <div class="preview-stat">
-              <strong>—</strong>
-              <span>Downloaded</span>
-            </div>
+            <div class="preview-stat"><strong>11</strong><span>Found</span></div>
+            <div class="preview-stat"><strong>—</strong><span>Downloaded</span></div>
           </div>
           <div class="preview-filters">
             <div class="preview-filter">📄 Docs 6</div>
@@ -667,7 +543,7 @@
           </div>
           <div class="preview-btn">Download Selected (6)</div>
           <div class="preview-footer-text">
-            Free forever · <a href="#">Support on Ko-fi ☕</a><br/>
+            Free forever · <a href="https://ko-fi.com/renzluigi">Support on Ko-fi ☕</a><br/>
             If it saved you time, a small coffee means the world. 🙏
           </div>
         </div>
@@ -766,9 +642,7 @@
       <div class="donation-card">
         <h2>Free forever. Always. ☕</h2>
         <p>This tool is free, and always will be. If it saved you time, a small coffee means the world. Thank you. 🙏</p>
-        <a href="https://ko-fi.com/renzluigi" target="_blank" class="btn-primary">
-          ☕ Support on Ko-fi
-        </a>
+        <a href="https://ko-fi.com/renzluigi" target="_blank" class="btn-primary">☕ Support on Ko-fi</a>
       </div>
     </div>
   </section>
@@ -778,8 +652,8 @@
     <div class="container">
       <p>
         Built with ❤️ by <a href="https://ko-fi.com/renzluigi" target="_blank">Renz Luigi</a> ·
-        <a href="https://github.com/renzluigi" target="_blank">GitHub</a> ·
-        Free & open for personal use
+        <a href="https://github.com/renzluigi-27/wa-media-downloader" target="_blank">GitHub</a> ·
+        Free &amp; open for personal use
       </p>
       <p style="margin-top:6px;">Not affiliated with WhatsApp or Meta.</p>
     </div>
@@ -787,4 +661,3 @@
 
 </body>
 </html>
-```
