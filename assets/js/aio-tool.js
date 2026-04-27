@@ -1265,15 +1265,13 @@ function splitEmails(value) {
 function buildEmailRecords() {
   const rows = emailData.slice(1);
 
-  // PATCH: fill-down email (col 15), mobile (col 16), and agent email (col 2)
-  let lastEmail = '', lastMobile = '', lastAgentEmail = '';
+  // Fill-down email (col 15) and mobile (col 16)
+  let lastEmail = '', lastMobile = '';
   rows.forEach(row => {
-    const e  = row[15] != null ? String(row[15]).trim() : '';
-    const m  = row[16] != null ? String(row[16]).trim() : '';
-    const ae = row[2]  != null ? String(row[2]).trim()  : '';
-    if (e)  lastEmail      = e;  else if (lastEmail)      row[15] = lastEmail;
-    if (m)  lastMobile     = m;  else if (lastMobile)     row[16] = lastMobile;
-    if (ae) lastAgentEmail = ae; else if (lastAgentEmail) row[2]  = lastAgentEmail;
+    const e = row[15] != null ? String(row[15]).trim() : '';
+    const m = row[16] != null ? String(row[16]).trim() : '';
+    if (e) lastEmail  = e; else if (lastEmail)  row[15] = lastEmail;
+    if (m) lastMobile = m; else if (lastMobile) row[16] = lastMobile;
   });
 
   const grouped = new Map();
@@ -1387,11 +1385,7 @@ function runEmailMatcher(yr, mo, cycle) {
     }
 
     // PATCH: email sheet agent email wins, hardcoded as fallback, flag mismatch
-    const emailSheetAgentEmail = matched ? matched.agentEmail : '';
-    const hardcodedAgentEmail  = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
-    const resolvedAgentEmail   = emailSheetAgentEmail || hardcodedAgentEmail;
-    const agentEmailMismatch   = emailSheetAgentEmail && hardcodedAgentEmail
-      && emailSheetAgentEmail !== hardcodedAgentEmail;
+    const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
 
     const notes = [];
     const hasMultiAgents = group.note && /multiple agents/i.test(group.note);
@@ -1402,7 +1396,6 @@ function runEmailMatcher(yr, mo, cycle) {
       if (matched && !email1)                notes.push('Email missing in email sheet');
       if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
       if (matched && !resolvedAgentEmail)    notes.push('Agent email missing');
-      else if (agentEmailMismatch)           notes.push('⚑ Agent email mismatch — email sheet vs hardcoded');
       if (matched && !group.agent)           notes.push('Agent name missing');
     }
 
