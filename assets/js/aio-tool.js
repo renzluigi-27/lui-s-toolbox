@@ -323,7 +323,7 @@ function parsePaymentSheet(raw) {
     const clientName = rawClientName;
 
     if (!clientName) continue;
-    
+
     // ── Payout cycle fill-down (no flag generated, just fill) ──
     const rawCycleDirect = (C.payoutCycle !== -1 && r[C.payoutCycle]) ? String(r[C.payoutCycle]).trim() : '';
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
@@ -331,13 +331,13 @@ function parsePaymentSheet(raw) {
 
     // ── Client Type — flag if blank, fill-down for value ──
     const rawClientType = (C.clientType !== -1 && r[C.clientType]) ? String(r[C.clientType]).trim() : '';
-    const clientTypeBlank = !rawClientType;   // PATCH: flag blank, not fill-down
+    const clientTypeBlank = !rawClientType;
     if (rawClientType) lastClientType = rawClientType;
     const clientType = rawClientType || lastClientType;
 
     // ── Container Type — flag if blank, fill-down for value ──
     const rawContainerType = (C.containerType !== -1 && r[C.containerType]) ? String(r[C.containerType]).trim() : '';
-    const containerTypeBlank = !rawContainerType;   // PATCH: flag blank, not fill-down
+    const containerTypeBlank = !rawContainerType;
     if (rawContainerType) lastContainerType = rawContainerType;
     const containerType = rawContainerType || lastContainerType;
 
@@ -363,9 +363,12 @@ function parsePaymentSheet(raw) {
     const noIban = !iban && !accountNo;
 
     // ── Total Trips — direct read, no fill-down ──
+    // PATCH: handle N/A — treat as no fixed trip limit, no flag, no pending calc
     const totalTripsRaw = (C.totalTrips !== -1 && r[C.totalTrips] != null)
-      ? parseInt(String(r[C.totalTrips]).trim()) : null;
-    const totalTrips = (totalTripsRaw !== null && !isNaN(totalTripsRaw)) ? totalTripsRaw : null;
+      ? String(r[C.totalTrips]).trim() : null;
+    const totalTripsNA  = totalTripsRaw !== null && totalTripsRaw.toLowerCase() === 'n/a';
+    const totalTripsNum = totalTripsRaw !== null ? parseInt(totalTripsRaw) : null;
+    const totalTrips    = (!totalTripsNA && totalTripsNum !== null && !isNaN(totalTripsNum)) ? totalTripsNum : null;
 
     // ── Return Amount + Flexible detection ──
     // PATCH: strip parenthetical note before numeric parsing (e.g. "4307 (1172.61$)" → "4307")
@@ -374,6 +377,8 @@ function parsePaymentSheet(raw) {
     const returnNum  = parseFloat(returnBase.replace(/[^0-9.\-]/g, ''));
     const isFlexible = /\d+%/.test(returnRaw) || (!isNaN(returnNum) && returnNum > 0 && returnNum < 1);
     const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
+    // PATCH: flag if return amount contains USD
+    const returnInUSD = /usd/i.test(returnRaw);
 
     const insuranceRaw          = r[C.insurance];
     const insuranceYearsCovered = parseInsuranceYears(insuranceRaw);
@@ -398,9 +403,10 @@ function parsePaymentSheet(raw) {
       payCalcStart,
       container,
       containerType,
-      containerTypeBlank,   // PATCH: renamed from containerTypeFilledDown
+      containerTypeBlank,
       returnAmt,
       returnRaw,
+      returnInUSD,
       isFlexible,
       firstPayout,
       payoutCycle,
@@ -410,11 +416,12 @@ function parsePaymentSheet(raw) {
       swift:         r[C.swift]    ? String(r[C.swift]).trim()    : '',
       bankName:      r[C.bankName] ? String(r[C.bankName]).trim() : '',
       clientType,
-      clientTypeBlank,      // PATCH: renamed from clientTypeFilledDown
+      clientTypeBlank,
       contractClosedFlag,
       balanceNote,
       noIban,
       totalTrips,
+      totalTripsNA,
       agent: rawAgent,
     });
   }
@@ -601,10 +608,7 @@ function parseDate(val) {
   if (m) {
     let day = parseInt(m[1]), mo = parseInt(m[2]);
     let y   = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
-    // if first part > 12, it must be day (DD/MM)
-    // if second part > 12, it must be day (MM/DD anomaly — swap to be safe)
-    // otherwise, always treat as DD/MM (day first)
-    if (mo > 12) { [day, mo] = [mo, day]; }  // second part can't be month, swap
+    if (mo > 12) { [day, mo] = [mo, day]; }
     return new Date(y, mo - 1, day);
   }
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
@@ -721,9 +725,9 @@ function runPayout(yr, mo, cycle) {
     if (r.contractClosedFlag) g.structuralNotes.push(r.contractClosedFlag);
     if (r.groupId === '__MANUAL_CHECK__') g.structuralNotes.push('⚑ No container or contract number — manual check required');
     if (r.noIban) g.structuralNotes.push('⚑ No IBAN and no account number — verify');
-
-    // PATCH: client type blank (was clientTypeFilledDown)
     if (r.clientTypeBlank) g.structuralNotes.push('⚑ Blank client type');
+    // PATCH: flag USD rental amount
+    if (r.returnInUSD) g.structuralNotes.push('⚑ Rental amount is in USD — verify AED conversion');
 
     // PATCH: contract end date — check all rows for client, skip commission
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
@@ -936,6 +940,9 @@ function runIPDeduction(yr, mo, cycle) {
     const g = groups[key];
     g.containers.push(r.container);
 
+    // PATCH: flag USD rental amount
+    if (r.returnInUSD) g.notes.push('⚑ Rental amount is in USD — verify AED conversion');
+
     const isHcEligible = r.payReceived && r.payReceived <= hcCutoff;
     const cleanIban    = r.iban ? r.iban.replace(/\s/g, '') : '';
 
@@ -1087,7 +1094,8 @@ function runContainerInfo(yr, mo, cycle) {
     const cycleIs15   = parseInt(r.payoutCycle, 10) === 15;
     const cycleMismatch = fpDay !== null && cycleIs15 !== fpIs15;
 
-    const hasTotalTrips = r.totalTrips !== null;
+    // PATCH: handle N/A trips — no calc, no flag
+    const hasTotalTrips = r.totalTrips !== null && !r.totalTripsNA;
     const tripsDone  = (!r.isFlexible && hasTotalTrips) ? calcTrips(r.firstPayout, payoutDate) : null;
     const tripsTotal = (!r.isFlexible && hasTotalTrips) ? r.totalTrips : null;
     const tripsRem   = (tripsDone !== null && tripsTotal !== null) ? Math.max(0, tripsTotal - tripsDone) : null;
@@ -1097,15 +1105,12 @@ function runContainerInfo(yr, mo, cycle) {
     const notes = [];
     if (r.contractClosedFlag)  notes.push(r.contractClosedFlag);
     if (cycleMismatch)         notes.push('⚑ Cycle mismatch — check first payout date');
-
-    // PATCH: container type blank (removed "filled down" message)
     if (r.containerTypeBlank)  notes.push('⚑ No container type — verify database');
-    // PATCH: client type blank (removed "filled down" message)
     if (r.clientTypeBlank)     notes.push('⚑ Blank client type');
-
     if (r.noIban)              notes.push('⚑ No IBAN and no account number — verify');
+    // PATCH: flag USD rental amount
+    if (r.returnInUSD)         notes.push('⚑ Rental amount is in USD — verify AED conversion');
 
-    // PATCH: commission clients skip the contract end date check
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
       if (!r.contractEnd)              notes.push('⚑ No contract end date');
@@ -1119,7 +1124,8 @@ function runContainerInfo(yr, mo, cycle) {
     } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       notes.push(`⚑ Shared group: ${r.groupId}`);
     }
-    if (!r.isFlexible && !hasTotalTrips) notes.push('⚑ Trips not in sheet');
+    // PATCH: no flag if trips is N/A
+    if (!r.isFlexible && !hasTotalTrips && !r.totalTripsNA) notes.push('⚑ Trips not in sheet');
     if (r.isFlexible) notes.push('⚑ Flexible leasing — no trips or payments computed');
     if (r.balanceNote) notes.push(`Balance pending: ${r.balanceNote}`);
 
@@ -1258,12 +1264,16 @@ function splitEmails(value) {
 
 function buildEmailRecords() {
   const rows = emailData.slice(1);
-  let lastEmail = '', lastMobile = '';
+
+  // PATCH: fill-down email (col 15), mobile (col 16), and agent email (col 2)
+  let lastEmail = '', lastMobile = '', lastAgentEmail = '';
   rows.forEach(row => {
-    const e = row[15] != null ? String(row[15]).trim() : '';
-    const m = row[16] != null ? String(row[16]).trim() : '';
-    if (e) lastEmail  = e; else if (lastEmail)  row[15] = lastEmail;
-    if (m) lastMobile = m; else if (lastMobile) row[16] = lastMobile;
+    const e  = row[15] != null ? String(row[15]).trim() : '';
+    const m  = row[16] != null ? String(row[16]).trim() : '';
+    const ae = row[2]  != null ? String(row[2]).trim()  : '';
+    if (e)  lastEmail      = e;  else if (lastEmail)      row[15] = lastEmail;
+    if (m)  lastMobile     = m;  else if (lastMobile)     row[16] = lastMobile;
+    if (ae) lastAgentEmail = ae; else if (lastAgentEmail) row[2]  = lastAgentEmail;
   });
 
   const grouped = new Map();
@@ -1286,6 +1296,8 @@ function buildEmailRecords() {
     };
 
     if (!grouped.has(normName)) grouped.set(normName, record);
+    // PATCH: also index by name inside parentheses (both directions)
+    if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
   });
 
   return Array.from(grouped.values());
@@ -1324,8 +1336,11 @@ function runEmailMatcher(yr, mo, cycle) {
       if (!r || !r[0]) return;
       const normName = normalizeName(String(r[0]), true);
       prevMatchMap.set(normName, {
-        email1: String(r[3] || '').trim(), email2: String(r[4] || '').trim(),
+        email1: String(r[3] || '').trim(),
+        email2: String(r[4] || '').trim(),
         mobile: String(r[5] || '').trim(),
+        // PATCH: carry over emailSheetClientName from reference (col 1)
+        emailSheetClientName: String(r[1] || '').trim(),
       });
     });
   }
@@ -1362,32 +1377,51 @@ function runEmailMatcher(yr, mo, cycle) {
     const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
     let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
 
+    // PATCH: carry over emailSheetClientName from ref if not matched this cycle
+    let emailSheetClientNameFromRef = '';
     const prev = prevMatchMap.get(normName);
     if (prev) {
       if (!email1 && prev.email1) { email1 = prev.email1; email2 = prev.email2; }
       if (!mobile && prev.mobile) mobile = prev.mobile;
+      if (!matched && prev.emailSheetClientName) emailSheetClientNameFromRef = prev.emailSheetClientName;
     }
 
-    const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()]
-      || (matched ? matched.agentEmail : '') || '';
+    // PATCH: email sheet agent email wins, hardcoded as fallback, flag mismatch
+    const emailSheetAgentEmail = matched ? matched.agentEmail : '';
+    const hardcodedAgentEmail  = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
+    const resolvedAgentEmail   = emailSheetAgentEmail || hardcodedAgentEmail;
+    const agentEmailMismatch   = emailSheetAgentEmail && hardcodedAgentEmail
+      && emailSheetAgentEmail !== hardcodedAgentEmail;
 
     const notes = [];
     const hasMultiAgents = group.note && /multiple agents/i.test(group.note);
     if (hasMultiAgents) {
       notes.push(group.note);
     } else {
-      if (!matched)                                          notes.push('Name not found in email sheet');
-      if (matched && !email1)                                notes.push('Email missing in email sheet');
-      if (matched && matched.multipleEmails)                 notes.push('Multiple emails detected');
-      if (matched && !resolvedAgentEmail)                    notes.push('Agent email missing');
-      else if (matched && matched.agentEmail && matched.agentEmail !== resolvedAgentEmail) notes.push('Agent email mismatch');
-      if (matched && !group.agent)                           notes.push('Agent name missing');
+      if (!matched)                          notes.push('Name not found in email sheet');
+      if (matched && !email1)                notes.push('Email missing in email sheet');
+      if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
+      if (matched && !resolvedAgentEmail)    notes.push('Agent email missing');
+      else if (agentEmailMismatch)           notes.push('⚑ Agent email mismatch — email sheet vs hardcoded');
+      if (matched && !group.agent)           notes.push('Agent name missing');
+    }
+
+    // PATCH: specific client flags
+    if (/saif mohammed saif mohammed almehrzi/i.test(group.clientName)) {
+      notes.push('⚑ Double check — verify client identity');
+    }
+    if (/coral wealth investment/i.test(group.clientName)) {
+      notes.push('⚑ No email found — verify');
+    }
+    if (/maryam rashed moham alzeyoudi/i.test(group.clientName)) {
+      notes.push('⚑ Not in email sheet — verify');
     }
 
     const status = matched ? 'valid' : 'invalid';
 
     return {
-      clientName: group.clientName, emailSheetClientName: matched ? matched.emailSheetClientName : '',
+      clientName: group.clientName,
+      emailSheetClientName: matched ? matched.emailSheetClientName : emailSheetClientNameFromRef,
       units: group.units, email1, email2, mobile,
       agentClosing: group.agent, agentEmail: resolvedAgentEmail,
       notes: notes.join(' | '), status,
