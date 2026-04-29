@@ -818,14 +818,6 @@ function runPayout(yr, mo, cycle) {
       g.structuralNotes.push('⚑ For contract review — verify if same person as Abbas Zaigham / Zaigham Abbas');
     }
 
-    // Shared container reference check
-    if (r.isSharedContainer) {
-      const expectedClients = SHARED_CONTAINERS[r.container];
-      if (expectedClients) {
-        g.structuralNotes.push(`⚑ Shared container ${r.container} — expected clients: ${expectedClients.join(', ')}`);
-      }
-    }
-
     // Balance note
     if (r.balanceNote) {
       const fp = r.firstPayout;
