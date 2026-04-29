@@ -909,13 +909,14 @@ function runPayout(yr, mo, cycle) {
   const totalReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totalDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totalDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  renderStats([
+  const totalUnits = results.reduce((s,r) => s + r.containers.length, 0);
+renderStats([
     { val: results.length,            lbl: 'Payees' },
+    { val: totalUnits,                lbl: 'Total Units' },
     { val: `AED ${fmt(totalReturn)}`, lbl: 'Total Rental' },
     { val: `AED ${fmt(totalDeduct)}`, lbl: 'Total Deductions' },
     { val: `AED ${fmt(totalDue)}`,    lbl: 'Total Due' },
-    { val: results.filter(r => r.totalDeduction > 0).length, lbl: 'With Deductions' },
-    { val: results.filter(r => r.note).length,               lbl: 'With Notes' },
+    { val: results.filter(r => r.note).length, lbl: 'With Notes' },
   ]);
 
   const flagLines = [];
