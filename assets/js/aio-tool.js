@@ -17,6 +17,76 @@ const MONTHS_FULL = ['January','February','March','April','May','June','July','A
 const PREVIEW_COUNT = 10;
 
 // ─────────────────────────────────────────────────────────────────
+// SHARED CONTAINERS — reference map for double-checking
+// clients sharing a container number in the database
+// ─────────────────────────────────────────────────────────────────
+const SHARED_CONTAINERS = {
+  'LGMU2023199': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023202': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023218': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023223': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2024596': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024600': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024615': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024620': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2240358': ['Hafiz Muhammad Umair Abbas Chaudhry', 'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar'],
+  'LGMU2241626': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2241755': ['Barayil Porakandy Roshan Valiyakath Aboobacker', 'Nuzhat Mursaleen Faisal Fakir Mohammed'],
+  'LGMU2241884': ['Nawaid Ahmed Muhammed Aziz', 'Zahid Khan'],
+  'LGMU2242812': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2243676': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2243681': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2245200': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2245220': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2246280': ['Kunnal Kishore Makhija Kishore Jethanand Makhija', 'Sunny Jaikishan Dadlani Jaikishan Nenumal Dadlani'],
+  'LGMU2251624': ['Ahmed Mohamed Elarabi Mohamed Ibrahim Halima', 'Mohamed Yousri Ebrahim Elsherbiny'],
+  'LGMU2251650': ['Abhai Kumar Srivastava Satgur Saran Srivastava', 'Saji Krishnankutty Krishnan Kutty Keshavan'],
+  'LGMU2252338': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2252894': ['Charan Tej Pavan Kumar Vuyyuru', 'Shilpa Kansal Deepak Kansal'],
+  'LGMU2253925': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2253930': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2255110': ['Abbas Waseem Mazher Islam', 'Muhammad Jawad Tahir', 'Muhammad Rameez Tahir Muhammad Naeem'],
+  'LGMU2257176': ['Kunnal Kishore Makhija Kishore Jethanand Makhija', 'Sunny Jaikishan Dadlani Jaikishan Nenumal Dadlani'],
+  'LGMU2258172': ['Mozard Daraius Antia', 'Zahir Asgher'],
+  'LGMU2258280': ['Muhammad Jawad Tahir', 'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar', 'Muhammad Rameez Tahir Muhammad Naeem'],
+  'LGMU2263440': ['Ahmed Mohamed Elarabi Mohamed Ibrahim Halima', 'Mohamed Yousri Ebrahim Elsherbiny'],
+  'LGMU2264940': ['Ghulam Sabir Muhammad Ashraf', 'Syed Rafaqat Rasul Syed Shoukat Rasul'],
+  'LGMU2265103': ['Manzoor Hussain Rashid Ahmad', 'Saad Mahmood Khalid Mahmood'],
+  'LGMU2265192': ['Hassam Mumtaz Muhammad Mumtaz', 'Murtaza Hussain Zar Wali Khan', 'Usman Afreen Muhammad Afreen'],
+  'LGMU2265335': ['Mohamed Sameer Abdul Razak Kazi', 'Zubair Zakir Isane'],
+  'LGMU2267153': ['Nimesha Rushan Thajudeen', 'Vishwa Dasantha Mohoppu'],
+  'LGMU2267620': ['Manzoor Hussain Rashid Ahmad', 'Saad Mahmood Khalid Mahmood'],
+  'LGMU2272777': ['Jamshed Ahmed Khan Jamil', 'Naeem Banu Baksh'],
+  'LGMU2274949': ['Ahmed Hassan Mohamed Elhobi', 'Mohamed Elmitwalli Issa Mohamed'],
+  'LGMU2275420': ['Dinesh Narwani Bhagwan Das Narwani', 'Kedar Shyamkant Desai Shyamkant Shridhar Desai'],
+  'LGMU2276290': ['Muhammad Maaz Khan Abid Khan', 'Zahid Khan (Kamran Naeem)'],
+  'LGMU2276915': ['Hafiz Muhammad Umair Abbas Chaudhry', 'Rafi Akram Mohammed'],
+  'LGMU2279658': ['Abdul Rahman Mohamed Eliyas', 'Rashed Mohammad Hassan Mohammed Almulla'],
+  'LGMU2280860': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2281085': ['Abeer Abdulkarem Ali Haider', 'Mohamad Mazen Mostafa Mossli'],
+  'LGMU2281090': ['Aamir Ali Ahmed Ali', 'Manzoor Hussain Rashid Ahmad'],
+  'LMCU2013799': ['Nishoy pavithran', 'Roshan Barayil Porakandy'],
+  'LMCU2016877': ['Allen Jose Naippallichiryil Chandy Joseph', 'Ranjith Mohanan Nair'],
+  'LMCU20203219': ['Deepak Kansal', 'Praveen Kumar Kandakurtikanddakurti Laxmi'],
+  'LMCU2022119': ['Roshan Barayil Porakandy/Nosh', 'Sujith Surendran'],
+  'LMCU2022424': ['Balakrishnan Mohan Gopal', 'Narasimhan Varada Vishnu Kidambi'],
+  'LMCU2023259': ['Hizqeel Ahmad Malik', 'Sajeel Ahmad Malik'],
+  'LMCU2023567': ['Kamran Naeem', 'Zahid Khan'],
+  'LMCU2023679': ['Balakrishnan Mohan Gopal', 'Narasimhan Varada Vishnu Kidambi'],
+  'LMCU2023717': ['Adnan Amin Ziaul Amin', 'Rashedur Rahman Chowdhury Mohd Ramzan', 'Reshad Abd Alim'],
+  'LMCU2024099': ['Nawaid Ahmed Muhammed Aziz', 'Zahid Khan'],
+  'LMCU2024439': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Mohideen Masthan Thakkadi Mohamed Rafi'],
+  'LMCU2024607': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LMCU20246789': ['Jerastine Antia', 'Nishoy Pavithran'],
+  'LMCU2024747': ['Abdul Jasim Abdullah Yousuf', 'Abdul Sattar Abdullah Yousuf'],
+  'LMCU2024887': ['Douglas Robertson Wylie', 'Skerdi Strazimiri'],
+  'LMCU2024927': ['Allen Jose Naippallichiryil Chandy Joseph', 'Ranjith Mohanan Nair'],
+  'LMCU2024949': ['Nimesha Rushan Thajudeen', 'Vishwa Dasantha Mohoppu'],
+  'LMCU2024977': ['Karuna Mansukhani', 'Sapna Mansukhani'],
+  'LMCU2069509': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Sunju John Mavely Thomas John'],
+};
+
+// ─────────────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────────────
 (function init() {
@@ -324,7 +394,7 @@ function parsePaymentSheet(raw) {
 
     if (!clientName) continue;
 
-    // ── Payout cycle fill-down (no flag generated, just fill) ──
+    // ── Payout cycle fill-down ──
     const rawCycleDirect = (C.payoutCycle !== -1 && r[C.payoutCycle]) ? String(r[C.payoutCycle]).trim() : '';
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
     const payoutCycle = rawCycleDirect || lastPayoutCycle;
@@ -363,7 +433,7 @@ function parsePaymentSheet(raw) {
     const noIban = !iban && !accountNo;
 
     // ── Total Trips — direct read, no fill-down ──
-    // PATCH: handle N/A — treat as no fixed trip limit, no flag, no pending calc
+    // N/A = no fixed trip limit, no flag, no pending calc
     const totalTripsRaw = (C.totalTrips !== -1 && r[C.totalTrips] != null)
       ? String(r[C.totalTrips]).trim() : null;
     const totalTripsNA  = totalTripsRaw !== null && totalTripsRaw.toLowerCase() === 'n/a';
@@ -371,13 +441,13 @@ function parsePaymentSheet(raw) {
     const totalTrips    = (!totalTripsNA && totalTripsNum !== null && !isNaN(totalTripsNum)) ? totalTripsNum : null;
 
     // ── Return Amount + Flexible detection ──
-    // PATCH: strip parenthetical note before numeric parsing (e.g. "4307 (1172.61$)" → "4307")
+    // Strip parenthetical note before parsing (e.g. "4307 (1172.61$)" → reads 4307)
     const returnRaw  = (C.returnAmt !== -1 && r[C.returnAmt]) ? String(r[C.returnAmt]).trim() : '';
     const returnBase = returnRaw.split('(')[0].trim();
     const returnNum  = parseFloat(returnBase.replace(/[^0-9.\-]/g, ''));
     const isFlexible = /\d+%/.test(returnRaw) || (!isNaN(returnNum) && returnNum > 0 && returnNum < 1);
     const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
-    // PATCH: flag if return amount contains USD
+    // Flag if return amount contains USD
     const returnInUSD = /usd/i.test(returnRaw);
 
     const insuranceRaw          = r[C.insurance];
@@ -392,6 +462,9 @@ function parsePaymentSheet(raw) {
     else if (!noNumber(contractNo)) groupId = contractNo;
     else if (!noNumber(container))  groupId = container;
     else groupId = '__MANUAL_CHECK__';
+
+    // ── Shared container flag ──
+    const isSharedContainer = container && SHARED_CONTAINERS[container] !== undefined;
 
     rows.push({
       index: i,
@@ -422,6 +495,7 @@ function parsePaymentSheet(raw) {
       noIban,
       totalTrips,
       totalTripsNA,
+      isSharedContainer,
       agent: rawAgent,
     });
   }
@@ -603,7 +677,7 @@ function parseDate(val) {
   }
   if (val instanceof Date) return isNaN(val) ? null : val;
   const s = String(val).trim();
-  // PATCH: enforce DD/MM/YYYY — first part is always day when ambiguous
+  // Enforce DD/MM/YYYY — first part is always day when ambiguous
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     let day = parseInt(m[1]), mo = parseInt(m[2]);
@@ -617,7 +691,7 @@ function parseDate(val) {
   return isNaN(d) ? null : d;
 }
 
-// PATCH: strip parenthetical note before parsing (e.g. "4307 (1172.61$)" → reads 4307)
+// Strip parenthetical note before parsing (e.g. "4307 (1172.61$)" → reads 4307)
 function parseNumber(val) {
   if (val === null || val === undefined || val === '') return 0;
   const s = String(val).trim().split('(')[0].trim();
@@ -685,7 +759,7 @@ function runPayout(yr, mo, cycle) {
     return cycleMatch && started;
   });
 
-  // PATCH: pre-pass — which clients have at least one contract end date across all their rows
+  // Pre-pass — which clients have at least one contract end date across all their rows
   const clientHasContractEnd = {};
   filtered.forEach(r => {
     if (!clientHasContractEnd[r.clientName]) clientHasContractEnd[r.clientName] = false;
@@ -713,6 +787,7 @@ function runPayout(yr, mo, cycle) {
         clientType: r.clientType, containers: [], totalReturn: 0,
         totalDeduction: 0, deductionItems: [], structuralNotes: [],
         balanceNotes: new Set(), agents: new Set(),
+        firstPayout: r.firstPayout,   // for firstPayoutDisplay fallback
       };
     }
 
@@ -726,10 +801,9 @@ function runPayout(yr, mo, cycle) {
     if (r.groupId === '__MANUAL_CHECK__') g.structuralNotes.push('⚑ No container or contract number — manual check required');
     if (r.noIban) g.structuralNotes.push('⚑ No IBAN and no account number — verify');
     if (r.clientTypeBlank) g.structuralNotes.push('⚑ Blank client type');
-    // PATCH: flag USD rental amount
     if (r.returnInUSD) g.structuralNotes.push('⚑ Rental amount is in USD — verify AED conversion');
 
-    // PATCH: contract end date — check all rows for client, skip commission
+    // Contract end date — check all rows for client, skip commission
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
       if (!clientHasContractEnd[r.clientName]) {
@@ -739,9 +813,17 @@ function runPayout(yr, mo, cycle) {
       }
     }
 
-    // PATCH: Abbas Zaigham / Zaigham Abbas — flag for contract review
+    // Abbas Zaigham / Zaigham Abbas — flag for contract review
     if (r.clientName === 'Abbas Zaigham' || r.clientName === 'Zaigham Abbas') {
       g.structuralNotes.push('⚑ For contract review — verify if same person as Abbas Zaigham / Zaigham Abbas');
+    }
+
+    // Shared container reference check
+    if (r.isSharedContainer) {
+      const expectedClients = SHARED_CONTAINERS[r.container];
+      if (expectedClients) {
+        g.structuralNotes.push(`⚑ Shared container ${r.container} — expected clients: ${expectedClients.join(', ')}`);
+      }
     }
 
     // Balance note
@@ -792,7 +874,8 @@ function runPayout(yr, mo, cycle) {
     const y1WithOthers = y1Items.length > 0 && ipItems.length > 0;
     const visibleItems = [...y1Items, ...ipItems, ...hcApplied];
     const activeDates  = [...new Set(visibleItems.map(it => fmtDate(it.firstPayout)))];
-    const firstPayoutDisplay = activeDates.join(' & ') || '';
+    // Fallback to actual firstPayout date if no deduction dates available
+    const firstPayoutDisplay = activeDates.join(' & ') || fmtDate(g.firstPayout) || '';
     const deductionNotes = [];
 
     if (ipItems.length > 0) {
@@ -940,7 +1023,6 @@ function runIPDeduction(yr, mo, cycle) {
     const g = groups[key];
     g.containers.push(r.container);
 
-    // PATCH: flag USD rental amount
     if (r.returnInUSD) g.notes.push('⚑ Rental amount is in USD — verify AED conversion');
 
     const isHcEligible = r.payReceived && r.payReceived <= hcCutoff;
@@ -1094,7 +1176,7 @@ function runContainerInfo(yr, mo, cycle) {
     const cycleIs15   = parseInt(r.payoutCycle, 10) === 15;
     const cycleMismatch = fpDay !== null && cycleIs15 !== fpIs15;
 
-    // PATCH: handle N/A trips — no calc, no flag
+    // N/A trips = no fixed limit, no flag, no pending calc
     const hasTotalTrips = r.totalTrips !== null && !r.totalTripsNA;
     const tripsDone  = (!r.isFlexible && hasTotalTrips) ? calcTrips(r.firstPayout, payoutDate) : null;
     const tripsTotal = (!r.isFlexible && hasTotalTrips) ? r.totalTrips : null;
@@ -1108,7 +1190,6 @@ function runContainerInfo(yr, mo, cycle) {
     if (r.containerTypeBlank)  notes.push('⚑ No container type — verify database');
     if (r.clientTypeBlank)     notes.push('⚑ Blank client type');
     if (r.noIban)              notes.push('⚑ No IBAN and no account number — verify');
-    // PATCH: flag USD rental amount
     if (r.returnInUSD)         notes.push('⚑ Rental amount is in USD — verify AED conversion');
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
@@ -1124,7 +1205,6 @@ function runContainerInfo(yr, mo, cycle) {
     } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       notes.push(`⚑ Shared group: ${r.groupId}`);
     }
-    // PATCH: no flag if trips is N/A
     if (!r.isFlexible && !hasTotalTrips && !r.totalTripsNA) notes.push('⚑ Trips not in sheet');
     if (r.isFlexible) notes.push('⚑ Flexible leasing — no trips or payments computed');
     if (r.balanceNote) notes.push(`Balance pending: ${r.balanceNote}`);
@@ -1294,7 +1374,7 @@ function buildEmailRecords() {
     };
 
     if (!grouped.has(normName)) grouped.set(normName, record);
-    // PATCH: also index by name inside parentheses (both directions)
+    // Index by name inside parentheses (both directions)
     if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
   });
 
@@ -1337,7 +1417,7 @@ function runEmailMatcher(yr, mo, cycle) {
         email1: String(r[3] || '').trim(),
         email2: String(r[4] || '').trim(),
         mobile: String(r[5] || '').trim(),
-        // PATCH: carry over emailSheetClientName from reference (col 1)
+        // Carry over emailSheetClientName from reference (col 1)
         emailSheetClientName: String(r[1] || '').trim(),
       });
     });
@@ -1375,7 +1455,7 @@ function runEmailMatcher(yr, mo, cycle) {
     const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
     let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
 
-    // PATCH: carry over emailSheetClientName from ref if not matched this cycle
+    // Carry over from reference file if not matched this cycle
     let emailSheetClientNameFromRef = '';
     const prev = prevMatchMap.get(normName);
     if (prev) {
@@ -1384,7 +1464,7 @@ function runEmailMatcher(yr, mo, cycle) {
       if (!matched && prev.emailSheetClientName) emailSheetClientNameFromRef = prev.emailSheetClientName;
     }
 
-    // PATCH: email sheet agent email wins, hardcoded as fallback, flag mismatch
+    // Agent email — hardcoded map is source of truth
     const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
 
     const notes = [];
@@ -1399,7 +1479,7 @@ function runEmailMatcher(yr, mo, cycle) {
       if (matched && !group.agent)           notes.push('Agent name missing');
     }
 
-    // PATCH: specific client flags
+    // Specific client flags
     if (/saif mohammed saif mohammed almehrzi/i.test(group.clientName)) {
       notes.push('⚑ Double check — verify client identity');
     }
