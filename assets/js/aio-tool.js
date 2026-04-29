@@ -959,9 +959,9 @@ function exportPayout() {
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
 
-  const headers = ['CLIENT TYPE','NAME OF CLIENTS','UNITS','FIRST PAYOUT DATE',
-    'MONTHLY RENTAL AMOUNT','DEDUCTION','ADDITION','RENTAL DUE',
-    'ACCOUNT NUMBER','IBAN NUMBER','SWIFT CODE','BANK NAME','Agent Name','NOTES'];
+  const headers = ['CLIENT TYPE','CLIENT NAME','UNIT','FIRST PAYOUT',
+    'MONTHLY RENT','DEDUCTION','ADDITION','RENTAL DUE',
+    'ACCOUNT NO.','IBAN NO.','SWIFT CODE','BANK NAME','AGENT NAME','NOTES'];
 
   const rows = results.map(r => [
     r.clientType || '', r.clientName, r.containers.length,
