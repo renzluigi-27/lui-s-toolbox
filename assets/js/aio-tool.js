@@ -382,6 +382,7 @@ function parsePaymentSheet(raw) {
 
     // ── Container fill-down ──
     let rawContainer = (C.container !== -1 && r[C.container]) ? String(r[C.container]).trim() : '';
+    const pinFilledDown = !rawContainer;
     if (rawContainer) lastContainer = rawContainer;
     else rawContainer = lastContainer;
     const container = rawContainer;
@@ -496,6 +497,7 @@ function parsePaymentSheet(raw) {
       totalTrips,
       totalTripsNA,
       isSharedContainer,
+      pinFilledDown,
       agent: rawAgent,
     });
   }
@@ -1155,6 +1157,7 @@ function runContainerInfo(yr, mo, cycle) {
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
     if (!cycleMatch) return false;
     if (r.container && r.container.toLowerCase() === 'commission') return false;
+    if (r.pinFilledDown) return false;
     if (r.firstPayout && r.firstPayout > payoutDate) return false;
     return true;
   });
