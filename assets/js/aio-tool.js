@@ -423,7 +423,8 @@ function parsePaymentSheet(raw) {
     // ── Dates — contractEnd is direct read only, no fill-down ──
     const firstPayout  = parseDate(r[C.firstPayout]);
     const payReceived  = parseDate(r[C.payReceived]);
-    const contractEnd  = (C.contractEnd !== -1 && r[C.contractEnd]) ? parseDate(r[C.contractEnd]) : null;
+    const contractEndRaw = (C.contractEnd !== -1 && r[C.contractEnd]) ? parseDate(r[C.contractEnd]) : null;
+    const contractEnd = contractEndRaw || (payReceived ? addYears(payReceived, 3) : null);
     const payCalcStart = (C.payCalcStart !== -1 && r[C.payCalcStart]) ? parseDate(r[C.payCalcStart]) : null;
 
     // ── IBAN / Account ──
