@@ -310,7 +310,7 @@ function readExcel(file, onSuccess, onError) {
     try {
       const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false, dateNF: 'dd/mm/yyyy' });
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true, cellDates: true });
       onSuccess(rows);
     } catch(ex) { onError(ex.message); }
   };
