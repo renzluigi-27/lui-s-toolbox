@@ -310,7 +310,7 @@ function readExcel(file, onSuccess, onError) {
     try {
       const wb   = XLSX.read(e.target.result, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false, cellDates: true });
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
       onSuccess(rows);
     } catch(ex) { onError(ex.message); }
   };
@@ -678,15 +678,22 @@ function parseDate(val) {
     const excelEpoch = new Date(1899, 11, 30);
     return new Date(excelEpoch.getTime() + val * 86400000);
   }
-  if (val instanceof Date) return isNaN(val) ? null : val;
+  if (val instanceof Date) {
+  if (isNaN(val)) return null;
+  // cellDates:true returns MM/DD — swap to DD/MM
+  return new Date(val.getFullYear(), val.getDate() - 1, val.getMonth() + 1);
+}
   const s = String(val).trim();
   // Enforce DD/MM/YYYY — first part is always day when ambiguous
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
-    let day = parseInt(m[1]), mo = parseInt(m[2]);
-    let y   = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
-    if (mo > 12) { [day, mo] = [mo, day]; }
-    return new Date(y, mo - 1, day);
+    let a = parseInt(m[1]), b = parseInt(m[2]);
+    let y = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
+    // If first part > 12, must be day (DD/MM). If second part > 12, must be day (MM/DD swap).
+    // Otherwise XLSX outputs MM/DD by default — treat first as month.
+    if (a > 12) return new Date(y, b - 1, a);       // DD/MM — day is first
+    if (b > 12) return new Date(y, a - 1, b);       // MM/DD — month is first
+    return new Date(y, a - 1, b);                   // ambiguous — assume MM/DD (XLSX default)
   }
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
