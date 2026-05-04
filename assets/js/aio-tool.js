@@ -1425,20 +1425,15 @@ function runEmailMatcher(yr, mo, cycle) {
     });
   }
 
-  // No cycle filter — include ALL clients from payment sheet
-  const clientGroups = new Map();
-  paymentData.forEach(r => {
-    const norm = normalizeName(r.clientName, false);
-    if (!clientGroups.has(norm)) {
-      clientGroups.set(norm, { clientName: r.clientName, norm });
-    }
-  });
+  // No cycle filter — one row per payment sheet row (repeating names allowed)
+  results = paymentData.map(row => {
+    const group = { clientName: row.clientName, norm: normalizeName(row.clientName, false) };
 
-  results = Array.from(clientGroups.values()).map(group => {
     const normName   = group.norm;
     const parenMatch = group.clientName.match(/\(([^)]+)\)/);
-    const normParen  = parenMatch ? normalizeName(parenMatch[1], false) : '';
-    const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), false);
+    // Rule: try paren content FIRST (strip prefixes for consistent lookup)
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), true);
 
     const lookup  = n => emailRecords.find(r => r.normName === n || r.normParen === n);
     const matched = (normParen && lookup(normParen)) || lookup(normOuter) || null;
