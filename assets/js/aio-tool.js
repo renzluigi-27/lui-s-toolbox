@@ -1622,14 +1622,14 @@ function setEmailOption(group, val, el) {
     + '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
     + '<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Cycle Filter</div>'
     + '<div style="display:flex;gap:8px;">'
-    + '<button class="em-toggle active" data-group="cycle" data-val="all" onclick="setEmailOption('cycle','all',this)">All Clients</button>'
-    + '<button class="em-toggle" data-group="cycle" data-val="15" onclick="setEmailOption('cycle','15',this)">15th</button>'
-    + '<button class="em-toggle" data-group="cycle" data-val="30" onclick="setEmailOption('cycle','30',this)">End of Month</button>'
+    + '<button class="em-toggle active" data-group="cycle" data-val="all" onclick="setEmailOption(&apos;cycle&apos;,&apos;all&apos;,this)">All Clients</button>'
+    + '<button class="em-toggle" data-group="cycle" data-val="15" onclick="setEmailOption(&apos;cycle&apos;,&apos;15&apos;,this)">15th</button>'
+    + '<button class="em-toggle" data-group="cycle" data-val="30" onclick="setEmailOption(&apos;cycle&apos;,&apos;30&apos;,this)">End of Month</button>'
     + '</div></div>'
     + '<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Name Mode</div>'
     + '<div style="display:flex;gap:8px;">'
-    + '<button class="em-toggle" data-group="names" data-val="unique" onclick="setEmailOption('names','unique',this)">Unique Names</button>'
-    + '<button class="em-toggle active" data-group="names" data-val="repeat" onclick="setEmailOption('names','repeat',this)">Repeating (Payment Sheet)</button>'
+    + '<button class="em-toggle" data-group="names" data-val="unique" onclick="setEmailOption(&apos;names&apos;,&apos;unique&apos;,this)">Unique Names</button>'
+    + '<button class="em-toggle active" data-group="names" data-val="repeat" onclick="setEmailOption(&apos;names&apos;,&apos;repeat&apos;,this)">Repeating (Payment Sheet)</button>'
     + '</div></div></div>';
 
   var emailSheetCard = document.getElementById('emailSheetCard');
