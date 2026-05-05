@@ -1618,6 +1618,7 @@ function setEmailOption(group, val, el) {
   card.className = 'card';
   card.style.display = 'none';
   card.style.marginTop = '12px';
+  card.style.textAlign = 'center';
   card.innerHTML = '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Email Matcher Options</div>'
     + '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
     + '<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Cycle Filter</div>'
