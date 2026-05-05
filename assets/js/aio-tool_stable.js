@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// AIO TOOL — aio-tool.js
+// AIO TOOL — aio-tool.js (backup)
 // Payout Generator · IP Deduction · Container Info · Email Matcher
 // ─────────────────────────────────────────────────────────────────
 
