@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// AIO TOOL — aio-tool.js
+// AIO TOOL — aio-tool.js (modified)
 // Payout Generator · IP Deduction · Container Info · Email Matcher
 // ─────────────────────────────────────────────────────────────────
 
@@ -138,86 +138,11 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
   });
 });
 
-// Create email options card once on load
-createEmailOptionsCard();
-
 function updateTabUI() {
-  const isEmail = activeMode === 'email';
-  document.getElementById('emailSheetCard').style.display = isEmail ? 'block' : 'none';
-  const optCard = document.getElementById('emailOptionsCard');
-  if (optCard) optCard.style.display = isEmail ? 'block' : 'none';
+  document.getElementById('emailSheetCard').style.display =
+    activeMode === 'email' ? 'block' : 'none';
   updateRefHint();
   updateGenerateBtn();
-}
-
-
-// ─────────────────────────────────────────────────────────────────
-// EMAIL MATCHER OPTIONS — cycle filter & name mode toggles
-// ─────────────────────────────────────────────────────────────────
-function createEmailOptionsCard() {
-  if (document.getElementById('emailOptionsCard')) return;
-  const emailSheetCard = document.getElementById('emailSheetCard');
-  const card = document.createElement('div');
-  card.id = 'emailOptionsCard';
-  card.className = 'card';
-  card.style.display = 'none';
-  card.style.marginTop = '12px';
-  card.innerHTML = `
-    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Email Matcher Options</div>
-    <div style="display:flex;gap:24px;flex-wrap:wrap;">
-      <div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Cycle Filter</div>
-        <div style="display:flex;gap:8px;">
-          <button class="em-toggle active" data-group="cycle" data-val="all" onclick="setEmailOption('cycle','all',this)">All Clients</button>
-          <button class="em-toggle" data-group="cycle" data-val="15" onclick="setEmailOption('cycle','15',this)">15th</button>
-          <button class="em-toggle" data-group="cycle" data-val="30" onclick="setEmailOption('cycle','30',this)">End of Month</button>
-        </div>
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Name Mode</div>
-        <div style="display:flex;gap:8px;">
-          <button class="em-toggle" data-group="names" data-val="unique" onclick="setEmailOption('names','unique',this)">Unique Names</button>
-          <button class="em-toggle active" data-group="names" data-val="repeat" onclick="setEmailOption('names','repeat',this)">Repeating (Payment Sheet)</button>
-        </div>
-      </div>
-    </div>
-  `;
-  emailSheetCard.parentNode.insertBefore(card, emailSheetCard.nextSibling);
-
-  // Inject toggle styles once
-  if (!document.getElementById('emToggleStyle')) {
-    const style = document.createElement('style');
-    style.id = 'emToggleStyle';
-    style.textContent = \`
-      .em-toggle {
-        padding: 5px 13px;
-        border-radius: 6px;
-        border: 1.5px solid var(--border);
-        background: var(--surface);
-        color: var(--text-muted);
-        font-size: 12px;
-        cursor: pointer;
-        transition: all .15s;
-      }
-      .em-toggle.active {
-        background: var(--accent);
-        color: #fff;
-        border-color: var(--accent);
-        font-weight: 600;
-      }
-    \`;
-    document.head.appendChild(style);
-  }
-}
-
-function setEmailOption(group, val, el) {
-  document.querySelectorAll(\`.em-toggle[data-group="\${group}"]\`).forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-}
-
-function getEmailOption(group) {
-  const active = document.querySelector(\`.em-toggle[data-group="\${group}"].active\`);
-  return active ? active.dataset.val : (group === 'cycle' ? 'all' : 'repeat');
 }
 
 function updateRefHint() {
@@ -1493,14 +1418,16 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
       if (!r || !r[0]) return;
       const normName = normalizeName(String(r[0]), true);
       prevMatchMap.set(normName, {
-        email1: String(r[2] || '').trim(),
-        mobile: String(r[3] || '').trim(),
+        email1: String(r[3] || '').trim(),
+        email2: String(r[4] || '').trim(),
+        mobile: String(r[5] || '').trim(),
+        // Carry over emailSheetClientName from reference (col 1)
         emailSheetClientName: String(r[1] || '').trim(),
       });
     });
   }
 
-  // Filter by cycle if needed
+  // Cycle filter
   const paySource = (cycleOpt === 'all')
     ? paymentData
     : (() => {
@@ -1513,7 +1440,7 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
         });
       })();
 
-  // Unique names or repeating rows
+  // Name mode — unique deduped or repeating per payment sheet row
   const rowsToProcess = (nameMode === 'unique')
     ? (() => {
         const seen = new Map();
@@ -1525,35 +1452,49 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
       })()
     : paySource;
 
-  _emCycleOpt = cycleOpt; _emNameMode = nameMode;
-  results = rowsToProcess.map(row => {
-    const group = { clientName: row.clientName, norm: normalizeName(row.clientName, false) };
+  // Store for export
+  _emCycleOpt = cycleOpt;
+  _emNameMode = nameMode;
 
-    const normName   = group.norm;
+  results = rowsToProcess.map(row => {
+    const group = { clientName: row.clientName, norm: normalizeName(row.clientName, false),
+                    units: 1, agent: row.agent || '', note: '' };
+    const group_norm = group.norm;
+    const normName   = group_norm;
     const parenMatch = group.clientName.match(/\(([^)]+)\)/);
-    // Rule: try paren content FIRST (strip prefixes for consistent lookup)
+    // Paren-first: try name inside parentheses before outer name
     const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
     const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), true);
 
     const lookup  = n => emailRecords.find(r => r.normName === n || r.normParen === n);
     const matched = (normParen && lookup(normParen)) || lookup(normOuter) || null;
 
-    const [email1raw] = splitEmails(matched ? matched.clientEmailRaw : '');
-    let email1 = email1raw, mobile = matched ? matched.mobile : '';
+    const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
+    let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
 
-    // Carry over from reference file if not matched
+    // Carry over from reference file if not matched this cycle
     let emailSheetClientNameFromRef = '';
     const prev = prevMatchMap.get(normName);
     if (prev) {
-      if (!email1 && prev.email1) email1 = prev.email1;
+      if (!email1 && prev.email1) { email1 = prev.email1; email2 = prev.email2; }
       if (!mobile && prev.mobile) mobile = prev.mobile;
       if (!matched && prev.emailSheetClientName) emailSheetClientNameFromRef = prev.emailSheetClientName;
     }
 
+    // Agent email — hardcoded map is source of truth
+    const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
+
     const notes = [];
-    if (!matched)          notes.push('Name not found in email sheet');
-    if (matched && !email1) notes.push('Email missing in email sheet');
-    if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
+    const hasMultiAgents = group.note && /multiple agents/i.test(group.note);
+    if (hasMultiAgents) {
+      notes.push(group.note);
+    } else {
+      if (!matched)                          notes.push('Name not found in email sheet');
+      if (matched && !email1)                notes.push('Email missing in email sheet');
+      if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
+      if (matched && !resolvedAgentEmail)    notes.push('Agent email missing');
+      if (matched && !group.agent)           notes.push('Agent name missing');
+    }
 
     // Specific client flags
     if (/saif mohammed saif mohammed almehrzi/i.test(group.clientName)) {
@@ -1571,7 +1512,8 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
     return {
       clientName: group.clientName,
       emailSheetClientName: matched ? matched.emailSheetClientName : emailSheetClientNameFromRef,
-      email1, mobile,
+      units: group.units, email1, email2, mobile,
+      agentClosing: group.agent, agentEmail: resolvedAgentEmail,
       notes: notes.join(' | '), status,
     };
   });
@@ -1581,12 +1523,14 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
   showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${nameLabel} · ${results.length} rows`);
 
   const confirmed    = results.filter(r => r.status === 'valid').length;
-  const errors       = results.filter(r => r.notes).length;
+  const clientErrors = results.filter(r => r.notes && (/name not found|email missing|multiple emails/i.test(r.notes))).length;
+  const agentErrors  = results.filter(r => r.notes && (/agent email|agent name|multiple agents/i.test(r.notes))).length;
 
   renderStats([
     { val: results.length, lbl: 'Total' },
     { val: confirmed,      lbl: 'Confirmed' },
-    { val: errors,         lbl: 'Errors' },
+    { val: clientErrors,   lbl: 'Client Errors' },
+    { val: agentErrors,    lbl: 'Agent Errors' },
   ]);
 
   renderFlags([]);
@@ -1595,8 +1539,8 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
     <th>#</th>
     <th>Client Name (Payment Sheet)</th>
     <th>Client Name (Email Sheet)</th>
-    <th>Email</th>
-    <th>Contact Number</th>
+    <th>Email 1</th>
+    <th>Agent Closing</th>
     <th>Notes</th>
   </tr>`;
 
@@ -1609,7 +1553,7 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
       <td class="td-name">${esc(r.clientName)}</td>
       <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '—')}</td>
       <td class="td-mono">${esc(r.email1 || '—')}</td>
-      <td class="td-mono">${esc(r.mobile || '—')}</td>
+      <td>${esc(r.agentClosing || '—')}</td>
       <td class="td-note">${noteBadge}</td>
     </tr>`;
   }).join('');
@@ -1617,24 +1561,84 @@ function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
   renderMoreRows(results.length);
 }
 
-let _emCycleOpt = 'all'; let _emNameMode = 'repeat';
 function exportEmailMatcher() {
-  const cycleOpt = _emCycleOpt; const nameMode = _emNameMode;
   const yr = parseInt(document.getElementById('selYear').value);
   const mo = parseInt(document.getElementById('selMonth').value);
 
   const exportRows = results.map(r => ({
     'Client Name (LMC Sheet)':   r.clientName,
     'Client Name (Email Sheet)': r.emailSheetClientName,
-    'Email':          r.email1,
-    'Contact Number': r.mobile,
-    'Notes':          r.notes,
+    'Units':         r.units,
+    'Email 1':       r.email1,
+    'Email 2':       r.email2,
+    'Mobile':        r.mobile,
+    'Agent Closing': r.agentClosing,
+    'Agent Email':   r.agentEmail,
+    'Notes':         r.notes,
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportRows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} Email Matcher`.substring(0, 31));
-  const cycleTag = cycleOpt === 'all' ? 'ALL' : (cycleOpt === '15' ? '15' : '30');
-  const nameTag  = nameMode === 'unique' ? 'UNIQUE' : 'REPEAT';
+  const cycleTag = _emCycleOpt === 'all' ? 'ALL' : (_emCycleOpt === '15' ? '15' : '30');
+  const nameTag  = _emNameMode === 'unique' ? 'UNIQUE' : 'REPEAT';
   XLSX.writeFile(wb, `EMAIL_MATCHER_${cycleTag}_${nameTag}_${MONTHS[mo-1].toUpperCase()}${yr}.xlsx`);
 }
+
+
+// ─────────────────────────────────────────────────────────────────
+// EMAIL MATCHER OPTIONS — state, helpers, card (appended, no existing code touched)
+// ─────────────────────────────────────────────────────────────────
+let _emCycleOpt = 'all';
+let _emNameMode = 'repeat';
+
+function getEmailOption(group) {
+  const active = document.querySelector('.em-toggle[data-group="' + group + '"].active');
+  return active ? active.dataset.val : (group === 'cycle' ? 'all' : 'repeat');
+}
+
+function setEmailOption(group, val, el) {
+  document.querySelectorAll('.em-toggle[data-group="' + group + '"]').forEach(function(b) { b.classList.remove('active'); });
+  el.classList.add('active');
+}
+
+(function setupEmailOptions() {
+  var style = document.createElement('style');
+  style.textContent = [
+    '.em-toggle { padding:5px 13px; border-radius:6px; border:1.5px solid var(--border);',
+    '  background:var(--surface); color:var(--text-muted); font-size:12px;',
+    '  cursor:pointer; transition:all .15s; }',
+    '.em-toggle.active { background:var(--accent); color:#fff;',
+    '  border-color:var(--accent); font-weight:600; }'
+  ].join(' ');
+  document.head.appendChild(style);
+
+  var card = document.createElement('div');
+  card.id = 'emailOptionsCard';
+  card.className = 'card';
+  card.style.display = 'none';
+  card.style.marginTop = '12px';
+  card.innerHTML = '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Email Matcher Options</div>'
+    + '<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+    + '<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Cycle Filter</div>'
+    + '<div style="display:flex;gap:8px;">'
+    + '<button class="em-toggle active" data-group="cycle" data-val="all" onclick="setEmailOption('cycle','all',this)">All Clients</button>'
+    + '<button class="em-toggle" data-group="cycle" data-val="15" onclick="setEmailOption('cycle','15',this)">15th</button>'
+    + '<button class="em-toggle" data-group="cycle" data-val="30" onclick="setEmailOption('cycle','30',this)">End of Month</button>'
+    + '</div></div>'
+    + '<div><div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Name Mode</div>'
+    + '<div style="display:flex;gap:8px;">'
+    + '<button class="em-toggle" data-group="names" data-val="unique" onclick="setEmailOption('names','unique',this)">Unique Names</button>'
+    + '<button class="em-toggle active" data-group="names" data-val="repeat" onclick="setEmailOption('names','repeat',this)">Repeating (Payment Sheet)</button>'
+    + '</div></div></div>';
+
+  var emailSheetCard = document.getElementById('emailSheetCard');
+  emailSheetCard.parentNode.insertBefore(card, emailSheetCard.nextSibling);
+
+  // Show/hide alongside emailSheetCard on tab switch
+  document.querySelectorAll('.mode-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      card.style.display = btn.dataset.mode === 'email' ? 'block' : 'none';
+    });
+  });
+})();
