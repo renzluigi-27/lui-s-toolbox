@@ -80,7 +80,6 @@
       max-width: 900px;
     }
 
-    /* ── Section label ── */
     .section-label {
       font-size: 11px;
       font-weight: 500;
@@ -90,7 +89,6 @@
       margin-bottom: 0.75rem;
     }
 
-    /* ── Tool card ── */
     .tool-card {
       background: var(--surface);
       border: 0.5px solid var(--border);
@@ -173,22 +171,15 @@
       text-overflow: unset;
     }
 
-
     @media (max-width: 768px) {
-      html, body {
-        overflow-x: hidden;
-      }
+      html, body { overflow-x: hidden; }
     }
 
-    /* ── Responsive breakpoints ── */
-
-    /* Desktop 21.5" */
     @media (min-width: 1200px) {
       header h1 { font-size: 30px; }
       .tool-card { padding: 1.2rem 1.5rem; }
     }
 
-    /* iPhone */
     @media (max-width: 480px) {
       header h1 { font-size: 20px; }
       .tool-name { font-size: 13px; }
@@ -198,222 +189,185 @@
   </style>
 </head>
 <body>
-<div class="bg-orbs">
-  <div class="bg-orb bg-orb-1"></div>
-  <div class="bg-orb bg-orb-2"></div>
-  <div class="bg-orb bg-orb-3"></div>
-</div>
+
+  <!-- Liquid Glass background orbs -->
+  <div class="bg-orbs">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+  </div>
+
   <div class="page-container">
     <div class="content">
 
-<header>
-  <h1>Lui's Toolbox</h1>
-  <p>A collection of browser-based utilities — no data sent anywhere</p>
-</header>
+      <header>
+        <h1>Lui's Toolbox</h1>
+        <p>A collection of browser-based utilities — no data sent anywhere</p>
+      </header>
 
-<div class="container">
+      <div class="container">
 
-  <div class="section-label">Available</div>
-		
-<!-- ─── TOOL CARD: WA Media Downloader ─────────────────────────────── -->
-<a class="tool-card" href="wa-media-downloader.html">
-  <div class="tool-info">
-    <div class="tool-name">WA Media Downloader</div>
-    <div class="tool-desc">Bulk download documents &amp; media from WhatsApp Web chats</div>
-  </div>
-  <div class="tool-meta">
-    <span class="tool-tag">extension</span>
-    <span class="tool-arrow">&#8594;</span>
-  </div>
-</a>
-		
-	<!-- ─── TOOL CARD: IBAN Checker ─────────────────────────────── -->
-  <a class="tool-card" href="iban-checker.html">
-    <div class="tool-info">
-      <div class="tool-name">IBAN Checker</div>
-      <div class="tool-desc">Validate UAE &amp; international IBANs — ISO 13616 checksum</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">validation</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
+        <div class="section-label">Available</div>
 
-  <!-- ─── TOOL CARD: Payout Generator ────────────────────────────── -->
-  <a class="tool-card" href="payout-generator.html">
-    <div class="tool-info">
-      <div class="tool-name">Payout Generator</div>
-      <div class="tool-desc">Generate monthly payout sheets from the payment info sheet — 15th &amp; EOM cycles</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">finance</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
+        <!-- ─── TOOL CARD: AIO Tool ─────────────────────────────── -->
+        <a class="tool-card" href="aio-tool.html">
+          <div class="tool-info">
+            <div class="tool-name">AIO Tool</div>
+            <div class="tool-desc">Payout · IP Deduction · Container Info · Email Matcher</div>
+          </div>
+          <div class="tool-meta">
+            <span class="tool-tag">new</span>
+            <span class="tool-arrow">&#8594;</span>
+          </div>
+        </a>
 
-  <!-- ─── TOOL CARD: IP Deduction & Rental Validation ────────────────────────────── -->
-  <a class="tool-card" href="ip-deduction-rental-validation.html">
-    <div class="tool-info">
-      <div class="tool-name">IP Deduction Tool</div>
-      <div class="tool-desc">Insurance deduction, return calculation, and installment validation</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">finance</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
+        <!-- ─── TOOL CARD: WA Media Downloader ─────────────────────────────── -->
+        <a class="tool-card" href="wa-media-downloader.html">
+          <div class="tool-info">
+            <div class="tool-name">WA Media Downloader</div>
+            <div class="tool-desc">Bulk download documents &amp; media from WhatsApp Web chats</div>
+          </div>
+          <div class="tool-meta">
+            <span class="tool-tag">extension</span>
+            <span class="tool-arrow">&#8594;</span>
+          </div>
+        </a>
 
-  <!-- ─── TOOL CARD: Email Matcher ────────────────────────────── -->
-  <a class="tool-card" href="email-matcher.html">
-    <div class="tool-info">
-      <div class="tool-name">Email Matcher</div>
-      <div class="tool-desc">Match client names to emails from a master sheet — CSV &amp; XLSX</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">matching</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
+        <!-- ─── TOOL CARD: IBAN Checker ─────────────────────────────── -->
+        <a class="tool-card" href="iban-checker.html">
+          <div class="tool-info">
+            <div class="tool-name">IBAN Checker</div>
+            <div class="tool-desc">Validate UAE &amp; international IBANs — ISO 13616 checksum</div>
+          </div>
+          <div class="tool-meta">
+            <span class="tool-tag">validation</span>
+            <span class="tool-arrow">&#8594;</span>
+          </div>
+        </a>
 
-  <!--
-    ═══════════════════════════════════════════════════════════════
-    HOW TO ADD A NEW TOOL
-    ═══════════════════════════════════════════════════════════════
+        <!--
+          Hidden tools — still accessible via direct URL
+          <a class="tool-card" href="payout-generator.html">…</a>
+          <a class="tool-card" href="ip-deduction-rental-validation.html">…</a>
+          <a class="tool-card" href="email-matcher.html">…</a>
+        -->
 
-    1. Copy the block below (between the dashes) and paste it
-       after the last <a class="tool-card"> block above.
+        <!-- ─── CHANGELOG ────────────────────────────── -->
+        <div class="section-label" style="margin-top:1rem;">Changelog</div>
 
-    2. Fill in:
-       · href       → path to the tool's HTML file
-                      e.g.  "my-new-tool/index.html"
-       · tool-name  → short display name
-       · tool-desc  → one-line description
-       · tool-tag   → one keyword label (validation / matching /
-                      lookup / export / etc.)
+        <div class="tool-card" style="display:block;">
+          <div class="tool-info changelog-box">
+            <div class="tool-name">Version History</div>
+            <div class="tool-desc">
 
-    ── COPY FROM HERE ──────────────────────────────────────────
+              <strong>Version 2.0</strong> — AIO Tool + Liquid Glass UI<br>
+              <div style="padding-left:1rem;">
+                • AIO Tool launched — Payout Generator, IP Deduction, Container Info, and Email Matcher are now consolidated into one tool<br>
+                • Liquid Glass UI redesign — new dark glass aesthetic with animated background, frosted cards, and smooth animations<br>
+                • Index page cleaned up — individual tools hidden, AIO Tool listed as primary<br>
+                • WA Media Downloader and IBAN Checker remain as standalone tools<br>
+                • Hidden tools still accessible via direct URL<br>
+              </div><br>
 
-  <a class="tool-card" href="TOOL-FOLDER/index.html">
-    <div class="tool-info">
-      <div class="tool-name">Tool Name</div>
-      <div class="tool-desc">Short description of what this tool does</div>
-    </div>
-    <div class="tool-meta">
-      <span class="tool-tag">tag</span>
-      <span class="tool-arrow">&#8594;</span>
-    </div>
-  </a>
+              <strong>Version 1.6.8</strong> — WA Media Downloader Extension Added!<br>
+              <br>
 
-    ── COPY TO HERE ────────────────────────────────────────────
-  -->
+              <strong>Version 1.6.7</strong> — Email Matcher improvements<br>
+              <div style="padding-left:1rem;">
+                • Added optional previous cycle upload (EMAIL_MATCH_) to help fill missing contact details<br>
+                • Improved agent email handling for better accuracy<br>
+                • Better note handling for easier review (including multiple agents and missing data)<br>
+                • Better mobile cleanup (removes extra spaces)<br>
+                • Improved row status logic for clearer warnings<br>
+                • Updated stats to: Total, Confirmed, Client Error, Agent Error<br>
+                • Rows with issues are still included, with clear notes for review<br>
+              </div><br>
 
+              <strong>Version 1.6.6</strong> — Toolbox cleanup &amp; Email Matcher rebuilt<br>
+              <div style="padding-left:1rem;">
+                • Client Data Entry removed<br>
+                • India Bank Checker removed<br>
+                • Email Matcher fully rebuilt:<br>
+                &nbsp;&nbsp;– Upload Payment Info Sheet + Email Sheet with cycle selector (Month, Cycle, Year)<br>
+                &nbsp;&nbsp;– Clients grouped into one row per client — no more repeating names<br>
+                &nbsp;&nbsp;– Units column shows total container count per client<br>
+                &nbsp;&nbsp;– Matching by name + payment received date vs Welcome to LMC date (same month &amp; year)<br>
+                &nbsp;&nbsp;– Output: Client Name, Email 1, Email 2, Mobile, Agent Closing, Agent Email, Notes<br>
+                &nbsp;&nbsp;– Export to Excel with cycle-based filename (e.g. EMAIL_MATCH_15_APRIL2026.xlsx)<br>
+                &nbsp;&nbsp;– Stats: Total, Confirmed, Date Mismatch, No Match<br>
+                &nbsp;&nbsp;– Fixed date parsing — removed unsafe fallback causing false mismatches<br>
+                &nbsp;&nbsp;– Relaxed date matching to same month + year instead of exact day<br>
+                &nbsp;&nbsp;– Fixed mobile layout — no more horizontal scroll or cut text<br>
+              </div><br>
 
+              <strong>Version 1.6.5</strong> — Client Data Entry added!<br>
+              <br>
 
-<!-- ─── CHANGELOG ────────────────────────────── -->
-<div class="section-label" style="margin-top:1rem;">Changelog</div>
+              <strong>Version 1.6.4</strong> — UI Improvements<br>
+              <br>
 
-<div class="tool-card" style="display:block;">
-  <div class="tool-info changelog-box">
-    <div class="tool-name">Version History</div>
-    <div class="tool-desc">
+              <strong>Version 1.6.3</strong> — IBAN Checker improvements<br>
+              <div style="padding-left:1rem;">
+                • Bank database updated<br>
+                • Jordan, Turkey and Pakistan added — 31/03/26<br>
+                • Egypt, UK and Bulgaria added — 01/04/26<br>
+                • Belgium, Lithuania and Spain added — 02/04/26<br>
+                • Malta, Cyprus and Netherlands added — 03/04/26<br>
+              </div><br>
 
-        <strong>Version 1.6.8</strong> — WA Media Downloader Extension Added!<br>
-	  <br>
-		
-<strong>Version 1.6.7</strong> — Email Matcher improvements<br>
-<div style="padding-left:1rem;">
-  • Added optional previous cycle upload (EMAIL_MATCH_) to help fill missing contact details<br>
-  • Improved agent email handling for better accuracy<br>
-  • Better note handling for easier review (including multiple agents and missing data)<br>
-  • Better mobile cleanup (removes extra spaces)<br>
-  • Improved row status logic for clearer warnings<br>
-  • Updated stats to: Total, Confirmed, Client Error, Agent Error<br>
-  • Rows with issues are still included, with clear notes for review<br>
-</div><br>
-		
-<strong>Version 1.6.6</strong> — Toolbox cleanup &amp; Email Matcher rebuilt<br>
-<div style="padding-left:1rem;">
-  • Client Data Entry removed<br>
-  • India Bank Checker removed<br>
-  • Email Matcher fully rebuilt:<br>
-  &nbsp;&nbsp;– Upload Payment Info Sheet + Email Sheet with cycle selector (Month, Cycle, Year)<br>
-  &nbsp;&nbsp;– Clients grouped into one row per client — no more repeating names<br>
-  &nbsp;&nbsp;– Units column shows total container count per client<br>
-  &nbsp;&nbsp;– Matching by name + payment received date vs Welcome to LMC date (same month &amp; year)<br>
-  &nbsp;&nbsp;– Output: Client Name, Email 1, Email 2, Mobile, Agent Closing, Agent Email, Notes<br>
-  &nbsp;&nbsp;– Export to Excel with cycle-based filename (e.g. EMAIL_MATCH_15_APRIL2026.xlsx)<br>
-  &nbsp;&nbsp;– Stats: Total, Confirmed, Date Mismatch, No Match<br>
-  &nbsp;&nbsp;– Fixed date parsing — removed unsafe fallback causing false mismatches<br>
-  &nbsp;&nbsp;– Relaxed date matching to same month + year instead of exact day<br>
-  &nbsp;&nbsp;– Fixed mobile layout — no more horizontal scroll or cut text<br>
-</div><br>
-		
-        <strong>Version 1.6.5</strong> — Client Data Entry added!<br>
-	  <br>
-		
-		<strong>Version 1.6.4</strong> — UI Improvments<br>
-	  <br>
-		
-		<strong>Version 1.6.3</strong> — IBAN Checker improvements<br>
-      <div style="padding-left:1rem;">
-        • Bank database updated<br>
-        • Jordan, Turkey and Pakistan added — 31/03/26<br>
-        • Egypt, UK and Bulgaria added — 01/04/26<br>
-        • Belgium, Lithuania and Span added — 02/04/26<br>
-        • Malta, Cyprus and Netherlands added — 03/04/26<br>
-      </div><br>
+              <strong>Version 1.6.2</strong> — Payout Generator improvements<br>
+              <div style="padding-left:1rem;">
+                • Balance amount pending now read from payment info sheet<br>
+                • Shown in NOTES only when contract's first payout date matches current cycle<br>
+                • Numeric value auto-extracted into ADDITION column<br>
+                • RENTAL DUE left blank when balance note is present<br>
+              </div><br>
 
-      <strong>Version 1.6.2</strong> — Payout Generator improvements<br>
-      <div style="padding-left:1rem;">
-        • Balance amount pending now read from payment info sheet<br>
-        • Shown in NOTES only when contract's first payout date matches current cycle<br>
-        • Numeric value auto-extracted into ADDITION column<br>
-        • RENTAL DUE left blank when balance note is present<br>
-      </div><br>
+              <strong>Version 1.6.1</strong> — Payout Generator improvements<br>
+              <div style="padding-left:1rem;">
+                • Top 5 results for the preview instead of 100<br>
+                • Fixed clients having other than 50-50 split income and deduction<br>
+                • Github connected<br>
+                • Updating previous payout bug - fixing Duplicate Container Mismatch<br>
+              </div><br>
 
-      <strong>Version 1.6.1</strong> — Payout Generator improvements<br>
-      <div style="padding-left:1rem;">
-        • Top 5 results for the preview instead of 100<br>
-        • Fixed clients having other than 50-50 split income and deduction<br>
-        • Github connected<br>
-        • Updating previous payout bug - fixing Duplicate Container Mismatch<br>
-      </div><br>
+              <strong>Version 1.6</strong> — Payout Generator improvements<br>
+              <div style="padding-left:1rem;">
+                • Deductions now grouped by IBAN (falls back to account number if IBAN is invalid)<br>
+                • Insurance deductions labelled as IP (Y1/Y2/Y3 IP)<br>
+                • Y1 shown in notes only when alongside Y2 or Y3 — silent when alone<br>
+                • Note amounts now always match deduction column<br>
+                • First Payout Date shows only dates that triggered a deduction<br>
+                • HC pending shown as "HC pending next cycle" — amount applied on next cycle<br>
+                • Shared group flag only shown when a deduction was actually split<br>
+                • Known container errors are silently skipped<br>
+              </div><br>
 
-      <strong>Version 1.6</strong> — Payout Generator improvements<br>
-      <div style="padding-left:1rem;">
-        • Deductions now grouped by IBAN (falls back to account number if IBAN is invalid)<br>
-        • Insurance deductions labelled as IP (Y1/Y2/Y3 IP)<br>
-        • Y1 shown in notes only when alongside Y2 or Y3 — silent when alone<br>
-        • Note amounts now always match deduction column<br>
-        • First Payout Date shows only dates that triggered a deduction<br>
-        • HC pending shown as "HC pending next cycle" — amount applied on next cycle<br>
-        • Shared group flag only shown when a deduction was actually split<br>
-        • Known container errors are silently skipped
-      </div><br>
+              <strong>Version 1.5</strong> — Updated IP Deduction Tool improvements<br>
+              <div style="padding-left:1rem;">
+                • Added return, deduction, and return after deduction calculation<br>
+                • Improved Excel output format<br>
+              </div><br>
 
-      <strong>Version 1.5</strong> — Updated IP Deduction Tool improvements<br>
-      <div style="padding-left:1rem;">
-        • Added return, deduction, and return after deduction calculation<br>
-        • Improved Excel output format
-      </div><br>
+              <strong>Version 1.4</strong> — Payout Generator added<br><br>
+              <strong>Version 1.3</strong> — IP Deduction Tool added<br><br>
+              <strong>Version 1.2</strong> — Email Matcher tool added<br><br>
+              <strong>Version 1.1</strong> — IBAN Checker updated<br>
+              <div style="padding-left:1rem;">
+                • All GCC banks added<br>
+                • More international banks coming soon<br>
+              </div><br>
+              <strong>Version 1.0</strong> — IBAN Checker (UAE banks database only)
 
-      <strong>Version 1.4</strong> — Payout Generator added<br><br>
-      <strong>Version 1.3</strong> — IP Deduction Tool added<br><br>
-      <strong>Version 1.2</strong> — Email Matcher tool added<br><br>
-      <strong>Version 1.1</strong> — IBAN Checker updated<br>
-      <div style="padding-left:1rem;">
-        • All GCC banks added<br>
-        • More international banks coming soon
-      </div><br>
-      <strong>Version 1.0</strong> — IBAN Checker (UAE banks database only)
-    </div>
-  </div>
-</div>
+            </div>
+          </div>
+        </div>
 
-</div>
-    <div id="footer"></div>
-    </div>
-  </div>
+      </div><!-- /.container -->
+
+      <div id="footer"></div>
+    </div><!-- /.content -->
+  </div><!-- /.page-container -->
 
   <script src="/assets/js/index.js"></script>
   <script src="/assets/js/security.js"></script>
