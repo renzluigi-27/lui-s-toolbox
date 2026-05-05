@@ -72,6 +72,25 @@
           <button class="mode-tab" data-mode="email">Email Matcher</button>
         </div>
 
+        <!-- Email Sheet Upload (Mode 4 only) -->
+        <div class="card" id="emailSheetCard" style="display:none;">
+          <div class="section-label">Email Sheet</div>
+          <div class="upload-zone" id="emailUploadZone">
+            <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
+            <div class="upload-zone-text">
+              <strong>Click to upload email sheet</strong>
+              Client Name &middot; Agent Email &middot; Payment Date &middot; Contact
+            </div>
+          </div>
+          <div class="file-loaded" id="emailFileLoaded">
+            <span>&#10003;</span>
+            <div>
+              <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
+            </div>
+          </div>
+          <div class="msg error" id="emailError"></div>
+        </div>
+        
         <!-- Reference Upload -->
         <div class="card">
           <div class="section-label">Previous Output Reference <span class="optional-label">optional</span></div>
@@ -91,25 +110,6 @@
             </div>
           </div>
           <div class="msg error" id="refError"></div>
-        </div>
-
-        <!-- Email Sheet Upload (Mode 4 only) -->
-        <div class="card" id="emailSheetCard" style="display:none;">
-          <div class="section-label">Email Sheet</div>
-          <div class="upload-zone" id="emailUploadZone">
-            <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text">
-              <strong>Click to upload email sheet</strong>
-              Client Name &middot; Agent Email &middot; Payment Date &middot; Contact
-            </div>
-          </div>
-          <div class="file-loaded" id="emailFileLoaded">
-            <span>&#10003;</span>
-            <div>
-              <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
-            </div>
-          </div>
-          <div class="msg error" id="emailError"></div>
         </div>
 
         <!-- Generate Row -->
