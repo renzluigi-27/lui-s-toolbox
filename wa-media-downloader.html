@@ -23,7 +23,8 @@
     html { scroll-behavior: smooth; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      letter-spacing: -0.01em;
       background: var(--bg);
       color: var(--white);
       min-height: 100vh;
@@ -388,6 +389,8 @@
       background: var(--white-06); border: 1px solid var(--white-10);
       border-top-color: rgba(255,255,255,0.18); border-radius: 18px;
       padding: 22px; transition: transform 0.2s, box-shadow 0.2s;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
 
     .feature-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.3); }
