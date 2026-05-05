@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// AIO TOOL — aio-tool.js (modified)
+// AIO TOOL — aio-tool.js
 // Payout Generator · IP Deduction · Container Info · Email Matcher
 // ─────────────────────────────────────────────────────────────────
 
@@ -143,8 +143,9 @@ createEmailOptionsCard();
 
 function updateTabUI() {
   const isEmail = activeMode === 'email';
-  document.getElementById('emailSheetCard').style.display   = isEmail ? 'block' : 'none';
-  document.getElementById('emailOptionsCard').style.display = isEmail ? 'block' : 'none';
+  document.getElementById('emailSheetCard').style.display = isEmail ? 'block' : 'none';
+  const optCard = document.getElementById('emailOptionsCard');
+  if (optCard) optCard.style.display = isEmail ? 'block' : 'none';
   updateRefHint();
   updateGenerateBtn();
 }
