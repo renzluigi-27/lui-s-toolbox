@@ -135,6 +135,7 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
     updateTabUI();
     clearResults();
     resetRefUpload();
+    animateCards();
   });
 });
 
@@ -143,6 +144,19 @@ function updateTabUI() {
     activeMode === 'email' ? 'block' : 'none';
   updateRefHint();
   updateGenerateBtn();
+}
+
+function animateCards() {
+  const cards = [...document.querySelectorAll('.container .card')].filter(
+    c => window.getComputedStyle(c).display !== 'none'
+  );
+  cards.forEach(card => {
+    card.classList.remove('card-animate');
+    void card.offsetWidth;
+  });
+  cards.forEach((card, i) => {
+    setTimeout(() => card.classList.add('card-animate'), i * 65);
+  });
 }
 
 function updateRefHint() {
