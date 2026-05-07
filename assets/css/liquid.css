@@ -119,6 +119,40 @@ header p          { color: var(--liq-text-muted) !important; }
   border-radius: 18px !important;
   backdrop-filter: var(--liq-blur);
   -webkit-backdrop-filter: var(--liq-blur);
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.4, 0.64, 1),
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* specular highlight on top edge */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.07) 0%, transparent 100%);
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
+  transition: background 0.2s ease;
+  z-index: 0;
+}
+
+.card:hover {
+  transform: scale(1.018) !important;
+  background: var(--liq-glass-hover) !important;
+  border-color: var(--liq-border-hover) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 8px 28px rgba(0,0,0,0.28),
+    0 0 0 0.5px rgba(255,255,255,0.08) !important;
+}
+
+.card:hover::before {
+  background: linear-gradient(180deg, rgba(255,255,255,0.13) 0%, transparent 100%);
 }
 
 /* ── Tool card (index.html) ── */
@@ -129,12 +163,12 @@ header p          { color: var(--liq-text-muted) !important; }
   border-radius: 16px !important;
   backdrop-filter: var(--liq-blur);
   -webkit-backdrop-filter: var(--liq-blur);
-  transition: background 0.2s, border-color 0.2s, transform 0.2s !important;
+  transition: background 0.2s, border-color 0.2s, transform 0.25s cubic-bezier(0.34,1.4,0.64,1) !important;
 }
 .tool-card:hover {
   background: var(--liq-glass-hover) !important;
   border-color: var(--liq-border-hover) !important;
-  transform: translateY(-2px);
+  transform: scale(1.022) translateY(-2px) !important;
 }
 .tool-card:active {
   transform: scale(0.98) !important;
@@ -183,7 +217,7 @@ button.btn-primary:disabled {
 }
 
 /* ═══════════════════════════════════════
-   MODE TABS (aio-tool)
+   MODE TABS
    ═══════════════════════════════════════ */
 
 .mode-tabs {
@@ -199,16 +233,56 @@ button.btn-primary:disabled {
   border-radius: 11px !important;
   font-weight: 500 !important;
   letter-spacing: -0.01em !important;
+  border: 0.5px solid transparent !important;
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease !important;
 }
+
+/* specular highlight on tab top edge */
+.mode-tab::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 45%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.0) 0%, transparent 100%);
+  border-radius: 11px 11px 0 0;
+  pointer-events: none;
+  transition: background 0.2s ease;
+}
+
 .mode-tab:hover {
-  background: rgba(255,255,255,0.08) !important;
-  color: rgba(225,215,255,0.82) !important;
+  transform: scale(1.055) !important;
+  background: rgba(255,255,255,0.1) !important;
+  border-color: rgba(255,255,255,0.24) !important;
+  color: rgba(225,215,255,0.92) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 4px 16px rgba(0,0,0,0.22),
+    0 0 0 0.5px rgba(255,255,255,0.08) !important;
+  z-index: 2;
 }
+
+.mode-tab:hover::before {
+  background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 100%);
+}
+
 .mode-tab.active {
   background: rgba(255,255,255,0.13) !important;
   border: 0.5px solid rgba(255,255,255,0.24) !important;
   color: var(--liq-text) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 2px 10px rgba(90,70,200,0.22) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    0 2px 10px rgba(90,70,200,0.22) !important;
+}
+
+.mode-tab.active::before {
+  background: linear-gradient(180deg, rgba(255,255,255,0.16) 0%, transparent 100%);
 }
 
 /* ═══════════════════════════════════════
@@ -242,8 +316,8 @@ select:focus {
   border-color: rgba(140,110,255,0.5) !important;
   background: rgba(110,80,215,0.1) !important;
 }
-.upload-zone-text       { color: var(--liq-text-muted) !important; }
-.upload-zone-text strong{ color: var(--liq-text) !important; }
+.upload-zone-text        { color: var(--liq-text-muted) !important; }
+.upload-zone-text strong { color: var(--liq-text) !important; }
 
 /* ── Optional label ── */
 .optional-label { color: var(--liq-text-hint) !important; }
@@ -295,20 +369,31 @@ footer {
 }
 
 /* ═══════════════════════════════════════
-   FADE-UP ENTRANCE ANIMATIONS
+   ANIMATIONS — page load + tab switch
    ═══════════════════════════════════════ */
 
+/* Page load stagger */
 @keyframes liquidFadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-header                                { animation: liquidFadeUp 0.45s 0.02s ease both; }
-.container > *:nth-child(1)           { animation: liquidFadeUp 0.45s 0.07s ease both; }
-.container > *:nth-child(2)           { animation: liquidFadeUp 0.45s 0.13s ease both; }
-.container > *:nth-child(3)           { animation: liquidFadeUp 0.45s 0.19s ease both; }
-.container > *:nth-child(4)           { animation: liquidFadeUp 0.45s 0.25s ease both; }
-.container > *:nth-child(5)           { animation: liquidFadeUp 0.45s 0.31s ease both; }
-.container > *:nth-child(6)           { animation: liquidFadeUp 0.45s 0.37s ease both; }
-.container > *:nth-child(7)           { animation: liquidFadeUp 0.45s 0.43s ease both; }
-.container > *:nth-child(n+8)         { animation: liquidFadeUp 0.45s 0.48s ease both; }
+header                        { animation: liquidFadeUp 0.45s 0.02s ease both; }
+.container > *:nth-child(1)   { animation: liquidFadeUp 0.45s 0.07s ease both; }
+.container > *:nth-child(2)   { animation: liquidFadeUp 0.45s 0.13s ease both; }
+.container > *:nth-child(3)   { animation: liquidFadeUp 0.45s 0.19s ease both; }
+.container > *:nth-child(4)   { animation: liquidFadeUp 0.45s 0.25s ease both; }
+.container > *:nth-child(5)   { animation: liquidFadeUp 0.45s 0.31s ease both; }
+.container > *:nth-child(6)   { animation: liquidFadeUp 0.45s 0.37s ease both; }
+.container > *:nth-child(7)   { animation: liquidFadeUp 0.45s 0.43s ease both; }
+.container > *:nth-child(n+8) { animation: liquidFadeUp 0.45s 0.48s ease both; }
+
+/* Tab switch per-card stagger */
+@keyframes cardFadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-animate {
+  animation: cardFadeInUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
