@@ -130,18 +130,20 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 document.querySelectorAll('.mode-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.mode === activeMode) return;
+    // Tab highlight changes immediately — feels responsive
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    // Cards fade out, then new cards fade in
     const leaving = [...document.querySelectorAll('.container .card')]
       .filter(c => window.getComputedStyle(c).display !== 'none');
     leaving.forEach(c => c.classList.add('card-fade-out'));
     setTimeout(() => {
       activeMode = btn.dataset.mode;
-      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-      btn.classList.add('active');
       updateTabUI();
       clearResults();
       resetRefUpload();
       animateCards();
-    }, 150);
+    }, 140);
   });
 });
 
