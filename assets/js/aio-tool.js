@@ -129,13 +129,19 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
 // ─────────────────────────────────────────────────────────────────
 document.querySelectorAll('.mode-tab').forEach(btn => {
   btn.addEventListener('click', () => {
-    activeMode = btn.dataset.mode;
-    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    updateTabUI();
-    clearResults();
-    resetRefUpload();
-    animateCards();
+    if (btn.dataset.mode === activeMode) return;
+    const leaving = [...document.querySelectorAll('.container .card')]
+      .filter(c => window.getComputedStyle(c).display !== 'none');
+    leaving.forEach(c => c.classList.add('card-fade-out'));
+    setTimeout(() => {
+      activeMode = btn.dataset.mode;
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      updateTabUI();
+      clearResults();
+      resetRefUpload();
+      animateCards();
+    }, 150);
   });
 });
 
@@ -151,7 +157,7 @@ function animateCards() {
     c => window.getComputedStyle(c).display !== 'none'
   );
   cards.forEach(card => {
-    card.classList.remove('card-animate');
+    card.classList.remove('card-animate', 'card-fade-out');
     void card.offsetWidth;
   });
   cards.forEach((card, i) => {
