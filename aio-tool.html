@@ -78,6 +78,26 @@
           </div>
         </div>
 
+        <!-- Updated Payment Info Sheet (rerouted clients · payout mode only) -->
+        <div class="card" id="rerouteSheetCard" style="display:none;">
+          <div class="section-label">Updated Payment Info Sheet <span class="optional-label">optional · rerouted clients</span></div>
+          <div class="upload-zone" id="rerouteUploadZone">
+            <input type="file" id="rerouteFileInput" accept=".xlsx,.xls" />
+            <div class="upload-zone-text">
+              <strong>Click to upload updated sheet</strong>
+              New Rental &middot; Payout restart date &middot; Cycle
+            </div>
+          </div>
+          <div class="file-loaded" id="rerouteFileLoaded">
+            <span>&#10003;</span>
+            <div>
+              <div class="file-loaded-name" id="rerouteLoadedName">&mdash;</div>
+              <div class="file-loaded-meta" id="rerouteLoadedMeta">&mdash;</div>
+            </div>
+          </div>
+          <div class="msg error" id="rerouteError"></div>
+        </div>
+        
         <!-- Email Sheet Upload (Mode 4 only) -->
         <div class="card" id="emailSheetCard" style="display:none;">
           <div class="section-label">Email Sheet</div>
