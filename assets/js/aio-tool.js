@@ -680,7 +680,7 @@ function deductionBasis(firstPayout, restartDate) {
   return firstPayout;
 }
 
-function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType) {
+function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted) {
   if (!firstPayout) return { amount: 0, items: [] };
 
   function samePayoutMonth(d) {
@@ -694,7 +694,11 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
 
   const items = [];
 
-  const insAmt = insuranceAmount(containerType, firstPayout);
+  // Size-based insurance applies ONLY to non-rerouted clients (first payout on/after
+  // the size-based cutoff). Rerouted clients always stay on the flat 1,500, regardless
+  // of their restart date. Timing (Y1/Y2/Y3 anniversaries) still uses firstPayout, which
+  // is the restart date for rerouted/never-paid clients.
+  const insAmt = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
   if (insuranceYearsCovered < 1 && samePayoutMonth(y1Date)) items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
   if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
   if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
@@ -986,13 +990,13 @@ function runPayout(yr, mo, cycle) {
     if (r.container && mismatchContainers.has(r.container)) {
       const mf = mismatchFlags.find(f => f.container === r.container);
       g.structuralNotes.push(`⚑ Duplicate container mismatch — container ${r.container} appears under different contracts (${mf.contractNos.join(' / ')}) — manual check`);
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType);
+        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -1004,7 +1008,7 @@ function runPayout(yr, mo, cycle) {
       g.deductionItems.push(...splitItems);
       if (sg.deductionAmount > 0) g.structuralNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
