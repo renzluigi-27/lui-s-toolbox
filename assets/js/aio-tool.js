@@ -359,7 +359,7 @@ function handleRerouteFile(file) {
     const nameEl = document.getElementById('rerouteLoadedName');
     if (nameEl) nameEl.textContent = file.name;
     const metaEl = document.getElementById('rerouteLoadedMeta');
-    if (metaEl) metaEl.textContent = `${Object.keys(rerouteMap).length} rerouted container(s) loaded`;
+    if (metaEl) metaEl.textContent = `${Object.keys(rerouteMap.byKey || {}).length} rerouted container(s) loaded`;
   }, err => showMsg('rerouteError', 'Error reading updated sheet: ' + err, 'error'));
 }
 
@@ -377,22 +377,27 @@ function parseRerouteSheet(raw) {
   const cRestart = col('payout restart');
   const cCycle   = col('payout cycle');
 
-  const map = {};
+  const byKey = {}, byCont = {}, byName = {};
   raw.slice(hi + 1).forEach(r => {
     if (!r) return;
     const name = (cName !== -1 && r[cName] != null) ? String(r[cName]).trim() : '';
     const cont = (cCont !== -1 && r[cCont] != null) ? String(r[cCont]).trim() : '';
     if (!name && !cont) return;
-    const key = cont + '||' + normalizeName(name, false);
-    map[key] = {
+    const restartRaw = (cRestart !== -1 && r[cRestart] != null) ? String(r[cRestart]).trim() : '';
+    const entry = {
       clientName:  name,
       container:   cont,
       newRental:   cRental  !== -1 ? parseNumber(r[cRental]) : 0,
       restartDate: cRestart !== -1 ? parseDate(r[cRestart])  : null,
+      isFlexible:  /flex/i.test(restartRaw),
       cycle:       (cCycle !== -1 && r[cCycle] != null) ? String(r[cCycle]).trim() : '',
     };
+    const nkey = normalizeName(name, false);
+    byKey[cont + '||' + nkey] = entry;
+    if (cont) (byCont[cont] = byCont[cont] || []).push(entry);
+    if (nkey) (byName[nkey] = byName[nkey] || []).push(entry);
   });
-  return map;
+  return { byKey, byCont, byName };
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -896,19 +901,46 @@ function runPayout(yr, mo, cycle) {
   }
 
   // Filter by cycle
+  const nameVariants = raw => {
+    const s = String(raw || '');
+    const m = s.match(/\(([^)]*)\)/);
+    const out = [];
+    if (m) { out.push(normalizeName(m[1], false)); out.push(normalizeName(s.replace(/\([^)]*\)/g, ''), false)); }
+    out.push(normalizeName(s, false));
+    return out.filter(Boolean);
+  };
+  const namesOverlap = (a, b) => { const A = nameVariants(a), B = nameVariants(b); return A.some(x => B.includes(x)); };
+
+  // Lookup order: container+name → container only → name only → none.
+  // Returns { e, contOk, nameOk } so notes can flag partial matches.
   const rerouteFor = r => {
     if (!r || (!r.container && !r.clientName)) return null;
-    const key = (r.container || '') + '||' + normalizeName(r.clientName || '', false);
-    return rerouteMap[key] || null;
+    const cont = r.container || '', nkey = normalizeName(r.clientName || '', false);
+    const exact = rerouteMap.byKey[cont + '||' + nkey];
+    if (exact) return { e: exact, contOk: true, nameOk: true };
+    if (cont && rerouteMap.byCont[cont]) {
+      const list = rerouteMap.byCont[cont];
+      const pick = list.find(e => namesOverlap(r.clientName, e.clientName)) || list[0];
+      return { e: pick, contOk: true, nameOk: namesOverlap(r.clientName, pick.clientName) };
+    }
+    for (const v of nameVariants(r.clientName)) {
+      if (rerouteMap.byName[v]) return { e: rerouteMap.byName[v][0], contOk: false, nameOk: true };
+    }
+    return null;
   };
 
   const filtered = paymentData.filter(r => {
     const rr = rerouteFor(r);
-    const effCycleRaw = (rr && rr.cycle) ? rr.cycle : r.payoutCycle;
-    const c = String(effCycleRaw).replace(/\s/g, '');
+    if (rr && rr.e.isFlexible) return false;       // flexible: only accounts knows the date — skip
+    if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart — skip (review list below)
+    const restart = rr ? rr.e.restartDate : null;
+    // Cycle from restart day (01–15 → 15, else end-of-month); non-rerouted keep their sheet cycle
+    let c;
+    if (restart) c = restart.getDate() <= 15 ? '15' : '30';
+    else c = String(r.payoutCycle).replace(/\s/g, '');
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
-    const effStart   = (rr && rr.restartDate) ? rr.restartDate : r.firstPayout;
-    const started    = !effStart || effStart <= payoutDate;
+    const effStart = restart || r.firstPayout;
+    const started  = !effStart || effStart <= payoutDate;
     return cycleMatch && started;
   });
 
@@ -947,11 +979,13 @@ function runPayout(yr, mo, cycle) {
 
     const g = groups[key];
     const rr = rerouteFor(r);
-    const dedBasis = deductionBasis(r.firstPayout, (rr && rr.restartDate) ? rr.restartDate : null);
+    const dedBasis = deductionBasis(r.firstPayout, (rr && rr.e.restartDate) ? rr.e.restartDate : null);
     g.containers.push(r.container);
     if (r.agent) g.agents.add(r.agent);
-    g.totalReturn += (rr && rr.newRental) ? rr.newRental : r.returnAmt;
-    if (rr && rr.restartDate) g.rerouteDates.push(fmtDate(rr.restartDate));
+    g.totalReturn += (rr && rr.e.newRental) ? rr.e.newRental : r.returnAmt;
+    if (rr && rr.e.restartDate) g.rerouteDates.push(fmtDate(rr.e.restartDate));
+    if (rr && rr.contOk && !rr.nameOk) g.structuralNotes.push('⚑ Verify name — restart matched by container only');
+    if (rr && !rr.contOk && rr.nameOk) g.structuralNotes.push('⚑ Verify container — restart matched by name only');
 
     // ── Data quality notes ──
     if (r.contractClosedFlag) g.structuralNotes.push(r.contractClosedFlag);
