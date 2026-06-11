@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────
 // AIO TOOL — aio-tool.js
-// Payout Generator · IP Deduction · Container Info · Email Matcher
+// Payout Generator · IP Deduction · Payout Auditor · Email Matcher
 // ─────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────
@@ -13,6 +13,7 @@ let results       = [];
 let activeMode    = 'payout';
 let rerouteData   = [];
 let rerouteMap    = {};
+let auditInited   = false;
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -150,6 +151,25 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 });
 
 function updateTabUI() {
+  const isAudit = activeMode === 'audit';
+
+  // Payout Auditor: hide the generator UI, show the auditor mount
+  const genCards = [
+    document.getElementById('uploadZone').closest('.card'),
+    document.getElementById('refUploadZone').closest('.card'),
+    document.querySelector('.btn-row'),
+  ];
+  genCards.forEach(el => { if (el) el.style.display = isAudit ? 'none' : ''; });
+
+  const auditMount = document.getElementById('auditMount');
+  if (auditMount) {
+    auditMount.style.display = isAudit ? 'block' : 'none';
+    if (isAudit && !auditInited && window.PayoutAuditor) {
+      PayoutAuditor.init('auditMount');
+      auditInited = true;
+    }
+  }
+
   document.getElementById('emailSheetCard').style.display =
     activeMode === 'email' ? 'block' : 'none';
   const rerouteCard = document.getElementById('rerouteSheetCard');
@@ -172,6 +192,7 @@ function animateCards() {
 }
 
 function updateRefHint() {
+  if (activeMode === 'audit') return;
   const expected = getExpectedRefFilename();
   document.getElementById('refExpected').textContent = expected ? `e.g. ${expected}` : '—';
   const hints = {
