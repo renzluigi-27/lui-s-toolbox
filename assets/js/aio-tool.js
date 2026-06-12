@@ -936,6 +936,7 @@ function runPayout(yr, mo, cycle) {
   // Returns { e, contOk, nameOk } so notes can flag partial matches.
   const rerouteFor = r => {
     if (!r || (!r.container && !r.clientName)) return null;
+    if (r.pinFilledDown) return null;
     const cont = r.container || '', nkey = normalizeName(r.clientName || '', false);
     const exact = rerouteMap.byKey[cont + '||' + nkey];
     if (exact) return { e: exact, contOk: true, nameOk: true };
