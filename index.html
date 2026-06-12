@@ -260,6 +260,19 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.3</strong> — Payout Auditor + Generator fixes<br>
+              <div style="padding-left:1rem;">
+                • Payout Auditor added as a new tab in AIO Tool — compares generated payout against accounts list with no recompute<br>
+                • Audit aggregates both sides per payee before comparing — eliminates false rent diffs from multi-container clients<br>
+                • Audit filename now includes cycle day (e.g. PAYOUT_AUDIT_15_JUN2026.xlsx vs PAYOUT_AUDIT_30_JUN2026.xlsx)<br>
+                • Account No / IBAN precision-type diffs (Excel 15-digit rounding) suppressed — only materially different numbers flagged<br>
+                • Generator fix: pinFilledDown rows now excluded from payout run — prevents wrong-cycle containers from leaking into output<br>
+                • Generator fix: shared-container clients with no container number in main sheet now correctly included via name lookup<br>
+                • UI: hover animation removed from Liquid Glass cards and tabs for better performance<br>
+                • UI: glass transparency increased, blur radius lowered for faster rendering<br>
+                • CSS: aio-tool.css cleaned up — duplicate tokens removed, global.css is now the single source<br>
+              </div><br>
+
               <strong>Version 2.0.2</strong> — Payout Generator insurance fix<br>
               <div style="padding-left:1rem;">
                 • Insurance deduction now counts from the Payout Restart Date for rerouted &amp; never-paid containers — not the original first payout date<br>
