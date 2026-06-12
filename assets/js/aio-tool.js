@@ -586,7 +586,8 @@ function parsePaymentSheet(raw) {
     else groupId = '__MANUAL_CHECK__';
 
     // ── Shared container flag ──
-    const isSharedContainer = container && SHARED_CONTAINERS[container] !== undefined;
+    const isSharedContainer = (container && SHARED_CONTAINERS[container] !== undefined)
+      || Object.values(SHARED_CONTAINERS).some(names => names.includes(clientName));
 
     rows.push({
       index: i,
@@ -936,7 +937,7 @@ function runPayout(yr, mo, cycle) {
   // Returns { e, contOk, nameOk } so notes can flag partial matches.
   const rerouteFor = r => {
     if (!r || (!r.container && !r.clientName)) return null;
-    if (r.pinFilledDown) return null;
+    if (r.pinFilledDown && !r.isSharedContainer) return null;
     const cont = r.container || '', nkey = normalizeName(r.clientName || '', false);
     const exact = rerouteMap.byKey[cont + '||' + nkey];
     if (exact) return { e: exact, contOk: true, nameOk: true };
@@ -952,7 +953,7 @@ function runPayout(yr, mo, cycle) {
   };
 
   const filtered = paymentData.filter(r => {
-    if (r.pinFilledDown) return false;
+    if (r.pinFilledDown && !r.isSharedContainer) return false;
     const rr = rerouteFor(r);
     if (rr && rr.e.isFlexible) return false;       // flexible: only accounts knows the date — skip
     if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart — skip (review list below)
