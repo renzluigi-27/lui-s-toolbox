@@ -326,7 +326,9 @@
     var mon = m[1].toUpperCase().slice(0, 3);
     var mi = MONTHS.indexOf(mon);
     if (mi < 0) return null;
-    return { token: mon + m[2], m: mi + 1, y: parseInt(m[2], 10) };
+    var day = m[0].match(/PAYOUT[_\- ]*(\d{1,2})/i);
+    var dayStr = day ? day[1].padStart(2,'0') : '';
+    return { token: (dayStr ? dayStr + '_' : '') + mon + m[2], m: mi + 1, y: parseInt(m[2], 10) };
   }
 
   /* ════════════════════════════════════════════
