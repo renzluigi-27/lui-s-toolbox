@@ -952,6 +952,7 @@ function runPayout(yr, mo, cycle) {
   };
 
   const filtered = paymentData.filter(r => {
+    if (r.pinFilledDown) return false;
     const rr = rerouteFor(r);
     if (rr && rr.e.isFlexible) return false;       // flexible: only accounts knows the date — skip
     if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart — skip (review list below)
