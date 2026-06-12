@@ -3,7 +3,8 @@
    Self-contained module. Requires SheetJS (global XLSX) already loaded.
    Usage:  PayoutAuditor.init(mountElement)
    Compares the Payout Generator output against the Accounts list.
-   No recompute — values compared as-is.
+   No recompute — values compared as-is, but BOTH sides are aggregated
+   per payee first (a client with several containers = one payee).
 ───────────────────────────────────────────────────────────────── */
 (function () {
   'use strict';
@@ -12,7 +13,7 @@
 
   /* ── state ── */
   var files = { gen: null, acc: null, info: null };
-  var lastWorkbook = null;   // generated audit workbook (for download)
+  var lastWorkbook = null;
   var lastFilename = 'PAYOUT_AUDIT.xlsx';
   var mount = null;
 
@@ -25,16 +26,15 @@
   function normName(raw) {
     if (raw == null) return '';
     var s = String(raw).toLowerCase().trim();
-    s = s.replace(/\(.*?\)/g, ' ');          // drop parentheticals
-    s = s.split('/')[0];                     // take first before slash
+    s = s.replace(/\(.*?\)/g, ' ');
+    s = s.split('/')[0];
     var prev;
     do { prev = s; s = s.replace(HONORIFICS, ''); } while (s !== prev);
-    s = s.replace(/[^a-z\s]/g, ' ');         // keep letters + space
+    s = s.replace(/[^a-z\s]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
     return s;
   }
 
-  // Name keys in priority order: inside-paren → outside-paren → full raw
   function nameKeys(raw) {
     if (raw == null) return [];
     var str = String(raw);
@@ -44,7 +44,6 @@
     var outside = str.replace(/\(.*?\)/g, ' ').trim();
     if (outside) keys.push(normName(outside));
     keys.push(normName(str));
-    // de-dupe, drop empties
     var seen = {}, out = [];
     keys.forEach(function (k) { if (k && !seen[k]) { seen[k] = 1; out.push(k); } });
     return out;
@@ -70,11 +69,13 @@
     });
   }
 
-  // precision = same length, differ only in last 1-2 chars
-  function diffIsPrecision(a, b) {
-    if (a.length !== b.length || a.length < 3) return false;
-    var head = a.length - 2;
-    return a.slice(0, head) === b.slice(0, head);
+  // Only Excel's 15-significant-digit rounding of a long (16+ digit) number
+  // counts as "same". Short numbers: any difference is a real typo.
+  function isRoundingOnly(a, b) {
+    if (a === b) return true;
+    if (a.length !== b.length) return false;
+    if (a.length <= 15) return false;
+    return a.slice(0, 15) === b.slice(0, 15);
   }
 
   /* ── fuzzy: token_sort_ratio (Indel/LCS based, ~rapidfuzz) ── */
@@ -116,7 +117,6 @@
     });
   }
 
-  // expand merged cells (top-left value into the whole range) then return AOA
   function sheetToAOA(ws) {
     if (ws['!merges']) {
       ws['!merges'].forEach(function (mg) {
@@ -139,20 +139,15 @@
   }
 
   var SYN = {
-    clientType: ['client type'],
     name:       ['client name', 'name'],
-    unit:       ['unit'],
-    firstPayout:['first payout', 'first payout date'],
     rent:       ['monthly rent', 'monthly rental', 'rent', 'rental'],
     deduction:  ['deduction'],
     addition:   ['addition'],
     rentalDue:  ['rental due', 'due'],
     account:    ['account no', 'account number', 'account', 'acc no'],
-    iban:       ['iban no', 'iban', 'iban number'],
-    notes:      ['notes', 'remarks']
+    iban:       ['iban no', 'iban', 'iban number']
   };
 
-  // find header row index + map field->colIndex
   function mapHeaders(aoa) {
     var headerRowIdx = -1, map = {};
     for (var i = 0; i < Math.min(aoa.length, 10); i++) {
@@ -171,7 +166,6 @@
     return { headerRowIdx: headerRowIdx, map: map };
   }
 
-  // parse one sheet into row objects (only fields we need)
   function parseSheet(ws) {
     var aoa = sheetToAOA(ws);
     var hm = mapHeaders(aoa);
@@ -195,31 +189,20 @@
     return rows;
   }
 
-  // accounts file → combine all sheets that look like client lists
   function parseAccounts(wb) {
     var all = [];
     wb.SheetNames.forEach(function (sn) {
-      var rows = parseSheet(wb.Sheets[sn]);
-      rows.forEach(function (r) { r._sheet = sn; });
-      all = all.concat(rows);
+      parseSheet(wb.Sheets[sn]).forEach(function (r) { all.push(r); });
     });
     return all;
   }
 
-  // updated payment info sheet → name → {restart, cycle}
   function parseInfo(wb) {
     var ws = wb.Sheets[wb.SheetNames[0]];
     var aoa = sheetToAOA(ws);
     if (!aoa.length) return [];
     var header = (aoa[0] || []).map(normHeader);
-    function col() {
-      for (var a = 0; a < arguments.length; a++) {
-        var idx = header.indexOf(arguments[a]);
-        if (idx > -1) return idx;
-      }
-      return -1;
-    }
-    var cName = col('client name', 'name');
+    var cName = header.indexOf('client name'); if (cName < 0) cName = header.indexOf('name');
     var cRestart = -1, cCycle = -1;
     for (var c = 0; c < header.length; c++) {
       if (cRestart < 0 && header[c].indexOf('restart') > -1) cRestart = c;
@@ -235,32 +218,63 @@
   }
 
   /* ════════════════════════════════════════════
+     AGGREGATE per payee
+     A client may span several rows (one per container). The generator
+     groups them into one payee; the accounts list may not. So we sum
+     each side per payee (keyed by normalized name) before comparing.
+     Skips PAID rows and the TOTAL / blank-name summary row.
+     ════════════════════════════════════════════ */
+
+  function aggregate(rows) {
+    var map = {}, order = [];
+    rows.forEach(function (r) {
+      if (isPaid(r._raw)) return;
+      var disp = String(r.name == null ? '' : r.name).trim();
+      if (!disp || /^total$/i.test(disp)) return;
+      var key = normName(r.name);
+      if (!key) return;
+      if (!map[key]) {
+        map[key] = {
+          name: disp, rent: 0, deduction: 0, addition: 0, rentalDue: 0,
+          account: null, iban: null, _keys: nameKeys(r.name), _norm: key
+        };
+        order.push(key);
+      }
+      var g = map[key];
+      g.rent += toNum(r.rent);
+      g.deduction += toNum(r.deduction);
+      g.addition += toNum(r.addition);
+      g.rentalDue += toNum(r.rentalDue);
+      if (g.account == null && r.account != null && String(r.account).trim() !== '') g.account = r.account;
+      if (g.iban == null && r.iban != null && String(r.iban).trim() !== '') g.iban = r.iban;
+    });
+    return order.map(function (k) { return map[k]; });
+  }
+
+  /* ════════════════════════════════════════════
      MATCHING
      ════════════════════════════════════════════ */
 
-  // build lookup: key → array of records, plus flat list for fuzzy
-  function buildIndex(records) {
+  function buildIndex(payees) {
     var byKey = {}, flat = [];
-    records.forEach(function (rec) {
-      rec._keys = nameKeys(rec.name);
-      rec._norm = rec._keys[rec._keys.length - 1] || '';
-      flat.push(rec);
-      rec._keys.forEach(function (k) { if (!byKey[k]) byKey[k] = rec; });
+    payees.forEach(function (p) {
+      if (!p._keys) { p._keys = nameKeys(p.name); p._norm = p._keys[p._keys.length - 1] || ''; }
+      flat.push(p);
+      p._keys.forEach(function (k) { if (!byKey[k]) byKey[k] = p; });
     });
     return { byKey: byKey, flat: flat };
   }
 
-  function findMatch(srcRow, index) {
-    var keys = nameKeys(srcRow.name);
+  function findMatch(srcPayee, index) {
+    var keys = srcPayee._keys || nameKeys(srcPayee.name);
     for (var i = 0; i < keys.length; i++) {
       if (index.byKey[keys[i]]) return index.byKey[keys[i]];
     }
-    // fuzzy fallback
-    var src = keys[keys.length - 1] || '';
+    var src = srcPayee._norm || (keys[keys.length - 1] || '');
     var best = null, bestScore = 0;
-    index.flat.forEach(function (rec) {
-      var sc = tokenSortRatio(src, rec._norm);
-      if (sc > bestScore) { bestScore = sc; best = rec; }
+    index.flat.forEach(function (p) {
+      var sc = tokenSortRatio(src, p._norm);
+      if (sc > bestScore) { bestScore = sc; best = p; }
     });
     return bestScore >= 88 ? best : null;
   }
@@ -271,7 +285,7 @@
 
   function parseDMY(v) {
     if (v == null) return null;
-    if (typeof v === 'number') { // excel serial
+    if (typeof v === 'number') {
       var d = new Date(Date.UTC(1899, 11, 30) + v * 86400000);
       return { d: d.getUTCDate(), m: d.getUTCMonth() + 1, y: d.getUTCFullYear() };
     }
@@ -282,8 +296,8 @@
     return { d: parseInt(m[1], 10), m: parseInt(m[2], 10), y: yr };
   }
 
-  function tagReason(accRow, infoIndex, period) {
-    var rec = findMatch(accRow, infoIndex);
+  function tagReason(accPayee, infoIndex, period) {
+    var rec = findMatch(accPayee, infoIndex);
     if (!rec) return 'Not found in payment info sheet — review';
     var rst = parseDMY(rec.restart);
     var cyc = rec.cycle != null ? rec.cycle : '?';
@@ -303,10 +317,8 @@
   var MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
   function derivePeriod(genFileName, genWb) {
-    // PAYOUT_15_JUN2026.xlsx  → {token:'JUN2026', m, y}
     var m = (genFileName || '').match(/PAYOUT[_\- ]*\d{1,2}[_\- ]*([A-Za-z]{3})[A-Za-z]*[_\- ]*(\d{4})/i);
     if (!m) {
-      // fallback: sheet tab name e.g. "Jun 2026 - 15th"
       var sn = genWb ? genWb.SheetNames[0] : '';
       m = sn.match(/([A-Za-z]{3})[A-Za-z]*\s*(\d{4})/);
     }
@@ -329,62 +341,53 @@
     ]).then(function (wbs) {
       var genWb = wbs[0], accWb = wbs[1], infoWb = wbs[2];
 
-      var genRows = parseSheet(genWb.Sheets[genWb.SheetNames[0]]);
-      var accRows = parseAccounts(accWb);
-      var infoRows = parseInfo(infoWb);
+      var genPayees = aggregate(parseSheet(genWb.Sheets[genWb.SheetNames[0]]));
+      var accPayees = aggregate(parseAccounts(accWb));
+      var infoRows  = parseInfo(infoWb);
 
       var period = derivePeriod(files.gen.name, genWb);
 
-      var accIndex = buildIndex(accRows);
-      var infoIndex = buildIndex(infoRows);
+      var accIndex = buildIndex(accPayees);
+      var infoIndex = buildIndex(infoRows);   // info rows carry restart/cycle directly
 
       var sections = {
         rent: [], deduction: [], addition: [], rentalDue: [],
-        acctPrecision: [], acctMaterial: [],
-        ibanPrecision: [], ibanMaterial: [],
+        acctMaterial: [], ibanMaterial: [],
         mineNotInAcc: [], accNotInMine: []
       };
 
-      var matchedAcc = {};   // track which accounts rows got matched
+      var matchedAcc = {};
       var matchedCount = 0;
 
-      genRows.forEach(function (g) {
-        if (isPaid(g._raw)) return;
+      genPayees.forEach(function (g) {
         var a = findMatch(g, accIndex);
         if (!a) { sections.mineNotInAcc.push(g); return; }
-        matchedAcc[accRows.indexOf(a)] = true;
+        matchedAcc[a._norm] = true;
         matchedCount++;
 
-        var client = String(g.name || '').trim();
+        var client = g.name;
         if (!numsEqual(g.rent, a.rent))           sections.rent.push([client, toNum(a.rent), toNum(g.rent)]);
         if (!numsEqual(g.deduction, a.deduction)) sections.deduction.push([client, toNum(a.deduction), toNum(g.deduction)]);
         if (!numsEqual(g.addition, a.addition))   sections.addition.push([client, toNum(a.addition), toNum(g.addition)]);
         if (!numsEqual(g.rentalDue, a.rentalDue)) sections.rentalDue.push([client, toNum(a.rentalDue), toNum(g.rentalDue)]);
 
         var gAcc = normAccount(g.account), aAcc = normAccount(a.account);
-        if (gAcc !== aAcc) {
-          var row = [client, String(a.account == null ? '' : a.account), String(g.account == null ? '' : g.account)];
-          if (diffIsPrecision(gAcc, aAcc)) sections.acctPrecision.push(row);
-          else sections.acctMaterial.push(row);
+        if (gAcc !== aAcc && !isRoundingOnly(gAcc, aAcc)) {
+          sections.acctMaterial.push([client, String(a.account == null ? '' : a.account), String(g.account == null ? '' : g.account)]);
         }
         var gIb = normIBAN(g.iban), aIb = normIBAN(a.iban);
-        if (gIb !== aIb) {
-          var irow = [client, String(a.iban == null ? '' : a.iban), String(g.iban == null ? '' : g.iban)];
-          if (diffIsPrecision(gIb, aIb)) sections.ibanPrecision.push(irow);
-          else sections.ibanMaterial.push(irow);
+        if (gIb !== aIb && !isRoundingOnly(gIb, aIb)) {
+          sections.ibanMaterial.push([client, String(a.iban == null ? '' : a.iban), String(g.iban == null ? '' : g.iban)]);
         }
       });
 
-      // accounts rows never matched
-      accRows.forEach(function (a, idx) {
-        if (matchedAcc[idx]) return;
-        if (isPaid(a._raw)) return;
-        sections.accNotInMine.push([String(a.name || '').trim(), tagReason(a, infoIndex, period)]);
+      accPayees.forEach(function (a) {
+        if (matchedAcc[a._norm]) return;
+        sections.accNotInMine.push([a.name, tagReason(a, infoIndex, period)]);
       });
 
       var diffTotal = sections.rent.length + sections.deduction.length + sections.addition.length +
-        sections.rentalDue.length + sections.acctPrecision.length + sections.acctMaterial.length +
-        sections.ibanPrecision.length + sections.ibanMaterial.length;
+        sections.rentalDue.length + sections.acctMaterial.length + sections.ibanMaterial.length;
 
       var summary = {
         matched: matchedCount,
@@ -430,14 +433,12 @@
     block('DEDUCTION DIFFERENCES', diffHdr, s.deduction);
     block('ADDITION DIFFERENCES', diffHdr, s.addition);
     block('RENTAL DUE DIFFERENCES', diffHdr, s.rentalDue);
-    block('ACCOUNT NO — PRECISION-TYPE (low priority)', diffHdr, s.acctPrecision);
-    block('ACCOUNT NO — MATERIALLY DIFFERENT (review)', diffHdr, s.acctMaterial);
-    block('IBAN — PRECISION-TYPE (low priority)', diffHdr, s.ibanPrecision);
-    block('IBAN — MATERIALLY DIFFERENT (review)', diffHdr, s.ibanMaterial);
+    block('ACCOUNT NO — MATERIALLY DIFFERENT', diffHdr, s.acctMaterial);
+    block('IBAN — MATERIALLY DIFFERENT', diffHdr, s.ibanMaterial);
 
     block('MINE NOT IN ACCOUNTS (review)', ['Client', 'Account No', 'IBAN', 'Rental Due'],
       s.mineNotInAcc.map(function (g) {
-        return [String(g.name || '').trim(), String(g.account == null ? '' : g.account),
+        return [g.name, String(g.account == null ? '' : g.account),
                 String(g.iban == null ? '' : g.iban), toNum(g.rentalDue)];
       }));
 
@@ -454,11 +455,10 @@
      UI
      ════════════════════════════════════════════ */
 
-  function uploadCard(id, label, optional, hint) {
+  function uploadCard(id, label, hint) {
     return '' +
     '<div class="card">' +
-      '<div class="section-label">' + label +
-        (optional ? ' <span class="optional-label">' + optional + '</span>' : '') + '</div>' +
+      '<div class="section-label">' + label + '</div>' +
       '<div class="upload-zone upload-zone-sm" id="' + id + '-zone">' +
         '<input type="file" accept=".xlsx,.xls" id="' + id + '-input" />' +
         '<div class="upload-zone-text"><strong>Click to upload or drag &amp; drop</strong>' + hint + '</div>' +
@@ -470,9 +470,9 @@
 
   function render() {
     mount.innerHTML = '' +
-      uploadCard('pa-gen',  'Payout Generator', '', 'Sets the filename · .xlsx') +
-      uploadCard('pa-acc',  'Accounts List', '', 'LOCAL + INTERNATIONAL auto-combined · .xlsx') +
-      uploadCard('pa-info', 'Updated Payment Info Sheet', '', 'Reason tagging (cycle + restart) · .xlsx') +
+      uploadCard('pa-gen',  'Payout Generator', 'Sets the filename · .xlsx') +
+      uploadCard('pa-acc',  'Accounts List', 'LOCAL + INTERNATIONAL auto-combined · .xlsx') +
+      uploadCard('pa-info', 'Updated Payment Info Sheet', 'Reason tagging (cycle + restart) · .xlsx') +
       '<div class="card">' +
         '<button class="btn-primary" id="pa-run" style="width:100%;justify-content:center;" disabled>Run audit</button>' +
         '<button class="btn-primary" id="pa-dl" style="width:100%;justify-content:center;margin-top:8px;" disabled>Download audit file</button>' +
@@ -574,13 +574,11 @@
     html += group('Deduction differences', diffHdr, s.deduction);
     html += group('Addition differences', diffHdr, s.addition);
     html += group('Rental Due differences', diffHdr, s.rentalDue);
-    html += group('Account No — precision-type', diffHdr, s.acctPrecision);
     html += group('Account No — materially different', diffHdr, s.acctMaterial);
-    html += group('IBAN — precision-type', diffHdr, s.ibanPrecision);
     html += group('IBAN — materially different', diffHdr, s.ibanMaterial);
     html += group('Mine not in accounts', ['Client', 'Account No', 'IBAN', 'Rental Due'],
       s.mineNotInAcc.map(function (g) {
-        return [String(g.name || '').trim(), String(g.account == null ? '' : g.account),
+        return [g.name, String(g.account == null ? '' : g.account),
                 String(g.iban == null ? '' : g.iban), toNum(g.rentalDue)];
       }));
     html += group('In accounts, not in mine', ['Client', 'Reason'], s.accNotInMine);
