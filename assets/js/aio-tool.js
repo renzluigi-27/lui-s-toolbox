@@ -152,14 +152,15 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 
 function updateTabUI() {
   const isAudit = activeMode === 'audit';
+  const isTrip  = activeMode === 'trip';
 
-  // Payout Auditor: hide the generator UI, show the auditor mount
+  // Payout Auditor / Container Trip Updater: hide the generator UI
   const genCards = [
     document.getElementById('uploadZone').closest('.card'),
     document.getElementById('refUploadZone').closest('.card'),
     document.querySelector('.btn-row'),
   ];
-  genCards.forEach(el => { if (el) el.style.display = isAudit ? 'none' : ''; });
+  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip) ? 'none' : ''; });
 
   const auditMount = document.getElementById('auditMount');
   if (auditMount) {
@@ -168,6 +169,12 @@ function updateTabUI() {
       PayoutAuditor.init('auditMount');
       auditInited = true;
     }
+  }
+
+const tripMount = document.getElementById('tripMount');
+  if (tripMount) {
+    tripMount.style.display = isTrip ? 'block' : 'none';
+    if (isTrip && window.ContainerTripUpdater) ContainerTripUpdater.init('tripMount');
   }
 
   document.getElementById('emailSheetCard').style.display =
