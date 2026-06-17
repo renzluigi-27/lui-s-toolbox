@@ -1,563 +1,266 @@
-let paymentSheetData = null;
-let emailSheetData = null;
-let prevMatchData = null;
-let results = [];
-let payoutFileName = '';
-
-const NAME_PREFIXES = /^(mr\.?|mrs\.?|ms\.?)\s+/i;
-const PREVIEW_LIMIT = 10;
-
-function readFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const wb = XLSX.read(data, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        resolve(XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }));
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function normalizeName(value, stripPrefixes = false) {
-  let name = String(value || '').trim();
-  if (stripPrefixes) {
-    name = name.replace(NAME_PREFIXES, '');
-  }
-  return name.toLowerCase().replace(/\s+/g, ' ').trim();
-}
+// ─────────────────────────────────────────────────────────────────
+// EMAIL MATCHER MODE — email-matcher.js
+// Depends on: shared.js, app.js
+// ─────────────────────────────────────────────────────────────────
 
 function parseDateValue(value) {
   if (value === null || value === undefined || value === '') return '';
-
   if (typeof value === 'number' && Number.isFinite(value)) {
     const parsed = XLSX.SSF.parse_date_code(value);
     if (!parsed) return '';
-    return formatDateParts(parsed.d, parsed.m, parsed.y);
+    return `${String(parsed.d).padStart(2,'0')}/${String(parsed.m).padStart(2,'0')}/${parsed.y}`;
   }
-
   const raw = String(value).trim();
   if (!raw) return '';
-
   const match = raw.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
   if (match) {
-    let a = parseInt(match[1], 10);
-    let b = parseInt(match[2], 10);
-    let c = parseInt(match[3], 10);
-
+    let a = parseInt(match[1],10), b = parseInt(match[2],10), c = parseInt(match[3],10);
     let day, month, year;
-
-    if (match[1].length === 4) {
-      year = a; month = b; day = c;
-    } else {
-      day = a; month = b; year = c;
-    }
-
-    if (year < 100) {
-      year += year >= 70 ? 1900 : 2000;
-    }
-
-    return formatDateParts(day, month, year);
+    if (match[1].length === 4) { year=a; month=b; day=c; } else { day=a; month=b; year=c; }
+    if (year < 100) year += year >= 70 ? 1900 : 2000;
+    return `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
   }
-
   return '';
-}
-
-function formatDateParts(day, month, year) {
-  if (!day || !month || !year) return '';
-  const dd = String(day).padStart(2, '0');
-  const mm = String(month).padStart(2, '0');
-  const yyyy = String(year).padStart(4, '0');
-  return `${dd}/${mm}/${yyyy}`;
 }
 
 function splitEmails(value) {
   const text = String(value || '').trim();
-  if (!text) return ['', ''];
-  const parts = text
-    .split(/[,:;\s]+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
+  if (!text) return ['',''];
+  const parts = text.split(/[,:;\s]+/).map(p => p.trim()).filter(Boolean);
   return [parts[0] || '', parts[1] || ''];
 }
 
-function fillDownColumns(rows, columns) {
-  const lastValues = {};
-  for (const col of columns) {
-    lastValues[col] = '';
-  }
-  for (const row of rows) {
-    for (const col of columns) {
-      const current = String(row[col] ?? '').trim();
-      if (current) {
-        lastValues[col] = current;
-      } else if (lastValues[col]) {
-        row[col] = lastValues[col];
-      }
-    }
-  }
-}
-
-function validateFileName(file, expectedName) {
-  if (!file) return false;
-
-  const actualName = String(file.name || '');
-  const baseName = actualName.replace(/\.[^.]+$/, '');
-  const matches = expectedName === 'PAYOUT_PREFIX'
-    ? baseName.toLowerCase().startsWith('payout_')
-    : expectedName === 'EMAIL_MATCH_PREFIX'
-      ? baseName.toLowerCase().startsWith('email_match_')
-      : actualName.toLowerCase() === expectedName.toLowerCase();
-
-  if (!matches) {
-    const expectedText = expectedName === 'PAYOUT_PREFIX'
-      ? "a file starting with 'PAYOUT_'"
-      : expectedName === 'EMAIL_MATCH_PREFIX'
-        ? "a file starting with 'EMAIL_MATCH_'"
-        : `'${expectedName}'`;
-    alert(`Incorrect file. Please upload ${expectedText}.`);
-    return false;
-  }
-
-  return true;
-}
-
-async function handleFileUpload(event, targetKey, cardId, filenameId) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const expectedName = targetKey === 'payment'
-    ? 'PAYOUT_PREFIX'
-    : targetKey === 'prevMatch'
-      ? 'EMAIL_MATCH_PREFIX'
-      : 'email sheet.xlsx';
-  if (!validateFileName(file, expectedName)) {
-    event.target.value = '';
-    return;
-  }
-
-  try {
-    const data = await readFile(file);
-    if (targetKey === 'payment') {
-      paymentSheetData = data;
-      payoutFileName = String(file.name || '').replace(/\.[^.]+$/, '');
-    } else if (targetKey === 'prevMatch') {
-      prevMatchData = data;
-    } else {
-      emailSheetData = data;
-    }
-
-    const card = document.getElementById(cardId);
-    const filename = document.getElementById(filenameId);
-    card.classList.add('has-file');
-    filename.textContent = `✓ ${file.name}`;
-    filename.style.display = 'block';
-
-    checkReady();
-    hideError();
-  } catch (err) {
-    showError('Could not read file. Please upload a valid CSV/XLSX file.');
-  }
-}
-
-document.getElementById('paymentSheetInput').addEventListener('change', (e) => {
-  handleFileUpload(e, 'payment', 'paymentSheetCard', 'paymentSheetName');
-});
-
-document.getElementById('emailSheetInput').addEventListener('change', (e) => {
-  handleFileUpload(e, 'email', 'emailSheetCard', 'emailSheetName');
-});
-
-document.getElementById('prevMatchInput').addEventListener('change', (e) => {
-  handleFileUpload(e, 'prevMatch', 'prevMatchCard', 'prevMatchName');
-});
-
-['paymentSheetCard', 'emailSheetCard', 'prevMatchCard'].forEach((id) => {
-  const el = document.getElementById(id);
-  el.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    el.classList.add('dragover');
-  });
-  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
-  el.addEventListener('drop', (e) => {
-    e.preventDefault();
-    el.classList.remove('dragover');
-
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-
-    const inputId = id === 'paymentSheetCard'
-      ? 'paymentSheetInput'
-      : id === 'emailSheetCard'
-        ? 'emailSheetInput'
-        : 'prevMatchInput';
-    const input = document.getElementById(inputId);
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-    input.dispatchEvent(new Event('change'));
-  });
-});
-
-function checkReady() {
-  document.getElementById('runBtn').disabled = !(paymentSheetData && emailSheetData);
-}
-
 function buildEmailRecords() {
-  const rows = emailSheetData.slice(1).map((row) => [...row]);
-  fillDownColumns(rows, [15, 16]);
+  const rows = emailData.slice(1);
+
+  // Fill-down email (col 15) and mobile (col 16)
+  let lastEmail = '', lastMobile = '';
+  rows.forEach(row => {
+    const e = row[15] != null ? String(row[15]).trim() : '';
+    const m = row[16] != null ? String(row[16]).trim() : '';
+    if (e) lastEmail  = e; else if (lastEmail)  row[15] = lastEmail;
+    if (m) lastMobile = m; else if (lastMobile) row[16] = lastMobile;
+  });
 
   const grouped = new Map();
-  const normalizeEmailList = (rawValue) => String(rawValue || '')
-    .split(/[,:;\s]+/)
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
+  rows.forEach(row => {
+    const rawName    = String(row[0] || '').trim();
+    const parenMatch = rawName.match(/\(([^)]+)\)/);
+    const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
+    const normName   = normalizeName(mainName || rawName, true);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const emailRaw   = String(row[15] || '').trim();
+    const emails     = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
 
-  rows
-    .map((row) => {
-      const emailSheetClientName = String(row[0] || '').trim();
-      const parentheticalMatch = emailSheetClientName.match(/\(([^)]+)\)/);
-      const mainName = emailSheetClientName.replace(/\([^)]*\)/g, ' ').trim();
-      const normalizedName = normalizeName(mainName || emailSheetClientName, true);
-      const normalizedNameInParentheses = parentheticalMatch
-        ? normalizeName(parentheticalMatch[1], true)
-        : '';
+    const record = {
+      emailSheetClientName: rawName, normName, normParen,
+      agentEmail: String(row[2] || '').split(/[,:;\s]+/)[0].trim(),
+      paymentReceivedDate: parseDateValue(row[5]),
+      clientEmailRaw: emailRaw,
+      mobile: String(row[16] || '').split(/[,;]+/)[0].replace(/\s+/g,'').trim(),
+      nationality: row[17] != null ? String(row[17]).trim() : '',
+      eid: row[18] != null ? String(row[18]).trim() : '',
+      multipleEmails: emails.length > 1,
+    };
 
-      return {
-        emailSheetClientName,
-        normalizedName,
-        normalizedNameInParentheses,
-        agentEmail: String(row[2] || '')
-        .split(/[,:;\s]+/)[0]
-        .trim(),
-        paymentReceivedDate: parseDateValue(row[5]),
-        clientEmailRaw: String(row[15] || '').trim(),
-        mobile: String(row[16] || '')
-        .split(/[,;]+/)[0]
-        .replace(/\s+/g, '')
-        .replace(/[^\d+]/g, '')
-        .trim(),
-        multipleEmails: false
-      };
-    })
-    .filter((record) => record.emailSheetClientName && (record.normalizedName || record.normalizedNameInParentheses))
-    .forEach((record) => {
-      const key = record.normalizedName;
-      if (!key) return;
+    if (!grouped.has(normName)) grouped.set(normName, record);
+    if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
+  });
 
-      if (!grouped.has(key)) {
-        grouped.set(key, {
-          ...record,
-          _count: 1,
-          _emailSet: new Set(normalizeEmailList(record.clientEmailRaw))
-        });
-        return;
-      }
-
-      const existing = grouped.get(key);
-      const existingDate = parseNormalizedDateToUTC(existing.paymentReceivedDate);
-      const currentDate = parseNormalizedDateToUTC(record.paymentReceivedDate);
-      const useCurrent = currentDate && (!existingDate || currentDate > existingDate);
-      normalizeEmailList(record.clientEmailRaw).forEach((email) => existing._emailSet.add(email));
-
-      if (useCurrent) {
-        existing.emailSheetClientName = record.emailSheetClientName || existing.emailSheetClientName;
-        existing.agentEmail = record.agentEmail || existing.agentEmail;
-        existing.paymentReceivedDate = record.paymentReceivedDate || existing.paymentReceivedDate;
-        existing.clientEmailRaw = record.clientEmailRaw || existing.clientEmailRaw;
-        existing.mobile = record.mobile || existing.mobile;
-      } else {
-        existing.mobile = existing.mobile || record.mobile;
-        existing.clientEmailRaw = existing.clientEmailRaw || record.clientEmailRaw;
-        existing.agentEmail = existing.agentEmail || record.agentEmail;
-      }
-      existing._count += 1;
-    });
-
-  return Array.from(grouped.values()).map((record) => ({
-    ...record,
-    multipleEmails: new Set(
-      String(record.clientEmailRaw || '')
-        .split(/[,:;\s]+/)
-        .map(e => e.trim().toLowerCase())
-        .filter(Boolean)
-    ).size > 1
-  }));
+  return Array.from(grouped.values());
 }
 
-function runMatcher() {
-  hideError();
+const AGENT_EMAIL_MAP = {
+  'faiqa':             'bdm@legendmaritime.com',
+  'naushad':           'manager@coraluae.com',
+  'numan':             'wm@aim-bc.com',
+  'kate':              'wm@aim-bc.com',
+  'ali altawel':       'ali_altawel@legendmaritime.com',
+  'mustafa':           'ali_altawel@legendmaritime.com',
+  'janagan':           'janagan@legendmaritime.com',
+  'christian':         'christian@legendmaritime.com',
+  'himali':            'renz@legendmaritime.com',
+  'ms. sagithra nath': 'cfo@legendmaritime.com',
+  'sagithra nath':     'cfo@legendmaritime.com',
+  'mag':               'lauriane@legendmaritime.com',
+  'mr. ahnaf':         'mohamedahnaf@legendmaritime.com',
+  'ahnaf':             'mohamedahnaf@legendmaritime.com',
+  'ruheed':            'ruheed@coraluae.com',
+  'athul':             'athul@coraluae.com',
+  'sanjana':           'sanjana@legendmaritime.com',
+  'khadija':           'khadija@coraluae.com',
+  'renz':              'renz@legendmaritime.com',
+};
 
-  if (!paymentSheetData || !emailSheetData) {
-    showError('Please upload both required files.');
-    return;
-  }
+function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
+  if (!emailData.length) { showMsg('genError', 'Please upload the email sheet.', 'error'); return; }
 
   const emailRecords = buildEmailRecords();
-  if (!emailRecords.length) {
-    showError('Email Sheet has no usable rows.');
-    return;
-  }
 
-  const paymentRows = paymentSheetData.slice(1).filter((row) => {
-    const clientColValue = String(row[1] || '').trim();
-    return clientColValue.toLowerCase() !== 'total';
-  });
-  const groupedPayments = groupPaymentRowsByClient(paymentRows);
-  results = groupedPayments.map((group) => buildMatchResult(group, emailRecords));
-
-  renderStats();
-  renderTable();
-}
-
-function parseNormalizedDateToUTC(ddmmyyyy) {
-  const match = String(ddmmyyyy || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!match) return null;
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10);
-  const year = parseInt(match[3], 10);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function groupPaymentRowsByClient(paymentRows) {
-  const groups = new Map();
-
-  for (const row of paymentRows) {
-    const paymentClientName = String(row[1] || '').trim();
-    if (!paymentClientName) continue;
-
-    const paymentNameWithoutParentheses = paymentClientName.replace(/\([^)]*\)/g, ' ').trim();
-    const normalizedPaymentName = normalizeName(paymentNameWithoutParentheses || paymentClientName, false);
-    if (!normalizedPaymentName) continue;
-
-    if (!groups.has(normalizedPaymentName)) {
-      groups.set(normalizedPaymentName, {
-        normalizedPaymentName,
-        paymentClientName,
-        units: Number(row[2]) || 0,
-        agentClosing: String(row[12] || '').trim(),
-        payoutNote: String(row[13] || '').trim()
+  const prevMatchMap = new Map();
+  if (refData.length > 1) {
+    refData.slice(1).forEach(r => {
+      if (!r || !r[0]) return;
+      const normName = normalizeName(String(r[0]), true);
+      prevMatchMap.set(normName, {
+        email1: String(r[3] || '').trim(),
+        email2: String(r[4] || '').trim(),
+        mobile: String(r[5] || '').trim(),
+        emailSheetClientName: String(r[1] || '').trim(),
       });
+    });
+  }
+
+  const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
+  const payoutDate = new Date(yr, mo - 1, payoutDay);
+
+  const paySource = (cycleOpt === 'all')
+    ? paymentData.filter(r => !r.firstPayout || r.firstPayout <= payoutDate)
+    : paymentData.filter(r => {
+        const c = String(r.payoutCycle).replace(/\s/g, '');
+        const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
+        return cycleMatch && (!r.firstPayout || r.firstPayout <= payoutDate);
+      });
+
+  const rowsToProcess = (nameMode === 'unique')
+    ? (() => {
+        const seen = new Map();
+        paySource.forEach(r => {
+          const key = normalizeName(r.clientName, false);
+          if (!seen.has(key)) seen.set(key, r);
+        });
+        return Array.from(seen.values());
+      })()
+    : paySource;
+
+  _emCycleOpt = cycleOpt;
+  _emNameMode = nameMode;
+
+  results = rowsToProcess.map(row => {
+    const group = { clientName: row.clientName, norm: normalizeName(row.clientName, false),
+                    units: 1, agent: row.agent || '', note: '' };
+    const group_norm = group.norm;
+    const normName   = group_norm;
+    const parenMatch = group.clientName.match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+
+    const lookup  = n => emailRecords.find(r => r.normName === n || r.normParen === n);
+    const matched = (normParen && lookup(normParen)) || lookup(normOuter) || null;
+
+    const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
+    let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
+
+    let emailSheetClientNameFromRef = '';
+    const prev = prevMatchMap.get(normName);
+    if (prev) {
+      if (!email1 && prev.email1) { email1 = prev.email1; email2 = prev.email2; }
+      if (!mobile && prev.mobile) mobile = prev.mobile;
+      if (!matched && prev.emailSheetClientName) emailSheetClientNameFromRef = prev.emailSheetClientName;
+    }
+
+    const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
+
+    const notes = [];
+    const hasMultiAgents = group.note && /multiple agents/i.test(group.note);
+    if (hasMultiAgents) {
+      notes.push(group.note);
     } else {
-      const group = groups.get(normalizedPaymentName);
-      group.units += Number(row[2]) || 0;
+      if (!matched)                          notes.push('Name not found in email sheet');
+      if (matched && !email1)                notes.push('Email missing in email sheet');
+      if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
+      if (matched && !resolvedAgentEmail)    notes.push('Agent email missing');
+      if (matched && !group.agent)           notes.push('Agent name missing');
     }
-  }
 
-  return Array.from(groups.values());
-}
-
-function buildMatchResult(group, emailRecords) {
-  const parentheticalMatch = group.paymentClientName.match(/\(([^)]+)\)/);
-  const normalizedInnerName = parentheticalMatch
-    ? normalizeName(parentheticalMatch[1], false)
-    : '';
-  const normalizedOuterName = normalizeName(group.paymentClientName.replace(/\([^)]*\)/g, ' ').trim(), false);
-  const lookup = (normalized) => emailRecords.find((record) =>
-    record.normalizedName === normalized || record.normalizedNameInParentheses === normalized
-  );
-  const matchedRecord = (normalizedInnerName && lookup(normalizedInnerName)) || lookup(normalizedOuterName) || null;
-  const status = matchedRecord ? 'valid' : 'invalid';
-
-  const [email1, email2] = splitEmails(matchedRecord ? matchedRecord.clientEmailRaw : '');
-  let resolvedEmail1 = email1;
-  let resolvedEmail2 = email2;
-  let resolvedMobile = matchedRecord ? matchedRecord.mobile : '';
-
-  if (prevMatchData && prevMatchData.length > 1) {
-    const normalizedGroupName = group.normalizedPaymentName;
-    const prevRow = prevMatchData.slice(1).find((r) =>
-      normalizeName(String(r[0] || ''), true) === normalizedGroupName
-    );
-    if (prevRow) {
-      if (!resolvedEmail1 && String(prevRow[3] || '').trim()) {
-        resolvedEmail1 = String(prevRow[3] || '').trim();
-        resolvedEmail2 = String(prevRow[4] || '').trim();
-      }
-      if (!resolvedMobile && String(prevRow[5] || '').trim()) {
-        resolvedMobile = String(prevRow[5] || '').trim();
-      }
+    if (/saif mohammed saif mohammed almehrzi/i.test(group.clientName)) {
+      notes.push('⚑ Double check — verify client identity');
     }
-  }
-  const notes = [];
-  const hasMultipleAgentsNote = group.payoutNote && /multiple agents/i.test(group.payoutNote);
+    if (/coral wealth investment/i.test(group.clientName)) {
+      notes.push('⚑ No email found — verify');
+    }
+    if (/maryam rashed moham alzeyoudi/i.test(group.clientName)) {
+      notes.push('⚑ Not in email sheet — verify');
+    }
 
-  const AGENT_EMAIL_MAP = {
-    'faiqa':             'bdm@legendmaritime.com',
-    'naushad':           'manager@coraluae.com',
-    'numan':             'wm@aim-bc.com',
-    'kate':              'wm@aim-bc.com',
-    'ali altawel':       'ali_altawel@legendmaritime.com',
-    'mustafa':           'ali_altawel@legendmaritime.com',
-    'janagan':           'janagan@legendmaritime.com',
-    'christian':         'christian@legendmaritime.com',
-    'himali':            'renz@legendmaritime.com',
-    'ms. sagithra nath': 'cfo@legendmaritime.com',
-    'sagithra nath':     'cfo@legendmaritime.com',
-    'mag':               'lauriane@legendmaritime.com',
-    'mr. ahnaf':         'mohamedahnaf@legendmaritime.com',
-    'ahnaf':             'mohamedahnaf@legendmaritime.com',
-    'ruheed':            'ruheed@coraluae.com',
-    'athul':             'athul@coraluae.com',
-    'sanjana':           'sanjana@legendmaritime.com',
-    'khadija':           'khadija@coraluae.com',
-    'renz':              'renz@legendmaritime.com',
-  };
+    const status = matched ? 'valid' : 'invalid';
 
-  const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agentClosing.toLowerCase().trim()]
-    || (matchedRecord ? matchedRecord.agentEmail : '')
-    || '';
+    return {
+      clientName: group.clientName,
+      emailSheetClientName: matched ? matched.emailSheetClientName : emailSheetClientNameFromRef,
+      units: group.units, email1, email2, mobile,
+      nationality: matched ? matched.nationality : '',
+      eid: matched ? matched.eid : '',
+      agentClosing: group.agent, agentEmail: resolvedAgentEmail,
+      notes: notes.join(' | '), status,
+    };
+  });
 
-  if (hasMultipleAgentsNote) {
-    const multipleAgentsPart = group.payoutNote.split('|').find(p => /multiple agents/i.test(p));
-    if (multipleAgentsPart) notes.push(multipleAgentsPart.trim());
-  } else {
-    if (matchedRecord && matchedRecord.multipleEmails) notes.push('Multiple emails detected');
-    if (!matchedRecord) notes.push('Name not found in email sheet');
-    if (matchedRecord && !email1) notes.push('Email missing in email sheet');
-    const sheetAgentEmail = matchedRecord ? matchedRecord.agentEmail : '';
-if (matchedRecord && !resolvedAgentEmail) {
-  notes.push('Agent email missing');
-} else if (matchedRecord && sheetAgentEmail && sheetAgentEmail !== resolvedAgentEmail) {
-  notes.push('Agent email mismatch');
-}
-    if (matchedRecord && !group.agentClosing) notes.push('Agent name missing');
-  }
+  const cycleLabel = cycleOpt === 'all' ? 'All Clients' : (cycle === '15' ? '15th' : 'End of Month');
+  const nameLabel  = nameMode === 'unique' ? 'Unique Names' : 'Repeating';
+  showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${nameLabel} · ${results.length} rows`);
 
-  return {
-    paymentClientName: group.paymentClientName,
-    emailSheetClientName: matchedRecord ? matchedRecord.emailSheetClientName : '',
-    units: group.units,
-    email1: resolvedEmail1,
-    email2: resolvedEmail2,
-    mobile: resolvedMobile,
-    agentClosing: group.agentClosing,
-    agentEmail: resolvedAgentEmail,
-    notes: notes.join(' | '),
-    status
-  };
-}
+  const confirmed    = results.filter(r => r.status === 'valid').length;
+  const clientErrors = results.filter(r => r.notes && (/name not found|email missing|multiple emails/i.test(r.notes))).length;
+  const agentErrors  = results.filter(r => r.notes && (/agent email|agent name|multiple agents/i.test(r.notes))).length;
 
-function renderStats() {
-  const total = results.length;
-  const confirmed = results.filter((row) => row.status === 'valid').length;
-  const clientError = results.filter((row) =>
-    row.notes && (
-      /name not found/i.test(row.notes) ||
-      /email missing/i.test(row.notes) ||
-      /client already/i.test(row.notes) ||
-      /multiple emails/i.test(row.notes)
-    )
-  ).length;
+  renderStats([
+    { val: results.length, lbl: 'Total' },
+    { val: confirmed,      lbl: 'Confirmed' },
+    { val: clientErrors,   lbl: 'Client Errors' },
+    { val: agentErrors,    lbl: 'Agent Errors' },
+  ]);
 
-  const agentError = results.filter((row) =>
-    row.notes && (
-      /agent email missing/i.test(row.notes) ||
-      /agent name missing/i.test(row.notes) ||
-      /multiple agents/i.test(row.notes)
-    )
-  ).length;
+  renderFlags([]);
 
-  document.getElementById('statTotal').textContent = total;
-  document.getElementById('statConfirmed').textContent = confirmed;
-  document.getElementById('statClientError').textContent = clientError;
-  document.getElementById('statAgentError').textContent = agentError;
-  document.getElementById('statsBar').classList.add('visible');
+  document.getElementById('tableHead').innerHTML = `<tr>
+    <th>#</th>
+    <th>Client Name (Payment Sheet)</th>
+    <th>Client Name (Email Sheet)</th>
+    <th>Email 1</th>
+    <th>Agent Closing</th>
+    <th>Notes</th>
+  </tr>`;
+
+  document.getElementById('tableBody').innerHTML = results.slice(0, PREVIEW_COUNT).map((r, i) => {
+    const noteBadge = r.notes
+      ? `<span class="badge ${r.status === 'valid' ? 'badge-warn' : 'badge-flag'}">${esc(r.notes)}</span>`
+      : `<span class="badge badge-ok">Confirmed</span>`;
+    return `<tr>
+      <td class="td-hint">${i+1}</td>
+      <td class="td-name">${esc(r.clientName)}</td>
+      <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '—')}</td>
+      <td class="td-mono">${esc(r.email1 || '—')}</td>
+      <td>${esc(r.agentClosing || '—')}</td>
+      <td class="td-note">${noteBadge}</td>
+    </tr>`;
+  }).join('');
+
+  renderMoreRows(results.length);
 }
 
-function renderTable() {
-  const headers = [
-    'Client Name (Payout)',
-    'Client Name (Email)',
-    'Email 1',
-    'Agent Closing',
-    'Notes'
-  ];
+function exportEmailMatcher() {
+  const yr = parseInt(document.getElementById('selYear').value);
+  const mo = parseInt(document.getElementById('selMonth').value);
 
-  document.getElementById('tableHead').innerHTML = `<tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`;
-
-  const previewRows = results.slice(0, PREVIEW_LIMIT);
-  document.getElementById('tableBody').innerHTML = previewRows
-    .map((row) => {
-      const notesCell = row.notes
-        ? `<span class="badge ${statusToBadgeClass(row.status)}"><span class="badge-dot"></span>${esc(row.notes)}</span>`
-        : '<span class="badge badge-valid"><span class="badge-dot"></span>Confirmed</span>';
-
-      return `<tr>
-        <td class="name-col">${esc(row.paymentClientName)}</td>
-        <td class="name-col" style="font-weight:400;color:var(--text-muted)">${esc(row.emailSheetClientName || '—')}</td>
-        <td class="mono">${esc(row.email1)}</td>
-        <td>${esc(row.agentClosing)}</td>
-        <td>${notesCell}</td>
-      </tr>`;
-    })
-    .join('');
-
-  const previewCount = document.getElementById('previewCount');
-  const shown = Math.min(PREVIEW_LIMIT, results.length);
-  previewCount.textContent = `Showing ${shown} of ${results.length} rows`;
-  previewCount.classList.add('visible');
-
-  document.getElementById('resultsBar').classList.add('visible');
-  document.getElementById('tableWrap').classList.add('visible');
-}
-
-function statusToBadgeClass(status) {
-  if (status === 'valid') return 'badge-valid';
-  if (status === 'warn') return 'badge-warn';
-  return 'badge-invalid';
-}
-
-function exportExcel() {
-  if (!results.length) return;
-
-  const exportRows = results.map((row) => ({
-    'Client Name (LMC Sheet)': row.paymentClientName,
-    'Client Name (Email Sheet)': row.emailSheetClientName,
-    'Units': row.units,
-    'Email 1': row.email1,
-    'Email 2': row.email2,
-    'Mobile': row.mobile,
-    'Agent Closing': row.agentClosing,
-    'Agent Email': row.agentEmail,
-    'Notes': row.notes
+  const exportRows = results.map(r => ({
+    'Client Name (LMC Sheet)':   r.clientName,
+    'Client Name (Email Sheet)': r.emailSheetClientName,
+    'Units':         r.units,
+    'Email 1':       r.email1,
+    'Email 2':       r.email2,
+    'Mobile':        r.mobile,
+    'Nationality':   r.nationality,
+    'EID/Passport/National Card': r.eid,
+    'Agent Closing': r.agentClosing,
+    'Agent Email':   r.agentEmail,
+    'Notes':         r.notes,
   }));
 
   const ws = XLSX.utils.json_to_sheet(exportRows);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Email Matching Results');
-
-  const exportBaseName = payoutFileName
-    ? payoutFileName.replace(/^payout_/i, 'EMAIL_MATCH_')
-    : 'EMAIL_MATCH_EXPORT';
-  XLSX.writeFile(wb, `${exportBaseName}.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} Email Matcher`.substring(0, 31));
+  const cycleTag = _emCycleOpt === 'all' ? 'ALL' : (document.getElementById('selCycle').value === '15' ? '15' : '30');
+  const nameTag  = _emNameMode === 'unique' ? 'UNIQUE' : 'REPEAT';
+  XLSX.writeFile(wb, `EMAIL_MATCHER_${cycleTag}_${nameTag}_${MONTHS[mo-1].toUpperCase()}${yr}.xlsx`);
 }
-
-function esc(s) {
-  return String(s || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function showError(msg) {
-  const banner = document.getElementById('errorBanner');
-  banner.textContent = `⚠ ${msg}`;
-  banner.classList.add('visible');
-}
-
-function hideError() {
-  document.getElementById('errorBanner').classList.remove('visible');
-}
-
-fetch('/components/footer.html')
-  .then((res) => res.text())
-  .then((data) => {
-    document.getElementById('footer').innerHTML = data;
-  });
