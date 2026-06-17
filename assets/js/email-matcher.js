@@ -33,12 +33,24 @@ function splitEmails(value) {
 function buildEmailRecords() {
   const rows = emailData.slice(1);
 
-  // Fill-down email (col 15) only — don't fill-down mobile
+  // Fill-down email (col 15) only within same client — don't fill-down mobile
   let lastEmail = '';
+  let lastClientName = '';
+
   rows.forEach(row => {
     const e = row[15] != null ? String(row[15]).trim() : '';
-    if (e) lastEmail  = e; else if (lastEmail)  row[15] = lastEmail;
-});
+    const clientName = String(row[0] || '').trim();
+    
+    // Reset email when switching to different client
+    if (clientName !== lastClientName) {
+      lastEmail = '';
+      lastClientName = clientName;
+    }
+    
+    // Fill-down email only for same client
+    if (e) lastEmail = e; 
+    else if (lastEmail) row[15] = lastEmail;
+  });
 
   const grouped = new Map();
   rows.forEach(row => {
