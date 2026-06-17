@@ -33,14 +33,12 @@ function splitEmails(value) {
 function buildEmailRecords() {
   const rows = emailData.slice(1);
 
-  // Fill-down email (col 15) and mobile (col 16)
-  let lastEmail = '', lastMobile = '';
+  // Fill-down email (col 15) only — don't fill-down mobile
+  let lastEmail = '';
   rows.forEach(row => {
     const e = row[15] != null ? String(row[15]).trim() : '';
-    const m = row[16] != null ? String(row[16]).trim() : '';
     if (e) lastEmail  = e; else if (lastEmail)  row[15] = lastEmail;
-    if (m) lastMobile = m; else if (lastMobile) row[16] = lastMobile;
-  });
+});
 
   const grouped = new Map();
   rows.forEach(row => {
