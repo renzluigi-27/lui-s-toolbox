@@ -308,7 +308,7 @@ function handleRefFile(file) {
     showMsg('refError', 'Reference file must be .xlsx or .xls', 'error'); return;
   }
   const expected = getExpectedRefFilename();
-  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_|PAYMENT_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
+  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_|UPDATED_PAYMENT_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
   const prefix   = prefixes[activeMode];
   const baseName = file.name.replace(/\.xlsx$/i, '').toUpperCase();
   if (!baseName.match(new RegExp(prefix))) {
