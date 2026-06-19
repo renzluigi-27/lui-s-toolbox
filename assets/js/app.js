@@ -248,15 +248,19 @@ function resetRefUpload() {
 }
 
 function updateGenerateBtn() {
-  const hasPayment = paymentData.length > 0;
-  const hasEmail   = emailData.length > 0;
-  const ready      = hasPayment && (activeMode !== 'email' || hasEmail);
+  const hasPayment    = paymentData.length > 0;
+  const hasEmail      = emailData.length > 0;
+  const hasReroute    = rerouteData.length > 0;
+  const needsReroute  = activeMode === 'payout' || activeMode === 'ip';
+  const ready = hasPayment && (activeMode !== 'email' || hasEmail) && (!needsReroute || hasReroute);
   document.getElementById('generateBtn').disabled = !ready;
   document.getElementById('generateHint').textContent = ready
     ? 'Ready to generate'
-    : hasPayment && activeMode === 'email'
-      ? 'Upload email sheet to continue'
-      : 'Upload payment info sheet to continue';
+    : !hasPayment
+      ? 'Upload payment info sheet to continue'
+      : needsReroute && !hasReroute
+        ? 'Upload updated payment info sheet to continue'
+        : 'Upload email sheet to continue';
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -313,6 +317,7 @@ function handleRerouteFile(file) {
     document.getElementById('rerouteFileLoaded').classList.add('show');
     document.getElementById('rerouteLoadedName').textContent = file.name;
     document.getElementById('rerouteLoadedMeta').textContent = `${Object.keys(rerouteMap.byKey || {}).length} rerouted container(s) loaded`;
+    updateGenerateBtn();
   }, err => showMsg('rerouteError', 'Error reading file: ' + err, 'error'));
 }
 
