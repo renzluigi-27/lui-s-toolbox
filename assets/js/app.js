@@ -175,7 +175,7 @@ function updateTabUI() {
   }
 
   document.getElementById('emailSheetCard').style.display =
-    activeMode === 'email' ? 'block' : 'none';
+    (activeMode === 'email' || activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   const rerouteCard = document.getElementById('rerouteSheetCard');
   if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   updateRefHint();
