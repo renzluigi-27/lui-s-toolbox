@@ -1,12 +1,23 @@
 // ─────────────────────────────────────────────────────────────────
 // IP DEDUCTION MODE — ip-deduction.js
-// Depends on: shared.js, app.js
+// Depends on: shared.js, app.js, email-matcher.js (buildEmailRecords)
 // ─────────────────────────────────────────────────────────────────
 
 function runIPDeduction(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
   const hcCutoff   = new Date(2025, 5, 30);
+
+  // Build email records (optional — blank fields if no email sheet uploaded)
+  const emailRecords = emailData.length ? buildEmailRecords() : [];
+  const lookupEmail = name => {
+    if (!emailRecords.length) return null;
+    const parenMatch = String(name || '').match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(String(name || '').replace(/\([^)]*\)/g, ' ').trim(), true);
+    const find = n => emailRecords.find(r => r.normName === n || r.normParen === n);
+    return (normParen && find(normParen)) || find(normOuter) || null;
+  };
 
   // Helper: name variants for reroute matching
   const nameVariants = raw => {
@@ -112,7 +123,19 @@ function runIPDeduction(yr, mo, cycle) {
         if (byType[t]) dedNotes.push(`${t.replace(' Insurance',' IP')} — AED ${fmt(byType[t])}`);
       });
       const allNotes = [...new Set(g.notes), ...dedNotes].join(' | ');
-      return { ...g, totalDeduction: Math.round(g.totalDeduction), note: allNotes };
+
+      // Email match
+      const em = lookupEmail(g.clientName);
+      const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
+
+      return {
+        ...g, totalDeduction: Math.round(g.totalDeduction), note: allNotes,
+        emailSheetClientName: em ? em.emailSheetClientName : '',
+        email1: emEmail1, email2: emEmail2,
+        mobile: em ? em.mobile : '',
+        nationality: em ? em.nationality : '',
+        eid: em ? em.eid : '',
+      };
     });
 
   const cycleLabel = cycle === '15' ? '15th' : 'End of Month';
@@ -157,18 +180,22 @@ function exportIPDeduction() {
   const yr  = parseInt(document.getElementById('selYear').value);
   const mo  = parseInt(document.getElementById('selMonth').value);
 
-  const headers = ['CLIENT NAME','IBAN','ACCOUNT NUMBER','UNITS','DEDUCTION (AED)','NOTES'];
+  const headers = ['CLIENT NAME',
+    'CLIENT NAME (EMAIL SHEET)','EMAIL 1','EMAIL 2','MOBILE','NATIONALITY','EID/PASSPORT/NATIONAL CARD',
+    'IBAN','ACCOUNT NUMBER','UNITS','DEDUCTION (AED)','NOTES'];
   const rows = results.map(r => [
-    r.clientName, r.iban || '', r.accountNo || '',
+    r.clientName,
+    r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
+    r.iban || '', r.accountNo || '',
     r.containers.length, r.totalDeduction, r.note || '',
   ]);
 
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
-  rows.push(['TOTAL','','','',totDeduct,'']);
+  rows.push(['TOTAL','','','','','','','','','',totDeduct,'']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = [{wch:45},{wch:30},{wch:22},{wch:8},{wch:16},{wch:60}];
+  ws['!cols'] = [{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},{wch:30},{wch:22},{wch:8},{wch:16},{wch:60}];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} IP Deduction`.substring(0, 31));
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }
