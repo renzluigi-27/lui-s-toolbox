@@ -201,7 +201,7 @@ function updateRefHint() {
   document.getElementById('refExpected').textContent = expected ? `e.g. ${expected}` : '—';
   const hints = {
     payout:    'Upload the previous cycle\'s payout export to auto-detect pending HC deductions.',
-    ip:        'Upload the updated payment info sheet or previous IP Deduction export for reroute data.',
+    ip:        'Upload the previous cycle\'s IP Deduction export for reference.',
     container: 'Upload the previous cycle\'s Container Info export for reference.',
     email:     'Upload the previous cycle\'s Email Matcher export to carry over missing contacts.',
   };
@@ -289,6 +289,34 @@ function handleMainFile(file) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// FILE UPLOAD — updated payment info sheet (reroute, payout/ip only)
+// ─────────────────────────────────────────────────────────────────
+const rerouteZone = document.getElementById('rerouteUploadZone');
+rerouteZone.addEventListener('dragover',  e => { e.preventDefault(); rerouteZone.classList.add('dragover'); });
+rerouteZone.addEventListener('dragleave', () => rerouteZone.classList.remove('dragover'));
+rerouteZone.addEventListener('drop', e => {
+  e.preventDefault(); rerouteZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) handleRerouteFile(e.dataTransfer.files[0]);
+});
+document.getElementById('rerouteFileInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleRerouteFile(e.target.files[0]);
+});
+
+function handleRerouteFile(file) {
+  showMsg('rerouteError', '');
+  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+    showMsg('rerouteError', 'Please upload an Excel file (.xlsx or .xls)', 'error'); return;
+  }
+  readExcel(file, rows => {
+    rerouteData = rows;
+    rerouteMap  = parseRerouteSheet(rows);
+    document.getElementById('rerouteFileLoaded').classList.add('show');
+    document.getElementById('rerouteLoadedName').textContent = file.name;
+    document.getElementById('rerouteLoadedMeta').textContent = `${Object.keys(rerouteMap.byKey || {}).length} rerouted container(s) loaded`;
+  }, err => showMsg('rerouteError', 'Error reading file: ' + err, 'error'));
+}
+
+// ─────────────────────────────────────────────────────────────────
 // FILE UPLOAD — reference (optional)
 // ─────────────────────────────────────────────────────────────────
 const refZone = document.getElementById('refUploadZone');
@@ -308,31 +336,20 @@ function handleRefFile(file) {
     showMsg('refError', 'Reference file must be .xlsx or .xls', 'error'); return;
   }
   const expected = getExpectedRefFilename();
-  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_|UPDATED_PAYMENT_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
+  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
   const prefix   = prefixes[activeMode];
   const baseName = file.name.replace(/\.xlsx$/i, '').toUpperCase();
   if (!baseName.match(new RegExp(prefix))) {
     showMsg('refError', `Wrong file. Expected a file with "${prefix}" — e.g. ${expected}`, 'error'); return;
   }
-  if (file.name.toUpperCase() !== expected.toUpperCase() && activeMode !== 'ip') {
+  if (file.name.toUpperCase() !== expected.toUpperCase()) {
     showMsg('refError', `⚠ Expected ${expected} but got ${file.name} — loaded anyway`, 'warn');
   }
   readExcel(file, rows => {
     refData = rows;
-    if (activeMode === 'ip') {
-      rerouteData = rows;
-      rerouteMap  = parseRerouteSheet(rows);
-      const loaded = document.getElementById('refFileLoaded');
-      if (loaded) loaded.classList.add('show');
-      const nameEl = document.getElementById('refLoadedName');
-      if (nameEl) nameEl.textContent = file.name;
-      const metaEl = document.getElementById('refLoadedMeta');
-      if (metaEl) metaEl.textContent = `${Object.keys(rerouteMap.byKey || {}).length} rerouted container(s) loaded`;
-    } else {
-      document.getElementById('refFileLoaded').classList.add('show');
-      document.getElementById('refLoadedName').textContent = file.name;
-      document.getElementById('refLoadedMeta').textContent = `${rows.length - 1} reference rows loaded`;
-    }
+    document.getElementById('refFileLoaded').classList.add('show');
+    document.getElementById('refLoadedName').textContent = file.name;
+    document.getElementById('refLoadedMeta').textContent = `${rows.length - 1} reference rows loaded`;
   }, err => showMsg('refError', 'Error reading reference file: ' + err, 'error'));
 }
 
