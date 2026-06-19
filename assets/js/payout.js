@@ -1,12 +1,23 @@
 // ─────────────────────────────────────────────────────────────────
 // PAYOUT GENERATOR MODE — payout.js
-// Depends on: shared.js, app.js
+// Depends on: shared.js, app.js, email-matcher.js (buildEmailRecords)
 // ─────────────────────────────────────────────────────────────────
 
 function runPayout(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
   const hcCutoff   = new Date(2025, 5, 30);
+
+  // Build email records (optional — blank fields if no email sheet uploaded)
+  const emailRecords = emailData.length ? buildEmailRecords() : [];
+  const lookupEmail = name => {
+    if (!emailRecords.length) return null;
+    const parenMatch = String(name || '').match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(String(name || '').replace(/\([^)]*\)/g, ' ').trim(), true);
+    const find = n => emailRecords.find(r => r.normName === n || r.normParen === n);
+    return (normParen && find(normParen)) || find(normOuter) || null;
+  };
 
   // Build HC pending map from reference
   const hcPendingMap = {};
@@ -209,10 +220,19 @@ function runPayout(yr, mo, cycle) {
       ? (() => { const m = balanceNoteArr.join(' ').match(/[\d]+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; })() : null;
     const hasBalance = balanceNumeric !== null;
 
+    // Email match
+    const em = lookupEmail(g.clientName);
+    const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
+
     return {
       ...g, agent, totalDeduction: roundedDeduction,
       rentalDue: hasBalance ? null : (g.totalReturn - roundedDeduction),
       balanceAddition: balanceNumeric, firstPayoutDisplay, note: allNotes,
+      emailSheetClientName: em ? em.emailSheetClientName : '',
+      email1: emEmail1, email2: emEmail2,
+      mobile: em ? em.mobile : '',
+      nationality: em ? em.nationality : '',
+      eid: em ? em.eid : '',
     };
   });
 
@@ -247,10 +267,9 @@ function runPayout(yr, mo, cycle) {
 
   document.getElementById('tableHead').innerHTML = `<tr>
     <th>#</th><th>Name of Clients</th>
-    <th style="text-align:center">Units</th>
-    <th style="text-align:center">First Payout Date</th>
     <th style="text-align:right">Monthly Rental</th>
     <th style="text-align:right">Deduction</th>
+    <th style="text-align:right">Addition</th>
     <th style="text-align:right">Rental Due</th>
     <th>Notes</th>
   </tr>`;
@@ -259,10 +278,9 @@ function runPayout(yr, mo, cycle) {
     <tr>
       <td class="td-hint">${i+1}</td>
       <td class="td-name">${esc(r.clientName)}</td>
-      <td class="td-center td-mono">${r.containers.length}</td>
-      <td class="td-mono">${r.firstPayoutDisplay || '—'}</td>
       <td class="td-num">${fmt(r.totalReturn)}</td>
       <td class="td-deduct">${r.totalDeduction > 0 ? fmt(r.totalDeduction) : '—'}</td>
+      <td class="td-num">${r.balanceAddition !== null ? fmt(r.balanceAddition) : '—'}</td>
       <td class="td-due">${r.rentalDue !== null ? fmt(r.rentalDue) : '—'}</td>
       <td class="td-note">${renderNote(r.note)}</td>
     </tr>`).join('');
@@ -275,12 +293,16 @@ function exportPayout() {
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
 
-  const headers = ['CLIENT TYPE','CLIENT NAME','UNIT','FIRST PAYOUT',
+  const headers = ['CLIENT TYPE','CLIENT NAME',
+    'CLIENT NAME (EMAIL SHEET)','EMAIL 1','EMAIL 2','MOBILE','NATIONALITY','EID/PASSPORT/NATIONAL CARD',
+    'UNIT','FIRST PAYOUT',
     'MONTHLY RENT','DEDUCTION','ADDITION','RENTAL DUE',
     'ACCOUNT NO.','IBAN NO.','SWIFT CODE','BANK NAME','AGENT NAME','NOTES'];
 
   const rows = results.map(r => [
-    r.clientType || '', r.clientName, r.containers.length,
+    r.clientType || '', r.clientName,
+    r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
+    r.containers.length,
     r.firstPayoutDisplay || '', r.totalReturn,
     r.totalDeduction || null, r.balanceAddition || null,
     r.rentalDue !== null ? r.rentalDue : null,
@@ -290,11 +312,11 @@ function exportPayout() {
   const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['','TOTAL','','',totReturn,totDeduct,'',totDue,'','','','','','']);
+  rows.push(['','TOTAL','','','','','','','','',totReturn,totDeduct,'',totDue,'','','','','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = [{wch:14},{wch:45},{wch:8},{wch:14},{wch:14},{wch:12},{wch:12},{wch:14},{wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50}];
+  ws['!cols'] = [{wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},{wch:8},{wch:14},{wch:14},{wch:12},{wch:12},{wch:14},{wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50}];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} - ${cycle === '15' ? '15th' : 'EOM'}`.substring(0, 31));
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }
