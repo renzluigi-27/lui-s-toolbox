@@ -223,13 +223,7 @@ function updateTabUI() {
 }
 
 function animateUploadRowCards() {
-  const row = document.getElementById('mainUploadRow');
-  if (!row) return;
-  const cards = [...row.querySelectorAll('.card')];
-  cards.forEach(card => { card.classList.remove('card-animate'); void card.offsetWidth; });
-  cards.forEach((card, i) => {
-    setTimeout(() => card.classList.add('card-animate'), i * 65);
-  });
+  // No-op: animation simplified to a single fade handled by animateCards().
 }
 
 function animateCards() {
@@ -239,9 +233,7 @@ function animateCards() {
   cards.forEach(card => {
     card.classList.remove('card-animate', 'card-fade-out');
     void card.offsetWidth;
-  });
-  cards.forEach((card, i) => {
-    setTimeout(() => card.classList.add('card-animate'), i * 65);
+    card.classList.add('card-animate');
   });
 }
 
