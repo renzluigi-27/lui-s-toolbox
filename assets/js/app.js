@@ -134,6 +134,7 @@ const SHARED_CONTAINERS = {
   }
   document.getElementById('selMonth').value = now.getMonth() + 1;
   updateTabUI();
+  animateCards();
   document.getElementById('selMonth').addEventListener('change', updateRefHint);
   document.getElementById('selCycle').addEventListener('change', updateRefHint);
   document.getElementById('selYear').addEventListener('change', updateRefHint);
@@ -185,7 +186,7 @@ function updateTabUI() {
   const isEmail = activeMode === 'email';
 
   const genCards = [
-    document.getElementById('mainUploadRow'),
+    document.querySelector('.upload-row'),
     document.getElementById('cycleCard'),
     document.getElementById('refUploadZone').closest('.card'),
     document.getElementById('generateBtn').closest('.card'),
