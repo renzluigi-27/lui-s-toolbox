@@ -389,8 +389,9 @@ window.EmailMatcherStandalone = (function () {
         <div id="em-sheet-list"></div>
       </div>
 
-      <div class="btn-row">
+      <div class="card action-card">
         <button class="btn-primary" id="em-generate-btn" disabled>Generate</button>
+        <div class="msg" id="em-generate-error"></div>
         <span class="generate-hint" id="em-generate-hint">Upload File 1 (with CLIENT NAME column) to continue</span>
       </div>
 
