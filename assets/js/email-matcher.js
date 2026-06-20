@@ -318,7 +318,10 @@ window.EmailMatcherStandalone = (function () {
     const dd = String(today.getDate()).padStart(2,'0');
     const mmm = MONTHS[today.getMonth()].toUpperCase();
     const yyyy = today.getFullYear();
-    XLSX.writeFile(wb, `EMAIL_MATCHER_${dd}${mmm}${yyyy}.xlsx`);
+    const hh = String(today.getHours()).padStart(2,'0');
+    const min = String(today.getMinutes()).padStart(2,'0');
+    const ss = String(today.getSeconds()).padStart(2,'0');
+    XLSX.writeFile(wb, `EMAIL_MATCHER_${dd}${mmm}${yyyy}_${hh}${min}${ss}.xlsx`);
   }
 
   // ── Upload zone wiring ───────────────────────────────────────
