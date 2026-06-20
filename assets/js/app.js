@@ -182,13 +182,14 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 function updateTabUI() {
   const isAudit = activeMode === 'audit';
   const isTrip  = activeMode === 'trip';
+  const isEmail = activeMode === 'email';
 
   const genCards = [
     document.getElementById('uploadZone').closest('.card'),
     document.getElementById('refUploadZone').closest('.card'),
     document.querySelector('.btn-row'),
   ];
-  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip) ? 'none' : ''; });
+  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail) ? 'none' : ''; });
 
   const auditMount = document.getElementById('auditMount');
   if (auditMount) {
@@ -205,8 +206,14 @@ function updateTabUI() {
     if (isTrip && window.ContainerTripUpdater) ContainerTripUpdater.init('tripMount');
   }
 
+  const emailMount = document.getElementById('emailMatcherMount');
+  if (emailMount) {
+    emailMount.style.display = isEmail ? 'block' : 'none';
+    if (isEmail && window.EmailMatcherStandalone) EmailMatcherStandalone.init('emailMatcherMount');
+  }
+
   document.getElementById('emailSheetCard').style.display =
-    (activeMode === 'email' || activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
+    (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   const rerouteCard = document.getElementById('rerouteSheetCard');
   if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   updateRefHint();
@@ -227,14 +234,13 @@ function animateCards() {
 }
 
 function updateRefHint() {
-  if (activeMode === 'audit') return;
+  if (activeMode === 'audit' || activeMode === 'email') return;
   const expected = getExpectedRefFilename();
   document.getElementById('refExpected').textContent = expected ? `e.g. ${expected}` : '—';
   const hints = {
     payout:    'Upload the previous cycle\'s payout export to auto-detect pending HC deductions.',
     ip:        'Upload the previous cycle\'s IP Deduction export for reference.',
     container: 'Upload the previous cycle\'s Container Info export for reference.',
-    email:     'Upload the previous cycle\'s Email Matcher export to carry over missing contacts.',
   };
   document.getElementById('refHint').textContent = hints[activeMode] || '';
 }
@@ -247,7 +253,7 @@ function getExpectedRefFilename() {
   const prevDate  = new Date(yr, mo - 2, 1);
   const prevMonth = MONTHS[prevDate.getMonth()].toUpperCase();
   const prevYear  = prevDate.getFullYear();
-  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO', email:'EMAIL_MATCHER' };
+  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO' };
   return `${prefixes[activeMode]}_${cycleTag}_${prevMonth}${prevYear}.xlsx`;
 }
 
@@ -257,7 +263,7 @@ function getExpectedOutputFilename() {
   const cycle = document.getElementById('selCycle').value;
   const cycleTag = cycle === '15' ? '15' : '30';
   const monthStr = MONTHS[mo - 1].toUpperCase();
-  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO', email:'EMAIL_MATCHER' };
+  const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO' };
   return `${prefixes[activeMode]}_${cycleTag}_${monthStr}${yr}.xlsx`;
 }
 
@@ -280,10 +286,9 @@ function resetRefUpload() {
 
 function updateGenerateBtn() {
   const hasPayment    = paymentData.length > 0;
-  const hasEmail      = emailData.length > 0;
   const hasReroute    = rerouteData.length > 0;
   const needsReroute  = activeMode === 'payout' || activeMode === 'ip';
-  const ready = hasPayment && (activeMode !== 'email' || hasEmail) && (!needsReroute || hasReroute);
+  const ready = hasPayment && (!needsReroute || hasReroute);
   document.getElementById('generateBtn').disabled = !ready;
   document.getElementById('generateHint').textContent = ready
     ? 'Ready to generate'
@@ -291,7 +296,7 @@ function updateGenerateBtn() {
       ? 'Upload payment info sheet to continue'
       : needsReroute && !hasReroute
         ? 'Upload updated payment info sheet to continue'
-        : 'Upload email sheet to continue';
+        : 'Upload required files to continue';
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -372,7 +377,7 @@ function handleRefFile(file) {
     showMsg('refError', 'Reference file must be .xlsx or .xls', 'error'); return;
   }
   const expected = getExpectedRefFilename();
-  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_', container:'CONTAINER_INFO_', email:'EMAIL_MATCHER_' };
+  const prefixes = { payout:'PAYOUT_', ip:'IP_DEDUCTION_', container:'CONTAINER_INFO_' };
   const prefix   = prefixes[activeMode];
   const baseName = file.name.replace(/\.xlsx$/i, '').toUpperCase();
   if (!baseName.match(new RegExp(prefix))) {
@@ -390,7 +395,7 @@ function handleRefFile(file) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// FILE UPLOAD — email sheet (mode email only)
+// FILE UPLOAD — email sheet (payout / ip modes only — integrated matching)
 // ─────────────────────────────────────────────────────────────────
 const emailZone = document.getElementById('emailUploadZone');
 emailZone.addEventListener('dragover',  e => { e.preventDefault(); emailZone.classList.add('dragover'); });
@@ -617,7 +622,6 @@ function runGenerate() {
   if      (activeMode === 'payout')    runPayout(yr, mo, cycle);
   else if (activeMode === 'ip')        runIPDeduction(yr, mo, cycle);
   else if (activeMode === 'container') runContainerInfo(yr, mo, cycle);
-  else if (activeMode === 'email')     runEmailMatcher(yr, mo, cycle, getEmailOption('allClients'), getEmailOption('names'));
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -628,7 +632,6 @@ function exportResults() {
   if      (activeMode === 'payout')    exportPayout();
   else if (activeMode === 'ip')        exportIPDeduction();
   else if (activeMode === 'container') exportContainerInfo();
-  else if (activeMode === 'email')     exportEmailMatcher();
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -686,114 +689,3 @@ fetch('/components/footer.html')
   .then(r => r.text())
   .then(h => { document.getElementById('footer').innerHTML = h; })
   .catch(() => {});
-
-// ─────────────────────────────────────────────────────────────────
-// EMAIL MATCHER OPTIONS
-// ─────────────────────────────────────────────────────────────────
-let _emCycleOpt = 'cycle';
-let _emNameMode = 'unique';
-
-function getEmailOption(group) {
-  if (group === 'allClients') {
-    var track = document.getElementById('emAllTrack');
-    return (track && track.classList.contains('on')) ? 'all' : 'cycle';
-  }
-  if (group === 'names') {
-    var btn = document.querySelector('.em-toggle[data-group="names"].active');
-    return btn ? btn.dataset.val : 'unique';
-  }
-  return null;
-}
-
-function setEmailOption(group, val, el) {
-  document.querySelectorAll('.em-toggle[data-group="' + group + '"]').forEach(function(b) { b.classList.remove('active'); });
-  el.classList.add('active');
-  updateEmBadge();
-}
-
-function toggleEmOptions() {
-  var body = document.getElementById('emBody');
-  var chevron = document.getElementById('emChevron');
-  body.classList.toggle('open');
-  chevron.classList.toggle('open');
-}
-
-function toggleEmAll() {
-  var track = document.getElementById('emAllTrack');
-  var label = document.getElementById('emAllLabel');
-  var selCycle = document.getElementById('selCycle');
-  var isOn = track.classList.toggle('on');
-  label.textContent = isOn ? 'On — all clients included' : 'Off — filter by cycle';
-  selCycle.disabled = isOn;
-  selCycle.style.opacity = isOn ? '0.4' : '1';
-  updateEmBadge();
-}
-
-function updateEmBadge() {
-  var allOn = document.getElementById('emAllTrack').classList.contains('on');
-  var nameBtn = document.querySelector('.em-toggle[data-group="names"].active');
-  var nameVal = nameBtn ? nameBtn.dataset.val : 'unique';
-  var isDefault = !allOn && nameVal === 'unique';
-  document.getElementById('emBadge').style.display = isDefault ? 'none' : 'inline-flex';
-}
-
-(function setupEmailOptions() {
-  var style = document.createElement('style');
-  style.textContent = [
-    '.em-card-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;cursor:pointer;user-select:none;transition:background .15s}',
-    '.em-card-body{max-height:0;overflow:hidden;transition:max-height .3s ease,opacity .25s ease;opacity:0}',
-    '.em-card-body.open{max-height:160px;opacity:1}',
-    '.em-card-inner{padding:1rem 1.25rem;border-top:0.5px solid var(--border);display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start}',
-    '.em-chevron{font-size:13px;color:var(--text-muted);transition:transform .25s ease}',
-    '.em-chevron.open{transform:rotate(180deg)}',
-    '.em-badge{display:inline-flex;align-items:center;background:rgba(58,111,216,.15);color:#7aaaf0;border-radius:20px;padding:2px 10px;font-size:11px;margin-left:8px}',
-    '.em-toggle{padding:6px 14px;border-radius:6px;border:1.5px solid var(--border);background:var(--surface);color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .15s}',
-    '.em-toggle.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}',
-    '.em-pill-track{width:38px;height:20px;border-radius:10px;border:0.5px solid var(--border);background:var(--surface);position:relative;transition:background .2s;cursor:pointer;flex-shrink:0}',
-    '.em-pill-track.on{background:var(--accent);border-color:var(--accent)}',
-    '.em-pill-thumb{width:14px;height:14px;border-radius:50%;background:var(--text-muted);position:absolute;top:2px;left:2px;transition:transform .2s,background .2s}',
-    '.em-pill-track.on .em-pill-thumb{transform:translateX(18px);background:#fff}'
-  ].join(' ');
-  document.head.appendChild(style);
-
-  var card = document.createElement('div');
-  card.id = 'emailOptionsCard';
-  card.className = 'card';
-  card.style.display = 'none';
-  card.style.padding = '0';
-  card.style.overflow = 'hidden';
-  card.innerHTML = '<div class="em-card-header" onclick="toggleEmOptions()">'
-    + '<div style="display:flex;align-items:center;">'
-    + '<span style="font-size:11px;font-weight:500;color:var(--text-muted);letter-spacing:.6px;text-transform:uppercase;">Email Matcher Options</span>'
-    + '<span class="em-badge" id="emBadge" style="display:none;">Custom</span>'
-    + '</div>'
-    + '<span class="em-chevron" id="emChevron">▾</span>'
-    + '</div>'
-    + '<div class="em-card-body" id="emBody">'
-    + '<div class="em-card-inner">'
-    + '<div style="display:flex;flex-direction:column;gap:8px;">'
-    + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">All Clients</div>'
-    + '<div style="display:flex;align-items:center;gap:10px;" onclick="toggleEmAll()">'
-    + '<div class="em-pill-track" id="emAllTrack"><div class="em-pill-thumb"></div></div>'
-    + '<span style="font-size:13px;color:var(--text);cursor:pointer;" id="emAllLabel">Off — filter by cycle</span>'
-    + '</div>'
-    + '</div>'
-    + '<div style="display:flex;flex-direction:column;gap:8px;">'
-    + '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);">Name Mode</div>'
-    + '<div style="display:flex;gap:8px;">'
-    + '<button class="em-toggle active" data-group="names" data-val="unique" onclick="setEmailOption(&apos;names&apos;,&apos;unique&apos;,this)">Unique Names</button>'
-    + '<button class="em-toggle" data-group="names" data-val="repeat" onclick="setEmailOption(&apos;names&apos;,&apos;repeat&apos;,this)">Repeating (Payment Sheet)</button>'
-    + '</div>'
-    + '</div>'
-    + '</div>'
-    + '</div>';
-
-  var emailSheetCard = document.getElementById('emailSheetCard');
-  emailSheetCard.parentNode.insertBefore(card, emailSheetCard);
-
-  document.querySelectorAll('.mode-tab').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      card.style.display = btn.dataset.mode === 'email' ? 'block' : 'none';
-    });
-  });
-})();
