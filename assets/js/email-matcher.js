@@ -9,27 +9,40 @@ window.EmailMatcherStandalone = (function () {
   let mountId = '';
   let inited = false;
 
-  let file1Workbook = null;     // raw XLSX workbook
-  let file1Sheets = [];         // [{name, headerRowIdx, clientCol, rows}]
-  let selectedSheetNames = [];  // sheets to process
-  let emailData = [];           // raw rows from email sheet
-  let emailRecords = [];        // built lookup records
-  let outputBySheet = {};       // { sheetName: [{...rowResult}] }
+  let file1Workbook = null;
+  let file1Sheets = [];         // [{name, headerRowIdx, colMap, rows}]
+  let selectedSheetNames = [];
+  let emailData = [];
+  let emailRecords = [];
+  let outputBySheet = {};       // { sheetName: { results: [...] } }
+
+  const OUTPUT_COLUMNS = [
+    'CLIENT TYPE',
+    'CLIENT NAME',
+    'CLIENT NAME (EMAIL SHEET)',
+    'NATIONALITY',
+    'DEDUCTION',
+    'EMAIL 1',
+    'EMAIL 2',
+  ];
 
   // ── Helpers ──────────────────────────────────────────────────
 
   function q(sel) { return document.getElementById(mountId).querySelector(sel); }
-  function qa(sel) { return document.getElementById(mountId).querySelectorAll(sel); }
 
-  function findClientNameHeader(rows) {
+  function findHeaderCols(rows) {
     for (let i = 0; i < Math.min(5, rows.length); i++) {
       const row = rows[i];
       if (!row) continue;
-      for (let c = 0; c < row.length; c++) {
-        const v = row[c];
-        if (v && String(v).toLowerCase().trim().includes('client name')) {
-          return { headerRowIdx: i, clientCol: c };
-        }
+      let clientCol = -1, clientTypeCol = -1, deductionCol = -1;
+      row.forEach((v, c) => {
+        const h = v ? String(v).toLowerCase().trim() : '';
+        if (h.includes('client name')) clientCol = c;
+        else if (h.includes('client type')) clientTypeCol = c;
+        else if (h.includes('deduction')) deductionCol = c;
+      });
+      if (clientCol !== -1) {
+        return { headerRowIdx: i, clientCol, clientTypeCol, deductionCol };
       }
     }
     return null;
@@ -40,16 +53,6 @@ window.EmailMatcherStandalone = (function () {
     if (!text) return ['', ''];
     const parts = text.split(/[,:;\s]+/).map(p => p.trim()).filter(Boolean);
     return [parts[0] || '', parts[1] || ''];
-  }
-
-  function parseDateValue(value) {
-    if (value === null || value === undefined || value === '') return '';
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      const parsed = XLSX.SSF.parse_date_code(value);
-      if (!parsed) return '';
-      return `${String(parsed.d).padStart(2,'0')}/${String(parsed.m).padStart(2,'0')}/${parsed.y}`;
-    }
-    return '';
   }
 
   // ── Build email sheet lookup records (unchanged matching logic) ──
@@ -75,14 +78,11 @@ window.EmailMatcherStandalone = (function () {
       const normName   = normalizeName(mainName || rawName, true);
       const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
       const emailRaw   = String(row[15] || '').trim();
-      const emails     = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
 
       const record = {
         emailSheetClientName: rawName, normName, normParen,
         clientEmailRaw: emailRaw,
-        mobile: String(row[16] || '').split(/[,;]+/)[0].replace(/\s+/g,'').trim(),
         nationality: row[17] != null ? String(row[17]).trim() : '',
-        eid: row[18] != null ? String(row[18]).trim() : '',
       };
 
       if (!grouped.has(normName)) grouped.set(normName, record);
@@ -120,8 +120,8 @@ window.EmailMatcherStandalone = (function () {
     wb.SheetNames.forEach(name => {
       const ws = wb.Sheets[name];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
-      const hdr = findClientNameHeader(rows);
-      if (hdr) sheetsFound.push({ name, headerRowIdx: hdr.headerRowIdx, clientCol: hdr.clientCol, rows });
+      const hdr = findHeaderCols(rows);
+      if (hdr) sheetsFound.push({ name, ...hdr, rows });
     });
 
     if (sheetsFound.length === 0) {
@@ -137,7 +137,7 @@ window.EmailMatcherStandalone = (function () {
 
     file1Workbook = wb;
     file1Sheets = sheetsFound;
-    selectedSheetNames = [sheetsFound[0].name]; // first qualifying sheet always on
+    selectedSheetNames = [sheetsFound[0].name];
 
     q('#em-file1-loaded').classList.add('show');
     q('#em-file1-loaded-name').textContent = filename;
@@ -212,35 +212,32 @@ window.EmailMatcherStandalone = (function () {
       const sheet = file1Sheets.find(s => s.name === sheetName);
       if (!sheet) return;
 
-      const headers = sheet.rows[sheet.headerRowIdx].map(h => h != null ? String(h) : '');
       const dataRows = sheet.rows.slice(sheet.headerRowIdx + 1).filter(r => r && r.some(v => v !== null && v !== ''));
 
       const results = dataRows.map(row => {
         const rawClientName = row[sheet.clientCol] != null ? String(row[sheet.clientCol]).trim() : '';
-        let matched = null, notes = '';
-        if (!rawClientName) {
-          notes = '';
-        } else {
-          matched = lookupMatch(rawClientName);
-          notes = matched ? '' : 'No match found';
-        }
+        const clientType = sheet.clientTypeCol !== -1 && row[sheet.clientTypeCol] != null
+          ? String(row[sheet.clientTypeCol]).trim() : '';
+        const deduction = sheet.deductionCol !== -1 && row[sheet.deductionCol] != null
+          ? String(row[sheet.deductionCol]).trim() : '';
+
+        let matched = null;
+        if (rawClientName) matched = lookupMatch(rawClientName);
 
         const [email1, email2] = matched ? splitEmails(matched.clientEmailRaw) : ['', ''];
 
         return {
-          originalRow: row,
-          rawClientName,
+          clientType,
+          clientName: rawClientName,
           emailSheetClientName: matched ? matched.emailSheetClientName : '',
-          email1, email2,
-          mobile: matched ? matched.mobile : '',
           nationality: matched ? matched.nationality : '',
-          eid: matched ? matched.eid : '',
-          notes,
+          deduction,
+          email1, email2,
           matched: !!matched,
         };
       });
 
-      outputBySheet[sheetName] = { headers, results };
+      outputBySheet[sheetName] = { results };
       totalRows += results.length;
       totalMatched += results.filter(r => r.matched).length;
     });
@@ -260,27 +257,19 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    document.getElementById(mountId).querySelector('#em-table-head').innerHTML = `<tr>
-      <th>#</th>
-      <th>Client Name</th>
-      <th>Client Name (Email Sheet)</th>
-      <th>Email 1</th>
-      <th>Mobile</th>
-      <th>Notes</th>
-    </tr>`;
+    document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
+      '<tr>' + OUTPUT_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
 
     document.getElementById(mountId).querySelector('#em-table-body').innerHTML =
-      data.results.slice(0, PREVIEW_COUNT).map((r, i) => {
-        const noteBadge = r.notes
-          ? `<span class="badge badge-flag">${esc(r.notes)}</span>`
-          : (r.matched ? `<span class="badge badge-ok">Matched</span>` : '');
+      data.results.slice(0, PREVIEW_COUNT).map(r => {
         return `<tr>
-          <td class="td-hint">${i+1}</td>
-          <td class="td-name">${esc(r.rawClientName || '—')}</td>
-          <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '—')}</td>
-          <td class="td-mono">${esc(r.email1 || '—')}</td>
-          <td class="td-mono">${esc(r.mobile || '—')}</td>
-          <td class="td-note">${noteBadge}</td>
+          <td>${esc(r.clientType || '')}</td>
+          <td class="td-name">${esc(r.clientName || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
+          <td>${esc(r.nationality || '')}</td>
+          <td>${esc(r.deduction || '')}</td>
+          <td class="td-mono">${esc(r.email1 || '')}</td>
+          <td class="td-mono">${esc(r.email2 || '')}</td>
         </tr>`;
       }).join('');
 
@@ -311,20 +300,17 @@ window.EmailMatcherStandalone = (function () {
       const data = outputBySheet[sheetName];
       if (!data) return;
 
-      const exportRows = data.results.map(r => {
-        const row = {};
-        data.headers.forEach((h, idx) => { row[h || `Col${idx+1}`] = r.originalRow[idx]; });
-        row['CLIENT NAME (EMAIL SHEET)']        = r.emailSheetClientName;
-        row['EMAIL 1']                          = r.email1;
-        row['EMAIL 2']                          = r.email2;
-        row['MOBILE']                           = r.mobile;
-        row['NATIONALITY']                      = r.nationality;
-        row['EID/PASSPORT/NATIONAL CARD']       = r.eid;
-        row['NOTES']                            = r.notes;
-        return row;
-      });
+      const exportRows = data.results.map(r => ({
+        'CLIENT TYPE':                  r.clientType,
+        'CLIENT NAME':                  r.clientName,
+        'CLIENT NAME (EMAIL SHEET)':    r.emailSheetClientName,
+        'NATIONALITY':                  r.nationality,
+        'DEDUCTION':                    r.deduction,
+        'EMAIL 1':                      r.email1,
+        'EMAIL 2':                      r.email2,
+      }));
 
-      const ws = XLSX.utils.json_to_sheet(exportRows);
+      const ws = XLSX.utils.json_to_sheet(exportRows, { header: OUTPUT_COLUMNS });
       const safeName = sheetName.substring(0, 31);
       XLSX.utils.book_append_sheet(wb, ws, safeName);
     });
