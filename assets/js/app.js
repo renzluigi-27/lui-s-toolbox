@@ -134,7 +134,7 @@ const SHARED_CONTAINERS = {
   }
   document.getElementById('selMonth').value = now.getMonth() + 1;
   updateTabUI();
-  animateCards();
+  animateUploadRowCards();
   document.getElementById('selMonth').addEventListener('change', updateRefHint);
   document.getElementById('selCycle').addEventListener('change', updateRefHint);
   document.getElementById('selYear').addEventListener('change', updateRefHint);
@@ -220,6 +220,16 @@ function updateTabUI() {
   if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   updateRefHint();
   updateGenerateBtn();
+}
+
+function animateUploadRowCards() {
+  const row = document.getElementById('mainUploadRow');
+  if (!row) return;
+  const cards = [...row.querySelectorAll('.card')];
+  cards.forEach(card => { card.classList.remove('card-animate'); void card.offsetWidth; });
+  cards.forEach((card, i) => {
+    setTimeout(() => card.classList.add('card-animate'), i * 65);
+  });
 }
 
 function animateCards() {
