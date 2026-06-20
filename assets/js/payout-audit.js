@@ -463,7 +463,7 @@
       '<div class="section-label">' + label + '</div>' +
       '<div class="upload-zone upload-zone-sm" id="' + id + '-zone">' +
         '<input type="file" accept=".xlsx,.xls" id="' + id + '-input" />' +
-        '<div class="upload-zone-text"><strong>Click to upload or drag &amp; drop</strong>' + hint + '</div>' +
+        '<div class="upload-zone-text"><strong>Click to upload</strong>' + hint + '</div>' +
       '</div>' +
       '<div class="file-loaded" id="' + id + '-loaded">' +
         '<span class="file-loaded-name"></span><span class="file-loaded-meta"></span></div>' +
@@ -472,12 +472,14 @@
 
   function render() {
     mount.innerHTML = '' +
-      uploadCard('pa-gen',  'Payout Generator', 'Sets the filename · .xlsx') +
-      uploadCard('pa-acc',  'Accounts List', 'LOCAL + INTERNATIONAL auto-combined · .xlsx') +
-      uploadCard('pa-info', 'Updated Payment Info Sheet', 'Reason tagging (cycle + restart) · .xlsx') +
-      '<div class="card">' +
-        '<button class="btn-primary" id="pa-run" style="width:100%;justify-content:center;" disabled>Run audit</button>' +
-        '<button class="btn-primary" id="pa-dl" style="width:100%;justify-content:center;margin-top:8px;" disabled>Download audit file</button>' +
+      '<div class="upload-row">' +
+        uploadCard('pa-gen',  'Payout Generator', '.xlsx') +
+        uploadCard('pa-acc',  'Accounts List', '.xlsx') +
+        uploadCard('pa-info', 'Updated Payment Info Sheet', '.xlsx') +
+      '</div>' +
+      '<div class="card action-card">' +
+        '<button class="btn-primary" id="pa-run" disabled>Run audit</button>' +
+        '<button class="btn-primary" id="pa-dl" disabled>Download audit file</button>' +
         '<div class="msg" id="pa-msg"></div>' +
       '</div>' +
       '<div id="pa-results"></div>';
