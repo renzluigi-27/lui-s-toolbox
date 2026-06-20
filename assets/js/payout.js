@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────
 // PAYOUT GENERATOR MODE — payout.js
-// Depends on: shared.js, app.js, email-matcher.js (buildEmailRecords)
+// Depends on: shared.js, app.js
 // ─────────────────────────────────────────────────────────────────
 
 function runPayout(yr, mo, cycle) {
