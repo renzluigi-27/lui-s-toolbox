@@ -260,6 +260,21 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.4</strong> — Email Matcher rewrite + AIO Tool layout overhaul<br>
+              <div style="padding-left:1rem;">
+                • Email Matcher rebuilt as a standalone, generic tool — works with any Excel file as long as it has a CLIENT NAME column, no longer tied to a specific cycle or sheet structure<br>
+                • Safety gate: Email Matcher blocks processing if no CLIENT NAME header is found in the uploaded file<br>
+                • Multi-tab files auto-detected — first tab processed by default, with the option to include other matching tabs<br>
+                • Email Matcher output simplified to: Client Type, Client Name, Client Name (Email Sheet), Nationality, Deduction, Email 1, Email 2 — all caps headers, unmatched fields left blank for manual review<br>
+                • Output filename now includes the exact time of generation to prevent overwritten duplicates (e.g. EMAIL_MATCHER_20JUN2026_143052.xlsx)<br>
+                • Payout Generator, IP Deduction, and Payout Auditor upload zones condensed into a single row layout — less scrolling, more compact<br>
+                • Cycle settings (Month, Cycle, Year) moved into their own dedicated card, separate from file uploads<br>
+                • Generate / Run Audit buttons now use a consistent full-width style across all AIO Tool tabs<br>
+                • Fixed a bug where the main upload row could disappear after visiting Payout Auditor and switching back<br>
+                • Fixed a bug where the Generate button row could vanish when browsing between tabs<br>
+                • Card entrance animations simplified and synced across all tabs — lighter on CPU, no more staggered delays<br>
+              </div><br>
+              
               <strong>Version 2.0.3</strong> — Payout Auditor + Generator fixes<br>
               <div style="padding-left:1rem;">
                 • Payout Auditor added as a new tab in AIO Tool — compares generated payout against accounts list with no recompute<br>
