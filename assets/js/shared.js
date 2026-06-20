@@ -189,6 +189,53 @@ function analyzeGroups(rows) {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// EMAIL SHEET — shared by payout.js / ip-deduction.js integrated matching
+// ─────────────────────────────────────────────────────────────────
+function splitEmails(value) {
+  const text = String(value || '').trim();
+  if (!text) return ['', ''];
+  const parts = text.split(/[,:;\s]+/).map(p => p.trim()).filter(Boolean);
+  return [parts[0] || '', parts[1] || ''];
+}
+
+function buildEmailRecords() {
+  const rows = emailData.slice(1);
+
+  let lastEmail = '';
+  let lastClientName = '';
+  rows.forEach(row => {
+    const e = row[15] != null ? String(row[15]).trim() : '';
+    const clientName = String(row[0] || '').trim();
+    if (clientName !== lastClientName) { lastEmail = ''; lastClientName = clientName; }
+    if (e) lastEmail = e;
+    else if (lastEmail) row[15] = lastEmail;
+  });
+
+  const grouped = new Map();
+  rows.forEach(row => {
+    const rawName    = String(row[0] || '').trim();
+    const parenMatch = rawName.match(/\(([^)]+)\)/);
+    const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
+    const normName   = normalizeName(mainName || rawName, true);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const emailRaw   = String(row[15] || '').trim();
+
+    const record = {
+      emailSheetClientName: rawName, normName, normParen,
+      clientEmailRaw: emailRaw,
+      mobile: String(row[16] || '').split(/[,;]+/)[0].replace(/\s+/g,'').trim(),
+      nationality: row[17] != null ? String(row[17]).trim() : '',
+      eid: row[18] != null ? String(row[18]).trim() : '',
+    };
+
+    if (!grouped.has(normName)) grouped.set(normName, record);
+    if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
+  });
+
+  return Array.from(grouped.values());
+}
+
+// ─────────────────────────────────────────────────────────────────
 // REROUTE MAP BUILDER
 // ─────────────────────────────────────────────────────────────────
 function parseRerouteSheet(raw) {
