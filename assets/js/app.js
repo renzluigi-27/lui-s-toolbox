@@ -185,7 +185,7 @@ function updateTabUI() {
   const isEmail = activeMode === 'email';
 
   const genCards = [
-    document.querySelector('.upload-row'),
+    document.getElementById('mainUploadRow'),
     document.getElementById('cycleCard'),
     document.getElementById('refUploadZone').closest('.card'),
     document.getElementById('generateBtn').closest('.card'),
