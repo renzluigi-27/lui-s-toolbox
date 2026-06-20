@@ -362,7 +362,7 @@ header                        { animation: liquidFadeUp 0.45s 0.02s ease both; }
 }
 
 .container .card.card-animate {
-  animation: cardFadeInUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  animation: cardFadeInUp 0.25s ease both !important;
 }
 
 @keyframes cardFadeOut {
