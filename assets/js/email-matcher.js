@@ -1,276 +1,446 @@
 // ─────────────────────────────────────────────────────────────────
 // EMAIL MATCHER MODE — email-matcher.js
-// Depends on: shared.js, app.js
+// Standalone module — mounts into #emailMatcherMount via EmailMatcherStandalone.init()
+// Depends on: shared.js, app.js (esc, normalizeName, PREVIEW_COUNT, MONTHS)
 // ─────────────────────────────────────────────────────────────────
 
-function parseDateValue(value) {
-  if (value === null || value === undefined || value === '') return '';
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const parsed = XLSX.SSF.parse_date_code(value);
-    if (!parsed) return '';
-    return `${String(parsed.d).padStart(2,'0')}/${String(parsed.m).padStart(2,'0')}/${parsed.y}`;
-  }
-  const raw = String(value).trim();
-  if (!raw) return '';
-  const match = raw.match(/^(\d{1,4})[\/\-.](\d{1,2})[\/\-.](\d{1,4})$/);
-  if (match) {
-    let a = parseInt(match[1],10), b = parseInt(match[2],10), c = parseInt(match[3],10);
-    let day, month, year;
-    if (match[1].length === 4) { year=a; month=b; day=c; } else { day=a; month=b; year=c; }
-    if (year < 100) year += year >= 70 ? 1900 : 2000;
-    return `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
-  }
-  return '';
-}
+window.EmailMatcherStandalone = (function () {
 
-function splitEmails(value) {
-  const text = String(value || '').trim();
-  if (!text) return ['',''];
-  const parts = text.split(/[,:;\s]+/).map(p => p.trim()).filter(Boolean);
-  return [parts[0] || '', parts[1] || ''];
-}
+  let mountId = '';
+  let inited = false;
 
-function buildEmailRecords() {
-  const rows = emailData.slice(1);
+  let file1Workbook = null;     // raw XLSX workbook
+  let file1Sheets = [];         // [{name, headerRowIdx, clientCol, rows}]
+  let selectedSheetNames = [];  // sheets to process
+  let emailData = [];           // raw rows from email sheet
+  let emailRecords = [];        // built lookup records
+  let outputBySheet = {};       // { sheetName: [{...rowResult}] }
 
-  // Fill-down email (col 15) only within same client — don't fill-down mobile
-  let lastEmail = '';
-  let lastClientName = '';
+  // ── Helpers ──────────────────────────────────────────────────
 
-  rows.forEach(row => {
-    const e = row[15] != null ? String(row[15]).trim() : '';
-    const clientName = String(row[0] || '').trim();
-    
-    // Reset email when switching to different client
-    if (clientName !== lastClientName) {
-      lastEmail = '';
-      lastClientName = clientName;
+  function q(sel) { return document.getElementById(mountId).querySelector(sel); }
+  function qa(sel) { return document.getElementById(mountId).querySelectorAll(sel); }
+
+  function findClientNameHeader(rows) {
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const row = rows[i];
+      if (!row) continue;
+      for (let c = 0; c < row.length; c++) {
+        const v = row[c];
+        if (v && String(v).toLowerCase().trim().includes('client name')) {
+          return { headerRowIdx: i, clientCol: c };
+        }
+      }
     }
-    
-    // Fill-down email only for same client
-    if (e) lastEmail = e; 
-    else if (lastEmail) row[15] = lastEmail;
-  });
+    return null;
+  }
 
-  const grouped = new Map();
-  rows.forEach(row => {
-    const rawName    = String(row[0] || '').trim();
-    const parenMatch = rawName.match(/\(([^)]+)\)/);
-    const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
-    const normName   = normalizeName(mainName || rawName, true);
+  function splitEmails(value) {
+    const text = String(value || '').trim();
+    if (!text) return ['', ''];
+    const parts = text.split(/[,:;\s]+/).map(p => p.trim()).filter(Boolean);
+    return [parts[0] || '', parts[1] || ''];
+  }
+
+  function parseDateValue(value) {
+    if (value === null || value === undefined || value === '') return '';
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      const parsed = XLSX.SSF.parse_date_code(value);
+      if (!parsed) return '';
+      return `${String(parsed.d).padStart(2,'0')}/${String(parsed.m).padStart(2,'0')}/${parsed.y}`;
+    }
+    return '';
+  }
+
+  // ── Build email sheet lookup records (unchanged matching logic) ──
+
+  function buildEmailRecords() {
+    const rows = emailData.slice(1);
+
+    let lastEmail = '';
+    let lastClientName = '';
+    rows.forEach(row => {
+      const e = row[15] != null ? String(row[15]).trim() : '';
+      const clientName = String(row[0] || '').trim();
+      if (clientName !== lastClientName) { lastEmail = ''; lastClientName = clientName; }
+      if (e) lastEmail = e;
+      else if (lastEmail) row[15] = lastEmail;
+    });
+
+    const grouped = new Map();
+    rows.forEach(row => {
+      const rawName    = String(row[0] || '').trim();
+      const parenMatch = rawName.match(/\(([^)]+)\)/);
+      const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
+      const normName   = normalizeName(mainName || rawName, true);
+      const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+      const emailRaw   = String(row[15] || '').trim();
+      const emails     = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+
+      const record = {
+        emailSheetClientName: rawName, normName, normParen,
+        clientEmailRaw: emailRaw,
+        mobile: String(row[16] || '').split(/[,;]+/)[0].replace(/\s+/g,'').trim(),
+        nationality: row[17] != null ? String(row[17]).trim() : '',
+        eid: row[18] != null ? String(row[18]).trim() : '',
+      };
+
+      if (!grouped.has(normName)) grouped.set(normName, record);
+      if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
+    });
+
+    return Array.from(grouped.values());
+  }
+
+  function lookupMatch(rawClientName) {
+    const norm      = normalizeName(rawClientName, false);
+    const parenMatch = rawClientName.match(/\(([^)]+)\)/);
     const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
-    const emailRaw   = String(row[15] || '').trim();
-    const emails     = emailRaw.split(/[,:;\s]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+    const normOuter  = normalizeName(rawClientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+    const find = n => emailRecords.find(r => r.normName === n || r.normParen === n);
+    return (normParen && find(normParen)) || find(normOuter) || find(norm) || null;
+  }
 
-    const record = {
-      emailSheetClientName: rawName, normName, normParen,
-      agentEmail: String(row[2] || '').split(/[,:;\s]+/)[0].trim(),
-      paymentReceivedDate: parseDateValue(row[5]),
-      clientEmailRaw: emailRaw,
-      mobile: String(row[16] || '').split(/[,;]+/)[0].replace(/\s+/g,'').trim(),
-      nationality: row[17] != null ? String(row[17]).trim() : '',
-      eid: row[18] != null ? String(row[18]).trim() : '',
-      multipleEmails: emails.length > 1,
-    };
+  // ── File 1 handling ──────────────────────────────────────────
 
-    if (!grouped.has(normName)) grouped.set(normName, record);
-    if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
-  });
+  function handleFile1(buf, filename) {
+    const errEl = q('#em-file1-error');
+    errEl.className = 'msg'; errEl.textContent = '';
 
-  return Array.from(grouped.values());
-}
+    let wb;
+    try {
+      wb = XLSX.read(buf, { type: 'array', cellDates: false });
+    } catch (ex) {
+      errEl.className = 'msg error show';
+      errEl.textContent = 'Error reading file: ' + ex.message;
+      return;
+    }
 
-const AGENT_EMAIL_MAP = {
-  'faiqa':             'bdm@legendmaritime.com',
-  'naushad':           'manager@coraluae.com',
-  'numan':             'wm@aim-bc.com',
-  'kate':              'wm@aim-bc.com',
-  'ali altawel':       'ali_altawel@legendmaritime.com',
-  'mustafa':           'ali_altawel@legendmaritime.com',
-  'janagan':           'janagan@legendmaritime.com',
-  'christian':         'christian@legendmaritime.com',
-  'himali':            'renz@legendmaritime.com',
-  'ms. sagithra nath': 'cfo@legendmaritime.com',
-  'sagithra nath':     'cfo@legendmaritime.com',
-  'mag':               'lauriane@legendmaritime.com',
-  'mr. ahnaf':         'mohamedahnaf@legendmaritime.com',
-  'ahnaf':             'mohamedahnaf@legendmaritime.com',
-  'ruheed':            'ruheed@coraluae.com',
-  'athul':             'athul@coraluae.com',
-  'sanjana':           'sanjana@legendmaritime.com',
-  'khadija':           'khadija@coraluae.com',
-  'renz':              'renz@legendmaritime.com',
-};
+    const sheetsFound = [];
+    wb.SheetNames.forEach(name => {
+      const ws = wb.Sheets[name];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+      const hdr = findClientNameHeader(rows);
+      if (hdr) sheetsFound.push({ name, headerRowIdx: hdr.headerRowIdx, clientCol: hdr.clientCol, rows });
+    });
 
-function runEmailMatcher(yr, mo, cycle, cycleOpt, nameMode) {
-  if (!emailData.length) { showMsg('genError', 'Please upload the email sheet.', 'error'); return; }
+    if (sheetsFound.length === 0) {
+      errEl.className = 'msg error show';
+      errEl.textContent = '⚠ No "CLIENT NAME" column header found in this file. Tool cannot proceed.';
+      file1Workbook = null;
+      file1Sheets = [];
+      q('#em-file1-loaded').classList.remove('show');
+      q('#em-sheet-select-card').style.display = 'none';
+      checkReady();
+      return;
+    }
 
-  const emailRecords = buildEmailRecords();
+    file1Workbook = wb;
+    file1Sheets = sheetsFound;
+    selectedSheetNames = [sheetsFound[0].name]; // first qualifying sheet always on
 
-  const prevMatchMap = new Map();
-  if (refData.length > 1) {
-    refData.slice(1).forEach(r => {
-      if (!r || !r[0]) return;
-      const normName = normalizeName(String(r[0]), true);
-      prevMatchMap.set(normName, {
-        email1: String(r[3] || '').trim(),
-        email2: String(r[4] || '').trim(),
-        mobile: String(r[5] || '').trim(),
-        emailSheetClientName: String(r[1] || '').trim(),
+    q('#em-file1-loaded').classList.add('show');
+    q('#em-file1-loaded-name').textContent = filename;
+    q('#em-file1-loaded-meta').textContent = `${sheetsFound.length} tab(s) with CLIENT NAME found`;
+
+    renderSheetSelector();
+    checkReady();
+  }
+
+  function renderSheetSelector() {
+    const card = q('#em-sheet-select-card');
+    const list = q('#em-sheet-list');
+    if (file1Sheets.length <= 1) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = file1Sheets.map((s, i) => {
+      const checked = i === 0 ? 'checked disabled' : (selectedSheetNames.includes(s.name) ? 'checked' : '');
+      return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--liq-text);padding:6px 0;">
+        <input type="checkbox" data-sheet="${esc(s.name)}" ${checked} style="width:16px;height:16px;">
+        ${esc(s.name)} ${i === 0 ? '<span style="color:var(--liq-text-hint);font-size:11px;">(default)</span>' : ''}
+      </label>`;
+    }).join('');
+
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const name = cb.dataset.sheet;
+        if (cb.checked) {
+          if (!selectedSheetNames.includes(name)) selectedSheetNames.push(name);
+        } else {
+          selectedSheetNames = selectedSheetNames.filter(n => n !== name);
+        }
       });
     });
   }
 
-  const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
-  const payoutDate = new Date(yr, mo - 1, payoutDay);
+  // ── Email sheet handling ─────────────────────────────────────
 
-  const paySource = (cycleOpt === 'all')
-    ? paymentData.filter(r => !r.firstPayout || r.firstPayout <= payoutDate)
-    : paymentData.filter(r => {
-        const c = String(r.payoutCycle).replace(/\s/g, '');
-        const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
-        return cycleMatch && (!r.firstPayout || r.firstPayout <= payoutDate);
+  function handleEmailFile(buf, filename) {
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    emailData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+    q('#em-file2-loaded').classList.add('show');
+    q('#em-file2-loaded-name').textContent = filename;
+    checkReady();
+  }
+
+  // ── Ready check ──────────────────────────────────────────────
+
+  function checkReady() {
+    const btn  = q('#em-generate-btn');
+    const hint = q('#em-generate-hint');
+    const ready = file1Sheets.length > 0 && emailData.length > 0;
+    btn.disabled = !ready;
+    hint.textContent = ready
+      ? 'Ready to generate'
+      : file1Sheets.length === 0
+        ? 'Upload File 1 (with CLIENT NAME column) to continue'
+        : 'Upload email sheet to continue';
+  }
+
+  // ── Generate ─────────────────────────────────────────────────
+
+  function generate() {
+    emailRecords = buildEmailRecords();
+    outputBySheet = {};
+
+    let totalRows = 0, totalMatched = 0;
+
+    selectedSheetNames.forEach(sheetName => {
+      const sheet = file1Sheets.find(s => s.name === sheetName);
+      if (!sheet) return;
+
+      const headers = sheet.rows[sheet.headerRowIdx].map(h => h != null ? String(h) : '');
+      const dataRows = sheet.rows.slice(sheet.headerRowIdx + 1).filter(r => r && r.some(v => v !== null && v !== ''));
+
+      const results = dataRows.map(row => {
+        const rawClientName = row[sheet.clientCol] != null ? String(row[sheet.clientCol]).trim() : '';
+        let matched = null, notes = '';
+        if (!rawClientName) {
+          notes = '';
+        } else {
+          matched = lookupMatch(rawClientName);
+          notes = matched ? '' : 'No match found';
+        }
+
+        const [email1, email2] = matched ? splitEmails(matched.clientEmailRaw) : ['', ''];
+
+        return {
+          originalRow: row,
+          rawClientName,
+          emailSheetClientName: matched ? matched.emailSheetClientName : '',
+          email1, email2,
+          mobile: matched ? matched.mobile : '',
+          nationality: matched ? matched.nationality : '',
+          eid: matched ? matched.eid : '',
+          notes,
+          matched: !!matched,
+        };
       });
 
-  const rowsToProcess = (nameMode === 'unique')
-    ? (() => {
-        const seen = new Map();
-        paySource.forEach(r => {
-          const key = normalizeName(r.clientName, false);
-          if (!seen.has(key)) seen.set(key, r);
-        });
-        return Array.from(seen.values());
-      })()
-    : paySource;
+      outputBySheet[sheetName] = { headers, results };
+      totalRows += results.length;
+      totalMatched += results.filter(r => r.matched).length;
+    });
 
-  _emCycleOpt = cycleOpt;
-  _emNameMode = nameMode;
+    renderPreview(totalRows, totalMatched);
+  }
 
-  results = rowsToProcess.map(row => {
-    const group = { clientName: row.clientName, norm: normalizeName(row.clientName, false),
-                    units: 1, agent: row.agent || '', note: '' };
-    const group_norm = group.norm;
-    const normName   = group_norm;
-    const parenMatch = group.clientName.match(/\(([^)]+)\)/);
-    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
-    const normOuter  = normalizeName(group.clientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+  // ── Preview ──────────────────────────────────────────────────
 
-    const lookup  = n => emailRecords.find(r => r.normName === n || r.normParen === n);
-    const matched = (normParen && lookup(normParen)) || lookup(normOuter) || null;
+  function renderPreview(totalRows, totalMatched) {
+    const resCard = q('#em-results-card');
+    resCard.style.display = 'block';
 
-    const [email1raw, email2raw] = splitEmails(matched ? matched.clientEmailRaw : '');
-    let email1 = email1raw, email2 = email2raw, mobile = matched ? matched.mobile : '';
+    const firstSheet = selectedSheetNames[0];
+    const data = outputBySheet[firstSheet];
 
-    let emailSheetClientNameFromRef = '';
-    const prev = prevMatchMap.get(normName);
-    if (prev) {
-      if (!email1 && prev.email1) { email1 = prev.email1; email2 = prev.email2; }
-      if (!mobile && prev.mobile) mobile = prev.mobile;
-      if (!matched && prev.emailSheetClientName) emailSheetClientNameFromRef = prev.emailSheetClientName;
-    }
+    q('#em-results-title').textContent =
+      `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const resolvedAgentEmail = AGENT_EMAIL_MAP[group.agent.toLowerCase().trim()] || '';
-
-    const notes = [];
-    const hasMultiAgents = group.note && /multiple agents/i.test(group.note);
-    if (hasMultiAgents) {
-      notes.push(group.note);
-    } else {
-      if (!matched)                          notes.push('Name not found in email sheet');
-      if (matched && !email1)                notes.push('Email missing in email sheet');
-      if (matched && matched.multipleEmails) notes.push('Multiple emails detected');
-      if (matched && !resolvedAgentEmail)    notes.push('Agent email missing');
-      if (matched && !group.agent)           notes.push('Agent name missing');
-    }
-
-    if (/saif mohammed saif mohammed almehrzi/i.test(group.clientName)) {
-      notes.push('⚑ Double check — verify client identity');
-    }
-    if (/coral wealth investment/i.test(group.clientName)) {
-      notes.push('⚑ No email found — verify');
-    }
-    if (/maryam rashed moham alzeyoudi/i.test(group.clientName)) {
-      notes.push('⚑ Not in email sheet — verify');
-    }
-
-    const status = matched ? 'valid' : 'invalid';
-
-    return {
-      clientName: group.clientName,
-      emailSheetClientName: matched ? matched.emailSheetClientName : emailSheetClientNameFromRef,
-      units: group.units, email1, email2, mobile,
-      nationality: matched ? matched.nationality : '',
-      eid: matched ? matched.eid : '',
-      agentClosing: group.agent, agentEmail: resolvedAgentEmail,
-      notes: notes.join(' | '), status,
-    };
-  });
-
-  const cycleLabel = cycleOpt === 'all' ? 'All Clients' : (cycle === '15' ? '15th' : 'End of Month');
-  const nameLabel  = nameMode === 'unique' ? 'Unique Names' : 'Repeating';
-  showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${nameLabel} · ${results.length} rows`);
-
-  const confirmed    = results.filter(r => r.status === 'valid').length;
-  const clientErrors = results.filter(r => r.notes && (/name not found|email missing|multiple emails/i.test(r.notes))).length;
-  const agentErrors  = results.filter(r => r.notes && (/agent email|agent name|multiple agents/i.test(r.notes))).length;
-
-  renderStats([
-    { val: results.length, lbl: 'Total' },
-    { val: confirmed,      lbl: 'Confirmed' },
-    { val: clientErrors,   lbl: 'Client Errors' },
-    { val: agentErrors,    lbl: 'Agent Errors' },
-  ]);
-
-  renderFlags([]);
-
-  document.getElementById('tableHead').innerHTML = `<tr>
-    <th>#</th>
-    <th>Client Name (Payment Sheet)</th>
-    <th>Client Name (Email Sheet)</th>
-    <th>Email 1</th>
-    <th>Agent Closing</th>
-    <th>Notes</th>
-  </tr>`;
-
-  document.getElementById('tableBody').innerHTML = results.slice(0, PREVIEW_COUNT).map((r, i) => {
-    const noteBadge = r.notes
-      ? `<span class="badge ${r.status === 'valid' ? 'badge-warn' : 'badge-flag'}">${esc(r.notes)}</span>`
-      : `<span class="badge badge-ok">Confirmed</span>`;
-    return `<tr>
-      <td class="td-hint">${i+1}</td>
-      <td class="td-name">${esc(r.clientName)}</td>
-      <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '—')}</td>
-      <td class="td-mono">${esc(r.email1 || '—')}</td>
-      <td>${esc(r.agentClosing || '—')}</td>
-      <td class="td-note">${noteBadge}</td>
+    document.getElementById(mountId).querySelector('#em-table-head').innerHTML = `<tr>
+      <th>#</th>
+      <th>Client Name</th>
+      <th>Client Name (Email Sheet)</th>
+      <th>Email 1</th>
+      <th>Mobile</th>
+      <th>Notes</th>
     </tr>`;
-  }).join('');
 
-  renderMoreRows(results.length);
-}
+    document.getElementById(mountId).querySelector('#em-table-body').innerHTML =
+      data.results.slice(0, PREVIEW_COUNT).map((r, i) => {
+        const noteBadge = r.notes
+          ? `<span class="badge badge-flag">${esc(r.notes)}</span>`
+          : (r.matched ? `<span class="badge badge-ok">Matched</span>` : '');
+        return `<tr>
+          <td class="td-hint">${i+1}</td>
+          <td class="td-name">${esc(r.rawClientName || '—')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '—')}</td>
+          <td class="td-mono">${esc(r.email1 || '—')}</td>
+          <td class="td-mono">${esc(r.mobile || '—')}</td>
+          <td class="td-note">${noteBadge}</td>
+        </tr>`;
+      }).join('');
 
-function exportEmailMatcher() {
-  const yr = parseInt(document.getElementById('selYear').value);
-  const mo = parseInt(document.getElementById('selMonth').value);
+    const moreEl = q('#em-more-rows');
+    if (data.results.length > PREVIEW_COUNT) {
+      moreEl.style.display = 'block';
+      moreEl.textContent = `+ ${data.results.length - PREVIEW_COUNT} more rows in this tab · all included in export`;
+    } else {
+      moreEl.style.display = 'none';
+    }
 
-  const exportRows = results.map(r => ({
-    'Client Name (LMC Sheet)':   r.clientName,
-    'Client Name (Email Sheet)': r.emailSheetClientName,
-    'Units':         r.units,
-    'Email 1':       r.email1,
-    'Email 2':       r.email2,
-    'Mobile':        r.mobile,
-    'Nationality':   r.nationality,
-    'EID/Passport/National Card': r.eid,
-    'Agent Closing': r.agentClosing,
-    'Agent Email':   r.agentEmail,
-    'Notes':         r.notes,
-  }));
+    if (selectedSheetNames.length > 1) {
+      q('#em-multi-note').style.display = 'block';
+      q('#em-multi-note').textContent = `Showing preview for "${firstSheet}" tab only. All ${selectedSheetNames.length} selected tabs are included in the export.`;
+    } else {
+      q('#em-multi-note').style.display = 'none';
+    }
+  }
 
-  const ws = XLSX.utils.json_to_sheet(exportRows);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} Email Matcher`.substring(0, 31));
-  const cycleTag = _emCycleOpt === 'all' ? 'ALL' : (document.getElementById('selCycle').value === '15' ? '15' : '30');
-  const nameTag  = _emNameMode === 'unique' ? 'UNIQUE' : 'REPEAT';
-  XLSX.writeFile(wb, `EMAIL_MATCHER_${cycleTag}_${nameTag}_${MONTHS[mo-1].toUpperCase()}${yr}.xlsx`);
-}
+  // ── Export ───────────────────────────────────────────────────
+
+  function exportResults() {
+    if (!Object.keys(outputBySheet).length) return;
+
+    const wb = XLSX.utils.book_new();
+
+    selectedSheetNames.forEach(sheetName => {
+      const data = outputBySheet[sheetName];
+      if (!data) return;
+
+      const exportRows = data.results.map(r => {
+        const row = {};
+        data.headers.forEach((h, idx) => { row[h || `Col${idx+1}`] = r.originalRow[idx]; });
+        row['CLIENT NAME (EMAIL SHEET)']        = r.emailSheetClientName;
+        row['EMAIL 1']                          = r.email1;
+        row['EMAIL 2']                          = r.email2;
+        row['MOBILE']                           = r.mobile;
+        row['NATIONALITY']                      = r.nationality;
+        row['EID/PASSPORT/NATIONAL CARD']       = r.eid;
+        row['NOTES']                            = r.notes;
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportRows);
+      const safeName = sheetName.substring(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, safeName);
+    });
+
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2,'0');
+    const mmm = MONTHS[today.getMonth()].toUpperCase();
+    const yyyy = today.getFullYear();
+    XLSX.writeFile(wb, `EMAIL_MATCHER_${dd}${mmm}${yyyy}.xlsx`);
+  }
+
+  // ── Upload zone wiring ───────────────────────────────────────
+
+  function setupUpload(inputId, zoneId, onLoad) {
+    const mount = document.getElementById(mountId);
+    const input = mount.querySelector(`#${inputId}`);
+    const zone  = mount.querySelector(`#${zoneId}`);
+    if (!input || !zone) return;
+
+    input.addEventListener('change', e => handleFile(e.target.files[0]));
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+
+    function handleFile(file) {
+      if (!file) return;
+      if (!file.name.match(/\.(xlsx|xls)$/i)) return;
+      const reader = new FileReader();
+      reader.onload = ev => onLoad(ev.target.result, file.name);
+      reader.readAsArrayBuffer(file);
+    }
+  }
+
+  // ── Build UI ─────────────────────────────────────────────────
+
+  function buildUI() {
+    const mount = document.getElementById(mountId);
+    mount.innerHTML = `
+      <div class="card">
+        <div class="section-label">Upload files</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">File 1 <span class="optional-label">needs CLIENT NAME column</span></div>
+            <div class="upload-zone upload-zone-sm" id="em-zone-file1">
+              <input type="file" accept=".xlsx,.xls" id="em-input-file1">
+              <div class="upload-zone-text"><strong>Click to upload</strong><span>any file</span></div>
+            </div>
+            <div class="file-loaded" id="em-file1-loaded">
+              <span>✓</span>
+              <div>
+                <div class="file-loaded-name" id="em-file1-loaded-name">—</div>
+                <div class="file-loaded-meta" id="em-file1-loaded-meta">—</div>
+              </div>
+            </div>
+            <div class="msg" id="em-file1-error"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Email Sheet</div>
+            <div class="upload-zone upload-zone-sm" id="em-zone-file2">
+              <input type="file" accept=".xlsx,.xls" id="em-input-file2">
+              <div class="upload-zone-text"><strong>Click to upload</strong><span>email sheet</span></div>
+            </div>
+            <div class="file-loaded" id="em-file2-loaded">
+              <span>✓</span>
+              <div class="file-loaded-name" id="em-file2-loaded-name">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="em-sheet-select-card" style="display:none;">
+        <div class="section-label">Multiple tabs detected</div>
+        <p class="card-hint">Select which tabs to also match. The first tab is included by default.</p>
+        <div id="em-sheet-list"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" id="em-generate-btn" disabled>Generate</button>
+        <span class="generate-hint" id="em-generate-hint">Upload File 1 (with CLIENT NAME column) to continue</span>
+      </div>
+
+      <div id="em-results-card" class="card" style="display:none;margin-top:1rem;">
+        <div class="results-header">
+          <div>
+            <div class="section-label" style="margin-bottom:2px;">Results</div>
+            <div class="results-title" id="em-results-title">—</div>
+          </div>
+          <button class="btn-primary" id="em-export-btn">↓ Export to Excel</button>
+        </div>
+        <p class="card-hint" id="em-multi-note" style="display:none;"></p>
+        <div class="table-wrap">
+          <table>
+            <thead id="em-table-head"></thead>
+            <tbody id="em-table-body"></tbody>
+          </table>
+          <div class="more-rows" id="em-more-rows" style="display:none;"></div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
+
+  function init(id) {
+    mountId = id;
+    if (inited) return;
+    inited = true;
+
+    buildUI();
+    setupUpload('em-input-file1', 'em-zone-file1', handleFile1);
+    setupUpload('em-input-file2', 'em-zone-file2', handleEmailFile);
+
+    q('#em-generate-btn').addEventListener('click', generate);
+    q('#em-export-btn').addEventListener('click', exportResults);
+  }
+
+  return { init };
+
+})();
