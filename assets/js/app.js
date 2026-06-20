@@ -301,6 +301,18 @@ function updateGenerateBtn() {
 }
 
 // ─────────────────────────────────────────────────────────────────
+// FILENAME MISMATCH CHECK (non-blocking helper)
+// ─────────────────────────────────────────────────────────────────
+function checkFilenameHint(file, expectedPrefixRegex, msgElId) {
+  const baseName = file.name.replace(/\.(xlsx|xls)$/i, '').toUpperCase();
+  if (expectedPrefixRegex && !expectedPrefixRegex.test(baseName)) {
+    showMsg(msgElId, `⚠ Filename doesn't match the expected pattern — loaded anyway`, 'warn');
+    return false;
+  }
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // FILE UPLOAD — payment info sheet
 // ─────────────────────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
