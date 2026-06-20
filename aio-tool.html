@@ -39,26 +39,70 @@
         <div id="auditMount" style="display:none;"></div>
         <div id="tripMount" style="display:none;"></div>
         <div id="emailMatcherMount" style="display:none;"></div>
-        
-        <!-- Shared: Payment Info Sheet + Selectors -->
-        <div class="card">
-          <div class="section-label">Payment Info Sheet</div>
-          <div class="upload-zone" id="uploadZone">
-            <input type="file" id="fileInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text">
-              <strong>Click to upload or drag &amp; drop</strong>
-              Payment info sheet &middot; .xlsx or .xls
+
+        <!-- Condensed upload row: Payment Info / Updated Payment Info / Email Sheet -->
+        <div class="upload-row">
+          <div class="card">
+            <div class="section-label">Payment Info Sheet</div>
+            <div class="upload-zone upload-zone-sm" id="uploadZone">
+              <input type="file" id="fileInput" accept=".xlsx,.xls" />
+              <div class="upload-zone-text">
+                <strong>Click to upload</strong>
+                .xlsx or .xls
+              </div>
             </div>
-          </div>
-          <div class="file-loaded" id="fileLoaded">
-            <span>&#10003;</span>
-            <div>
-              <div class="file-loaded-name" id="loadedName">&mdash;</div>
-              <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+            <div class="file-loaded" id="fileLoaded">
+              <span>&#10003;</span>
+              <div>
+                <div class="file-loaded-name" id="loadedName">&mdash;</div>
+                <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+              </div>
             </div>
+            <div class="msg error" id="fileError"></div>
           </div>
-          <div class="msg error" id="fileError"></div>
-          <div class="selector-row" style="margin-top:1rem;">
+
+          <div class="card" id="rerouteSheetCard" style="display:none;">
+            <div class="section-label">Updated Payment Info Sheet <span class="optional-label">required · rerouted</span></div>
+            <div class="upload-zone upload-zone-sm" id="rerouteUploadZone">
+              <input type="file" id="rerouteFileInput" accept=".xlsx,.xls" />
+              <div class="upload-zone-text">
+                <strong>Click to upload</strong>
+                .xlsx or .xls
+              </div>
+            </div>
+            <div class="file-loaded" id="rerouteFileLoaded">
+              <span>&#10003;</span>
+              <div>
+                <div class="file-loaded-name" id="rerouteLoadedName">&mdash;</div>
+                <div class="file-loaded-meta" id="rerouteLoadedMeta">&mdash;</div>
+              </div>
+            </div>
+            <div class="msg error" id="rerouteError"></div>
+          </div>
+
+          <div class="card" id="emailSheetCard" style="display:none;">
+            <div class="section-label">Email Sheet <span class="optional-label">optional</span></div>
+            <div class="upload-zone upload-zone-sm" id="emailUploadZone">
+              <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
+              <div class="upload-zone-text">
+                <strong>Click to upload</strong>
+                .xlsx or .xls
+              </div>
+            </div>
+            <div class="file-loaded" id="emailFileLoaded">
+              <span>&#10003;</span>
+              <div>
+                <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
+              </div>
+            </div>
+            <div class="msg error" id="emailError"></div>
+          </div>
+        </div>
+
+        <!-- Cycle settings (own card) -->
+        <div class="card" id="cycleCard">
+          <div class="section-label">Cycle Settings</div>
+          <div class="selector-row">
             <div class="selector-group">
               <label>Month</label>
               <select id="selMonth">
@@ -84,45 +128,6 @@
           </div>
         </div>
 
-        <!-- Updated Payment Info Sheet (rerouted clients · payout mode only) -->
-        <div class="card" id="rerouteSheetCard" style="display:none;">
-          <div class="section-label">Updated Payment Info Sheet <span class="optional-label">required · rerouted clients</span></div>
-          <div class="upload-zone" id="rerouteUploadZone">
-            <input type="file" id="rerouteFileInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text">
-              <strong>Click to upload updated sheet</strong>
-              New Rental &middot; Payout restart date &middot; Cycle
-            </div>
-          </div>
-          <div class="file-loaded" id="rerouteFileLoaded">
-            <span>&#10003;</span>
-            <div>
-              <div class="file-loaded-name" id="rerouteLoadedName">&mdash;</div>
-              <div class="file-loaded-meta" id="rerouteLoadedMeta">&mdash;</div>
-            </div>
-          </div>
-          <div class="msg error" id="rerouteError"></div>
-        </div>
-        
-        <!-- Email Sheet Upload (Mode 4 only) -->
-        <div class="card" id="emailSheetCard" style="display:none;">
-          <div class="section-label">Email Sheet<span class="optional-label">optional</span></div>
-          <div class="upload-zone" id="emailUploadZone">
-            <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text">
-              <strong>Click to upload email sheet</strong>
-              Client Name &middot; Agent Email &middot; Payment Date &middot; Contact
-            </div>
-          </div>
-          <div class="file-loaded" id="emailFileLoaded">
-            <span>&#10003;</span>
-            <div>
-              <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
-            </div>
-          </div>
-          <div class="msg error" id="emailError"></div>
-        </div>
-        
         <!-- Reference Upload -->
         <div class="card">
           <div class="section-label">Previous Output Reference <span class="optional-label">optional</span></div>
@@ -144,12 +149,12 @@
           <div class="msg error" id="refError"></div>
         </div>
 
-        <!-- Generate Row -->
-        <div class="btn-row" id="mainBtnRow">
+        <!-- Generate (uniform action-card style) -->
+        <div class="card action-card">
           <button class="btn-primary" id="generateBtn" onclick="runGenerate()" disabled>Generate</button>
+          <div class="msg" id="genError"></div>
           <span class="generate-hint" id="generateHint">Upload payment info sheet to continue</span>
         </div>
-        <div class="msg error" id="genError"></div>
 
         <!-- Results -->
         <div id="resultsSection" style="display:none;">
