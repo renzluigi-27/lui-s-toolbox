@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────────
 // IP DEDUCTION MODE — ip-deduction.js
-// Depends on: shared.js, app.js, email-matcher.js (buildEmailRecords)
+// Depends on: shared.js, app.js
 // ─────────────────────────────────────────────────────────────────
 
 function runIPDeduction(yr, mo, cycle) {
