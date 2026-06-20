@@ -346,14 +346,14 @@ footer {
 }
 
 header                        { animation: liquidFadeUp 0.45s 0.02s ease both; }
-.container > *:nth-child(1)   { animation: liquidFadeUp 0.45s 0.07s ease both; }
-.container > *:nth-child(2)   { animation: liquidFadeUp 0.45s 0.13s ease both; }
-.container > *:nth-child(3)   { animation: liquidFadeUp 0.45s 0.19s ease both; }
-.container > *:nth-child(4)   { animation: liquidFadeUp 0.45s 0.25s ease both; }
-.container > *:nth-child(5)   { animation: liquidFadeUp 0.45s 0.31s ease both; }
-.container > *:nth-child(6)   { animation: liquidFadeUp 0.45s 0.37s ease both; }
-.container > *:nth-child(7)   { animation: liquidFadeUp 0.45s 0.43s ease both; }
-.container > *:nth-child(n+8) { animation: liquidFadeUp 0.45s 0.48s ease both; }
+.container > *:nth-child(1):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.07s ease both; }
+.container > *:nth-child(2):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.13s ease both; }
+.container > *:nth-child(3):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.19s ease both; }
+.container > *:nth-child(4):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.25s ease both; }
+.container > *:nth-child(5):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.31s ease both; }
+.container > *:nth-child(6):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.37s ease both; }
+.container > *:nth-child(7):not(.upload-row)   { animation: liquidFadeUp 0.45s 0.43s ease both; }
+.container > *:nth-child(n+8):not(.upload-row) { animation: liquidFadeUp 0.45s 0.48s ease both; }
 
 /* Tab switch per-card stagger */
 @keyframes cardFadeInUp {
