@@ -187,7 +187,7 @@ function updateTabUI() {
   const genCards = [
     document.getElementById('uploadZone').closest('.card'),
     document.getElementById('refUploadZone').closest('.card'),
-    document.querySelector('.btn-row'),
+    document.getElementById('mainBtnRow'),
   ];
   genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail) ? 'none' : ''; });
 
