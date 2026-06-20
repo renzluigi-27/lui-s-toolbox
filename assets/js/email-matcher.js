@@ -257,8 +257,10 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
+    const PREVIEW_COLUMNS = ['CLIENT TYPE', 'CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'NATIONALITY'];
+
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
-      '<tr>' + OUTPUT_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
+      '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
 
     document.getElementById(mountId).querySelector('#em-table-body').innerHTML =
       data.results.slice(0, PREVIEW_COUNT).map(r => {
@@ -267,9 +269,6 @@ window.EmailMatcherStandalone = (function () {
           <td class="td-name">${esc(r.clientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
           <td>${esc(r.nationality || '')}</td>
-          <td>${esc(r.deduction || '')}</td>
-          <td class="td-mono">${esc(r.email1 || '')}</td>
-          <td class="td-mono">${esc(r.email2 || '')}</td>
         </tr>`;
       }).join('');
 
