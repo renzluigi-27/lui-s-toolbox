@@ -76,6 +76,16 @@ header p { font-size: 14px; color: var(--text-muted); }
   line-height: 1.5;
 }
 
+/* ── Upload row (condensed layout) ── */
+.upload-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.upload-row .card { margin-bottom: 0; }
+@media (max-width: 760px) { .upload-row { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .upload-row { grid-template-columns: 1fr; } }
+
 /* ── Upload zone ── */
 .upload-zone {
   border: 1.5px dashed var(--border-strong);
@@ -250,6 +260,16 @@ button.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none
   font-size: 13px;
   color: var(--text-hint);
 }
+
+/* ── Uniform full-width action button (matches Payout Auditor style) ── */
+.action-card .btn-primary {
+  width: 100%;
+  justify-content: center;
+  display: flex;
+  align-items: center;
+}
+.action-card .btn-primary + .btn-primary { margin-top: 8px; }
+.action-card .generate-hint { display: block; margin-top: 8px; text-align: center; }
 
 /* ── Messages ── */
 .msg {
