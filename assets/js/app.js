@@ -185,9 +185,10 @@ function updateTabUI() {
   const isEmail = activeMode === 'email';
 
   const genCards = [
-    document.getElementById('uploadZone').closest('.card'),
+    document.querySelector('.upload-row'),
+    document.getElementById('cycleCard'),
     document.getElementById('refUploadZone').closest('.card'),
-    document.getElementById('mainBtnRow'),
+    document.getElementById('generateBtn').closest('.card'),
   ];
   genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail) ? 'none' : ''; });
 
