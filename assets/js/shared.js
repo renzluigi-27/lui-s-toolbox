@@ -319,8 +319,8 @@ function rerouteFor(r) {
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED DEDUCTION ENGINE — used by payout.js (full) & ip-deduction.js
-// Cycle is ALWAYS taken from the original payout cycle field — a
-// reroute restart date never moves a client between 15th/EOM cycles.
+// Rerouted clients: cycle derived from restart date day-of-month.
+// Non-rerouted: original payout cycle field from payment info sheet.
 // It only affects WHEN within the timeline insurance anniversaries land.
 // ─────────────────────────────────────────────────────────────────
 const WEIGHTED_SPLITS = {
@@ -354,11 +354,16 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
     const rr = rerouteFor(r);
     if (rr && rr.e.isFlexible) return false;       // flexible: skip
     if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart: skip
-    // Cycle always comes from the original payout cycle field — restart date
-    // never moves a client between 15th and EOM cycles.
-    const c = String(r.payoutCycle).replace(/\s/g, '');
+    // Rerouted clients: cycle derived from restart date day-of-month (day 1-15 = 15th, day 16+ = EOM)
+    // Non-rerouted: always use original payout cycle field
+    const restart = rr ? rr.e.restartDate : null;
+    let c;
+    if (restart) {
+      c = restart.getDate() <= 15 ? '15' : '30';
+    } else {
+      c = String(r.payoutCycle).replace(/\s/g, '');
+    }
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
-    const restart  = rr ? rr.e.restartDate : null;
     const effStart = restart || r.firstPayout;
     const started  = !effStart || effStart <= payoutDate;
     return cycleMatch && started;
