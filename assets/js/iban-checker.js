@@ -17,9 +17,9 @@ const ICON_COPY = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height=
 const ICON_CHECK = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 function field(label, value, mono, full, copy) {
-  const plainValue = value.replace(/<[^>]*>/g, '');
+  const plainValue = value.replace(/<[^>]*>/g, '').replace(/'/g, '&#39;');
   const copyBtn = copy
-    ? `<button class="copy-btn" aria-label="Copy ${label}" onclick="copyField(this, ${JSON.stringify(plainValue)})">${ICON_COPY}</button>`
+    ? `<button class="copy-btn" aria-label="Copy ${label}" onclick="copyField(this, '${plainValue}')">${ICON_COPY}</button>`
     : '';
   return `<div class="field${full ? ' full' : ''}"><div class="field-label">${label}</div><div class="field-value${mono ? ' mono' : ''}">${value}</div>${copyBtn}</div>`;
 }
