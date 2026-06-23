@@ -35,7 +35,6 @@ function copyField(btn) {
   }, 1500);
 }
 
-
 function checkIBAN() {
   const raw = document.getElementById('ibanInput').value.replace(/[\s\u200E\u200F\u200B\uFEFF]/g, '').toUpperCase();
   const resultDiv = document.getElementById('result');
@@ -107,17 +106,13 @@ function checkIBAN() {
     const bankCode = raw.slice(4, 7);
     const account  = raw.slice(7);
     const b = UAE_BANKS[bankCode];
-    // Row 2: Bank Code + Check Digits (no copy)
     html += field('Bank Code', bankCode, true);
     html += field('Check Digits', raw.slice(2, 4), true);
-    // Row 3: Account Number + IBAN (copy)
     html += field('Account Number', account, true, false, true);
     html += field('IBAN', raw, true, false, true);
     if (b) {
-      // Row 4: SWIFT + Bank Name (copy)
       html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
       html += field('Bank Name', b.name, false, false, true);
-      // Row 5: Head Office Address (full, copy)
       html += field('Head Office Address', b.address, false, true, true);
     } else {
       html += field('SWIFT / BIC', 'Not available', false);
@@ -435,12 +430,11 @@ function checkIBAN() {
 
   } else {
     const bban = raw.slice(4);
-    const countryCurrency = ci.currency || 'Not available';
     html += field('BBAN', bban, true, true, true);
     html += field('SWIFT / BIC', '<span id="api-swift">Looking up...</span>', true);
     html += field('Bank Name', '<span id="api-bank-name">Looking up...</span>', false, false);
     html += field('Head Office Address', '<span id="api-address">Looking up...</span>', false, true);
-
+    fieldsDiv.innerHTML = html;
     fetch(`${WORKER_URL}?iban=${raw}`)
       .then(r => r.json())
       .then(data => {
@@ -453,6 +447,7 @@ function checkIBAN() {
         document.getElementById('api-swift').textContent     = 'API lookup failed';
         document.getElementById('api-address').textContent   = 'API lookup failed';
       });
+    return;
   }
 
   fieldsDiv.innerHTML = html;
