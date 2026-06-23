@@ -23,318 +23,330 @@ const UAE_BANKS = {
   "003": { 
       name: "Abu Dhabi Commercial Bank (ADCB)", 
       swift: "ADCBAEAAXXX", 
-      address: "ADCB Building, Sheikh Zayed Road, Abu Dhabi, UAE" 
+      address: "ADCB Building, Al Salam Street, P.O. Box 939, Abu Dhabi, UAE" 
   },
   "004": { 
-   name: "Al Ahli Bank of Kuwait K.S.C. (ABK)", 
-   swift: "ABKKAEADXXX", 
-   address: "Khalid Bin Al Walid Road, Dubai, UAE" 
-},
+      name: "Al Ahli Bank of Kuwait K.S.C. (ABK)", 
+      swift: "ABKKAEADXXX", 
+      address: "Khalid Bin Al Walid Road, Dubai, UAE" 
+  },
   "005": { 
-   name: "Rafidain Bank (Rafidain)", 
-   swift: "RAFBAEADXXX", 
-   address: "Dubai, UAE" 
-},
+      name: "Rafidain Bank (Rafidain)", 
+      swift: "RAFBAEADXXX", 
+      address: "Abu Dhabi, UAE" 
+  },
   "007": { 
-   name: "Arab African International Bank (AAIB)", 
-   swift: "ARAIAEADXXX", 
-   address: "Deira, Dubai, UAE" 
-},
+      name: "Arab African International Bank (AAIB)", 
+      swift: "ARAIAEADXXX", 
+      address: "Deira, Dubai, UAE" 
+  },
   "008": { 
-   name: "Al Masraf (Arab Bank for Investment & Foreign Trade)", 
-   swift: "ABINAEAAXXX", 
-   address: "Al Masraf Tower, Hamdan Street, Abu Dhabi, UAE" 
-},
+      name: "Al Masraf (Arab Bank for Investment & Foreign Trade)", 
+      swift: "ABINAEAAXXX", 
+      address: "Al Masraf Tower, Hamdan Street, Abu Dhabi, UAE" 
+  },
   "009": { 
-   name: "Arab Bank (Arab Bank)", 
-   swift: "ARABAEADXXX", 
-   address: "Baniyas Road, Deira, Dubai, UAE" 
-},
+      name: "Arab Bank (Arab Bank)", 
+      swift: "ARABAEADXXX", 
+      address: "Baniyas Road, Deira, Dubai, UAE" 
+  },
   "010": { 
-   name: "Bank Melli Iran (BMI)", 
-   swift: "MELIAEADXXX", 
-   address: "Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "Bank Melli Iran (BMI)", 
+      swift: "MELIAEADXXX", 
+      address: "Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "011": { 
-   name: "Bank of Baroda (BOB)", 
-   swift: "BARBAEADXXX", 
-   address: "Bank of Baroda Building, Baniyas Road, Dubai, UAE" 
-},
+      name: "Bank of Baroda (BOB)", 
+      swift: "BARBAEADXXX", 
+      address: "Bank of Baroda Building, Baniyas Road, Dubai, UAE" 
+  },
   "012": { 
-   name: "Bank of Sharjah (BOS)", 
-   swift: "SHARAEASXXX", 
-   address: "Bank of Sharjah Building, Al Buhairah Corniche, Sharjah, UAE" 
-},
+      name: "Bank of Sharjah (BOS)", 
+      swift: "SHARAEASXXX", 
+      address: "Bank of Sharjah Building, Al Buhairah Corniche, Sharjah, UAE" 
+  },
   "013": { 
-   name: "Bank Saderat Iran (BSI)", 
-   swift: "BSIRAEADXXX", 
-   address: "Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "Bank Saderat Iran (BSI)", 
+      swift: "BSIRAEADXXX", 
+      address: "Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "014": { 
-   name: "Blom Bank France (Blom)", 
-   swift: "BLOMAEADXXX", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Blom Bank France (Blom)", 
+      swift: "BLOMAEADXXX", 
+      address: "Sheikh Zayed Road, Dubai, UAE" 
+  },
   "015": { 
-   name: "Banque Misr (Banque Misr)", 
-   swift: "BCAIAEAAXXX", 
-   address: "Al Rigga Road, Deira, Dubai, UAE" 
-},
+      name: "Banque Misr (Banque Misr)", 
+      swift: "BCAIAEAAXXX", 
+      address: "Al Rigga Road, Deira, Dubai, UAE" 
+  },
   "016": { 
-   name: "Credit Agricole Corporate and Investment Bank (CACIB)", 
-   swift: "BSUIAEADXXX", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Credit Agricole Corporate and Investment Bank (CACIB)", 
+      swift: "BSUIAEADXXX", 
+      address: "Sheikh Zayed Road, Dubai, UAE" 
+  },
   "017": { 
-   name: "Al Khaliji France S.A. (Al Khaliji)", 
-   swift: "LICOAEADXXX", 
-   address: "Al Khaliji Building, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Al Khaliji France S.A. (Al Khaliji)", 
+      swift: "LICOAEADXXX", 
+      address: "Al Khaliji Building, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "018": { 
-   name: "BNP Paribas (BNP)", 
-   swift: "BNPAAEAAXXX", 
-   address: "BNP Paribas Tower, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "BNP Paribas (BNP)", 
+      swift: "BNPAAEAAXXX", 
+      address: "BNP Paribas Tower, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "019": { 
-   name: "Barclays Bank PLC (Barclays)", 
-   swift: "BARCAEADXXX", 
-   address: "Al Fattan Currency House, DIFC, Dubai, UAE" 
-},
+      name: "Barclays Bank PLC (Barclays)", 
+      swift: "BARCAEADXXX", 
+      address: "Al Fattan Currency House, DIFC, Dubai, UAE" 
+  },
   "020": { 
-   name: "HSBC Bank Middle East (HSBC)", 
-   swift: "BBMEAEADXXX", 
-   address: "HSBC Tower, Emaar Square, Downtown Dubai, UAE" 
-},
+      name: "HSBC Bank Middle East (HSBC)", 
+      swift: "BBMEAEADXXX", 
+      address: "HSBC Tower, Emaar Square, Downtown Dubai, UAE" 
+  },
   "021": { 
-   name: "Citibank N.A. (Citi)", 
-   swift: "CITIAEADXXX", 
-   address: "Internet City, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Citibank N.A. (Citi)", 
+      swift: "CITIAEADXXX", 
+      address: "Internet City, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "022": { 
-   name: "Commercial Bank International (CBI)", 
-   swift: "CLBIAEADXXX", 
-   address: "CBI Building, Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "Commercial Bank International (CBI)", 
+      swift: "CLBIAEADXXX", 
+      address: "CBI Building, Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "023": { 
-   name: "Commercial Bank of Dubai (CBD)", 
-   swift: "CBDUAEADXXX", 
-   address: "CBD Head Office, Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "Commercial Bank of Dubai (CBD)", 
+      swift: "CBDUAEADXXX", 
+      address: "CBD Head Office, Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "024": { 
-   name: "Dubai Islamic Bank (DIB)", 
-   swift: "DUIBAEADXXX", 
-   address: "DIB Building, Omar Bin Khattab Road, Dubai, UAE" 
-},
+      name: "Dubai Islamic Bank (DIB)", 
+      swift: "DUIBAEADXXX", 
+      address: "DIB Building, Omar Bin Khattab Road, Deira, Dubai, UAE" 
+  },
   "025": { 
-   name: "El Nilein Bank (El Nilein)", 
-   swift: "NILBAEAAXXX", 
-   address: "Khalid Bin Al Walid Road, Dubai, UAE" 
-},
+      name: "El Nilein Bank (El Nilein)", 
+      swift: "NILBAEAAXXX", 
+      address: "Khalid Bin Al Walid Road, Dubai, UAE" 
+  },
   "026": { 
-   name: "Emirates NBD (ENBD)", 
-   swift: "EBILAEADXXX", 
-   address: "Baniyas Road, Deira, Dubai, UAE" 
-},
+      name: "Emirates NBD Bank PJSC (ENBD)", 
+      swift: "EBILAEADXXX", 
+      address: "Baniyas Road, Deira, P.O. Box 777, Dubai, UAE" 
+  },
   "027": { 
-   name: "First Gulf Bank / First Abu Dhabi Bank (FAB)", 
-   swift: "FGBMAEAAXXX", 
-   address: "FAB Building, Sheikh Zayed Road, Abu Dhabi, UAE" 
-},
+      name: "First Gulf Bank / First Abu Dhabi Bank (FAB)", 
+      swift: "NBADAEAAXXX", 
+      swiftLegacy: "FGBMAEAAXXX",
+      address: "One NBAD Tower, Sheikh Khalifa Street, P.O. Box 4, Abu Dhabi, UAE" 
+  },
   "028": { 
-   name: "Habib Bank Limited (HBL)", 
-   swift: "HABBAEADXXX", 
-   address: "Khalid Bin Al Walid Road, Dubai, UAE" 
-},
+      name: "Habib Bank Limited (HBL)", 
+      swift: "HABBAEADXXX", 
+      address: "Khalid Bin Al Walid Road, Dubai, UAE" 
+  },
   "029": { 
-   name: "Habib Bank AG Zurich (HBZ)", 
-   swift: "HBZUAEADXXX", 
-   address: "Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "Habib Bank AG Zurich (HBZ)", 
+      swift: "HBZUAEADXXX", 
+      address: "Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "030": { 
-   name: "Investbank PSC (InvestBank)", 
-   swift: "IBTFAEASXXX", 
-   address: "Investbank Building, Al Buhairah Corniche, Sharjah, UAE" 
-},
+      name: "Investbank PSC (InvestBank)", 
+      swift: "IBTFAEASXXX", 
+      address: "Investbank Building, Al Buhairah Corniche, Sharjah, UAE" 
+  },
   "031": { 
-   name: "Janata Bank (Janata)", 
-   swift: "JANBAEAAXXX", 
-   address: "Abu Dhabi, UAE" 
-},
+      name: "Janata Bank (Janata)", 
+      swift: "JANBAEAAXXX", 
+      address: "Abu Dhabi, UAE" 
+  },
   "032": { 
-   name: "Lloyds TSB Bank PLC (Lloyds)", 
-   swift: "LOYDAEADXXX", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Lloyds TSB Bank PLC (Lloyds)", 
+      swift: "LOYDAEADXXX", 
+      address: "Sheikh Zayed Road, Dubai, UAE" 
+  },
   "033": { 
-   name: "Mashreq Bank (Mashreq)", 
-   swift: "BOMLAEADXXX", 
-   address: "Mashreqbank PSC, Oud Metha Road, Dubai, UAE" 
-},
+      name: "Mashreq Bank (Mashreq)", 
+      swift: "BOMLAEADXXX", 
+      address: "Mashreqbank PSC, Oud Metha Road, Dubai, UAE" 
+  },
   "034": { 
-   name: "Emirates Islamic Bank (EIB)", 
-   swift: "MEBLAEADXXX", 
-   address: "Emirates Islamic Building, Al Qusais, Dubai, UAE" 
-},
+      name: "Emirates Islamic Bank (EIB)", 
+      swift: "MEBLAEADXXX", 
+      address: "Emirates Islamic Building, Al Qusais, Dubai, UAE" 
+  },
   "035": { 
-   name: "National Bank of Abu Dhabi / First Abu Dhabi Bank (FAB)", 
-   swift: "NBADAEAAXXX", 
-   address: "FAB Tower, Khalifa Business Park, Abu Dhabi, UAE" 
-},
+      name: "National Bank of Abu Dhabi / First Abu Dhabi Bank (FAB)", 
+      swift: "NBADAEAAXXX", 
+      address: "One NBAD Tower, Sheikh Khalifa Street, P.O. Box 4, Abu Dhabi, UAE" 
+  },
   "036": { 
-   name: "National Bank of Bahrain (NBB)", 
-   swift: "NBOBAEAAXXX", 
-   address: "Al Maktoum Road, Deira, Dubai, UAE" 
-},
+      name: "National Bank of Bahrain (NBB)", 
+      swift: "NBOBAEAAXXX", 
+      address: "Al Maktoum Road, Deira, Dubai, UAE" 
+  },
   "038": { 
-   name: "National Bank of Fujairah (NBF)", 
-   swift: "NBFUAEAFXXX", 
-   address: "NBF Head Office, Fujairah, UAE" 
-},
+      name: "National Bank of Fujairah (NBF)", 
+      swift: "NBFUAEAFXXX", 
+      address: "NBF Head Office, Fujairah, UAE" 
+  },
   "039": { 
-   name: "National Bank of Oman (NBO)", 
-   swift: "NBOMAEADXXX", 
-   address: "Al Maktoum Road, Dubai, UAE" 
-},
+      name: "National Bank of Oman (NBO)", 
+      swift: "NBOMAEADXXX", 
+      address: "Al Maktoum Road, Dubai, UAE" 
+  },
   "040": { 
-   name: "RAKBANK (National Bank of Ras Al-Khaimah)", 
-   swift: "NRAKAEAKXXX", 
-   address: "RAKBANK Head Office, Al Nakheel Road, Ras Al Khaimah, UAE" 
-},
+      name: "RAKBANK (National Bank of Ras Al-Khaimah)", 
+      swift: "NRAKAEAKXXX", 
+      address: "RAKBANK Head Office, Al Nakheel Road, Ras Al Khaimah, UAE" 
+  },
   "041": { 
-   name: "Sharjah Islamic Bank (SIB)", 
-   swift: "NBSHAEASXXX", 
-   address: "SIB Tower, Al Buhairah Corniche, Sharjah, UAE" 
-},
+      name: "Sharjah Islamic Bank (SIB)", 
+      swift: "NBSHAEASXXX", 
+      address: "SIB Tower, Al Buhairah Corniche, Sharjah, UAE" 
+  },
   "042": { 
-   name: "National Bank of Umm Al Qaiwain (NBQ)", 
-   swift: "UMMQAEADXXX", 
-   address: "NBQ Head Office, Umm Al Qaiwain, UAE" 
-},
+      name: "National Bank of Umm Al Qaiwain (NBQ)", 
+      swift: "UMMQAEADXXX", 
+      address: "NBQ Head Office, Umm Al Qaiwain, UAE" 
+  },
   "043": { 
-   name: "Industrial and Commercial Bank of China (ICBC)", 
-   swift: "ICBKAEAAXXX", 
-   address: "ICBC Tower, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Industrial and Commercial Bank of China (ICBC)", 
+      swift: "ICBKAEAAXXX", 
+      address: "ICBC Tower, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "044": { 
-   name: "Standard Chartered Bank UAE (SCB)", 
-   swift: "SCBLAEADXXX", 
-   address: "Standard Chartered Tower, Downtown Dubai, UAE" 
-},
+      name: "Standard Chartered Bank UAE (SCB)", 
+      swift: "SCBLAEADXXX", 
+      address: "Standard Chartered Tower, Downtown Dubai, UAE" 
+  },
   "045": { 
-   name: "Union National Bank / First Abu Dhabi Bank (FAB)", 
-   swift: "UNBEAEAAXXX", 
-   address: "UNB Tower, Khalifa Street, Abu Dhabi, UAE" 
-},
+      name: "Union National Bank / First Abu Dhabi Bank (FAB)", 
+      swift: "UNBEAEAAXXX", 
+      address: "UNB Tower, Khalifa Street, Abu Dhabi, UAE" 
+  },
   "046": { 
-   name: "United Arab Bank (UAB)", 
-   swift: "UARBAEAAXXX", 
-   address: "UAB Tower, Corniche Road, Sharjah, UAE" 
-},
+      name: "United Arab Bank (UAB)", 
+      swift: "UARBAEAAXXX", 
+      address: "UAB Tower, Corniche Road, Sharjah, UAE" 
+  },
   "047": { 
-   name: "United Bank Ltd. (UBL)", 
-   swift: "UNILAEADXXX", 
-   address: "Khalid Bin Al Walid Road, Dubai, UAE" 
-},
+      name: "United Bank Ltd. (UBL)", 
+      swift: "UNILAEADXXX", 
+      address: "Khalid Bin Al Walid Road, Dubai, UAE" 
+  },
   "048": { 
-   name: "Emirates Investment Bank (EIBank)", 
-   swift: "AEINAEADXXX", 
-   address: "Emaar Square, Downtown Dubai, UAE" 
-},
+      name: "Emirates Investment Bank (EIBank)", 
+      swift: "AEINAEADXXX", 
+      address: "Emaar Square, Downtown Dubai, UAE" 
+  },
   "049": { 
-   name: "Deutsche Bank AG (Deutsche)", 
-   swift: "DEUTAEAAXXX", 
-   address: "Deutsche Bank Building, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Deutsche Bank AG (Deutsche)", 
+      swift: "DEUTAEAAXXX", 
+      address: "Deutsche Bank Building, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "050": { 
-   name: "Abu Dhabi Islamic Bank (ADIB)", 
-   swift: "ABDIAEADXXX", 
-   address: "ADIB Tower, Khalifa Street, Abu Dhabi, UAE" 
-},
+      name: "Abu Dhabi Islamic Bank (ADIB)", 
+      swift: "ABDIAEADXXX", 
+      address: "ADIB Tower, Khalifa Street, Abu Dhabi, UAE" 
+  },
   "051": { 
-   name: "Dubai Bank (Dubai Bank)", 
-   swift: "DBXPAEADXXX", 
-   address: "Dubai, UAE" 
-},
+      name: "Dubai Bank (Dubai Bank)", 
+      swift: "DBXPAEADXXX", 
+      address: "Dubai, UAE",
+      note: "Dubai Bank was absorbed into Emirates Islamic Bank" 
+  },
   "052": { 
-   name: "Noor Bank (Noor)", 
-   swift: "NISLAEADXXX", 
-   address: "Noor Bank Tower, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Noor Bank / Dubai Islamic Bank (DIB)", 
+      swift: "DUIBAEADXXX", 
+      swiftLegacy: "NISLAEADXXX",
+      address: "Noor Bank Tower, Sheikh Zayed Road, Dubai, UAE",
+      note: "Noor Bank was acquired by and fully merged into Dubai Islamic Bank in 2021" 
+  },
   "053": { 
-   name: "Al Hilal Bank (AHB)", 
-   swift: "HLALAEAAXXX", 
-   address: "Al Hilal Bank Building, Khalifa City A, Abu Dhabi, UAE" 
-},
+      name: "Al Hilal Bank / Abu Dhabi Commercial Bank Group (AHB)", 
+      swift: "HLALAEAAXXX", 
+      address: "Al Hilal Bank Building, Khalifa City A, Abu Dhabi, UAE",
+      note: "Al Hilal Bank was acquired by ADCB Group; operates as a subsidiary under ADCB" 
+  },
   "054": { 
-   name: "Doha Bank (Doha Bank)", 
-   swift: "DOHBAEADXXX", 
-   address: "Deira, Dubai, UAE" 
-},
+      name: "Doha Bank (Doha Bank)", 
+      swift: "DOHBAEADXXX", 
+      address: "Deira, Dubai, UAE" 
+  },
   "055": { 
-   name: "SAMBA Financial Group (SAMBA)", 
-   swift: "SAMBAEADXXX", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "SAMBA Financial Group / Saudi National Bank (SAMBA)", 
+      swift: "SAMBAEADXXX", 
+      address: "Sheikh Zayed Road, Dubai, UAE",
+      note: "Samba Financial Group was merged into Saudi National Bank (SNB) in 2021" 
+  },
   "056": { 
-   name: "National Bank of Kuwait (NBK)", 
-   swift: "NBOKAEADXXX", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "National Bank of Kuwait (NBK)", 
+      swift: "NBOKAEADXXX", 
+      address: "Sheikh Zayed Road, Dubai, UAE" 
+  },
   "057": { 
-   name: "Ajman Bank (Ajman Bank)", 
-   swift: "AJMNAEAJXXX", 
-   address: "Ajman Bank Building, Sheikh Humaid Bin Rashid Al Nuaimi Street, Ajman, UAE" 
-},
+      name: "Ajman Bank (Ajman Bank)", 
+      swift: "AJMNAEAJXXX", 
+      address: "Ajman Bank Building, Sheikh Humaid Bin Rashid Al Nuaimi Street, Ajman, UAE" 
+  },
+  "058": { 
+      name: "Zand Bank P.J.S.C. (Zand)", 
+      swift: "ZANDAEAAXXX", 
+      address: "Al Hail Holding Building, Floor 1, Office 101, Mohammed Bin Rashid Boulevard, Dubai, UAE",
+      note: "UAE's first fully licensed all-digital bank; bank code unconfirmed — verify with CBUAE if needed" 
+  },
   "060": { 
-   name: "Wio Bank PJSC (Wio)", 
-   swift: "WIOBAEADXXX", 
-   address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" 
-},
+      name: "Wio Bank PJSC (Wio)", 
+      swift: "WIOBAEADXXX", 
+      address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" 
+  },
   "081": { 
-   name: "Finance House (Finance House)", 
-   swift: "FHOUAEADXXX", 
-   address: "Finance House Tower, Khalifa Street, Abu Dhabi, UAE" 
-},
+      name: "Finance House (Finance House)", 
+      swift: "FHOUAEADXXX", 
+      address: "Finance House Tower, Khalifa Street, Abu Dhabi, UAE" 
+  },
   "082": { 
-   name: "Dunia Finance (Dunia)", 
-   swift: "N/A", 
-   address: "Dubai, UAE" 
-},
+      name: "Dunia Finance (Dunia)", 
+      swift: "N/A", 
+      address: "Dubai, UAE" 
+  },
   "083": { 
-   name: "Islamic Finance Company (IFC)", 
-   swift: "N/A", 
-   address: "UAE" 
-},
+      name: "Islamic Finance Company (IFC)", 
+      swift: "N/A", 
+      address: "UAE" 
+  },
   "084": { 
-   name: "Mawarid Finance (Mawarid)", 
-   swift: "N/A", 
-   address: "Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "Mawarid Finance (Mawarid)", 
+      swift: "N/A", 
+      address: "Sheikh Zayed Road, Dubai, UAE" 
+  },
   "085": { 
-   name: "MAF Finance (MAF)", 
-   swift: "N/A", 
-   address: "Majid Al Futtaim Tower, Sheikh Zayed Road, Dubai, UAE" 
-},
+      name: "MAF Finance (MAF)", 
+      swift: "N/A", 
+      address: "Majid Al Futtaim Tower, Sheikh Zayed Road, Dubai, UAE" 
+  },
   "086": { 
-   name: "Wio Bank PJSC (Wio)", 
-   swift: "WIOBAEADXXX", 
-   address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" 
-},
+      name: "Wio Bank PJSC (Wio)", 
+      swift: "WIOBAEADXXX", 
+      address: "Etihad Airways Centre, 5th Floor, Abu Dhabi, UAE" 
+  },
   "097": { 
-   name: "Al Maryah Community Bank LLC", 
-   swift: "E097AEXX", 
-   address: "Al Maryah Community Bank LLC, Abu Dhabi, UAE" 
-},
+      name: "Al Maryah Community Bank LLC", 
+      swift: "E097AEXX", 
+      address: "Al Maryah Community Bank LLC, Abu Dhabi, UAE" 
+  },
   "132": { 
-   name: "Ruya Community Islamic Bank", 
-   swift: "E132AEXX", 
-   address: "Marsa Ajman Mall, Building No.4, Liwara 1, Ajman, UAE" 
-},
+      name: "Ruya Community Islamic Bank", 
+      swift: "E132AEXX", 
+      address: "Marsa Ajman Mall, Building No.4, Liwara 1, Ajman, UAE" 
+  },
   "802": { 
-   name: "Emirates Industrial Bank / Emirates Development Bank (EDB)", 
-   swift: "EMIUAEAAXXX", 
-   address: "Abu Dhabi, UAE" 
-},
+      name: "Emirates Industrial Bank / Emirates Development Bank (EDB)", 
+      swift: "EMIUAEAAXXX", 
+      address: "Abu Dhabi, UAE" 
+  },
 };
 
 // ================================================================
