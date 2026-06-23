@@ -1,7 +1,5 @@
 const WORKER_URL = 'https://renzluigi.pages.dev/api/iban';
 
-
-
 function mod97(iban) {
   const reordered = iban.slice(4) + iban.slice(0, 4);
   const numeric = reordered.split('').map(c => {
@@ -15,8 +13,25 @@ function mod97(iban) {
 
 function formatIBAN(iban) { return iban.replace(/(.{4})/g, '$1 ').trim(); }
 
-function field(label, value, mono, full) {
-  return `<div class="field${full ? ' full' : ''}"><div class="field-label">${label}</div><div class="field-value${mono ? ' mono' : ''}">${value}</div></div>`;
+const ICON_COPY = `<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const ICON_CHECK = `<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+function field(label, value, mono, full, copy) {
+  const plainValue = value.replace(/<[^>]*>/g, '');
+  const copyBtn = copy
+    ? `<button class="copy-btn" aria-label="Copy ${label}" onclick="copyField(this, ${JSON.stringify(plainValue)})">${ICON_COPY}</button>`
+    : '';
+  return `<div class="field${full ? ' full' : ''}"><div class="field-label">${label}</div><div class="field-value${mono ? ' mono' : ''}">${value}</div>${copyBtn}</div>`;
+}
+
+function copyField(btn, text) {
+  navigator.clipboard.writeText(text).catch(() => {});
+  btn.innerHTML = ICON_CHECK;
+  btn.classList.add('copied');
+  setTimeout(() => {
+    btn.innerHTML = ICON_COPY;
+    btn.classList.remove('copied');
+  }, 1500);
 }
 
 function checkIBAN() {
@@ -81,341 +96,361 @@ function checkIBAN() {
   badge.innerHTML = '<span class="badge-dot"></span>Valid';
 
   let html = '';
+
+  // Row 1: Country + Currency (no copy)
   html += field('Country', `<img src="https://flagcdn.com/16x12/${cc.toLowerCase()}.png" style="margin-right:6px;vertical-align:middle;">${ci.country}`, false);
-  html += field('Check Digits', raw.slice(2, 4), true);
+  html += field('Currency', ci.currency || 'N/A', true);
 
   if (cc === 'AE') {
     const bankCode = raw.slice(4, 7);
     const account  = raw.slice(7);
     const b = UAE_BANKS[bankCode];
+    // Row 2: Bank Code + Check Digits (no copy)
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    // Row 3: Account Number + IBAN (copy)
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', b.currency || 'AED', true);
-      html += field('Head Office Address', b.address, false, true);
+      // Row 4: SWIFT + Bank Name (copy)
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      // Row 5: Head Office Address (full, copy)
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'AED', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'SA') {
+
+  } else if (cc === 'SA') {
     const bankCode = raw.slice(4, 6);
     const account  = raw.slice(6);
     const b = SA_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'SAR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'SAR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'QA') {
+
+  } else if (cc === 'QA') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = QA_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'QAR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'QAR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'KW') {
+
+  } else if (cc === 'KW') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = KW_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'KWD', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'KWD', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'BH') {
+
+  } else if (cc === 'BH') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = BH_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'BHD', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'BHD', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'OM') {
+
+  } else if (cc === 'OM') {
     const bankCode = raw.slice(4, 7);
     const account  = raw.slice(7);
     const b = OM_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'OMR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'OMR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
-} else if (cc === 'JO') {
+
+  } else if (cc === 'JO') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = JO_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'JOD', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'JOD', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'PK') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = PK_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'PKR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'PKR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'EG') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = EG_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'EGP', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'EGP', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'TR') {
     const bankCode = raw.slice(4, 9);
     const account  = raw.slice(9);
     const b = TR_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'TRY', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'TRY', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'GB') {
     const bankCode = raw.slice(4, 8).toUpperCase();
     const account  = raw.slice(8);
     const b = UK_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'GBP', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'GBP', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'BG') {
-      const bankCode = raw.slice(4, 8);
-      const account  = raw.slice(8);
-      const b = BG_BANKS[bankCode];
-      html += field('Bank Code', bankCode, true);
-      html += field('Account Number', account, true);
-      if (b) {
-        html += field('Bank Name', b.name, false, true);
-        html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-        html += field('Currency', 'BGN', true);
-        html += field('Head Office Address', b.address, false, true);
-      } else {
-        html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
-        html += field('SWIFT / BIC', 'Not available', false);
-        html += field('Currency', 'BGN', true);
-        html += field('Head Office Address', 'Not available', false, true);
-      }
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = BG_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
+    if (b) {
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
+    } else {
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+
   } else if (cc === 'BE') {
     const bankCode = raw.slice(4, 7);
     const account  = raw.slice(7);
     const b = BE_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'EUR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'EUR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'LT') {
     const bankCode = raw.slice(4, 9);
     const account  = raw.slice(9);
     const b = LT_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'EUR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'EUR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'ES') {
     const bankCode = raw.slice(4, 8);
     const account  = raw.slice(8);
     const b = ES_BANKS[bankCode];
     html += field('Bank Code', bankCode, true);
-    html += field('Account Number', account, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
     if (b) {
-      html += field('Bank Name', b.name, false, true);
-      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-      html += field('Currency', 'EUR', true);
-      html += field('Head Office Address', b.address, false, true);
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
     } else {
-      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
       html += field('SWIFT / BIC', 'Not available', false);
-      html += field('Currency', 'EUR', true);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
       html += field('Head Office Address', 'Not available', false, true);
     }
+
   } else if (cc === 'MT') {
-      const bankCode = raw.slice(4, 8);
-      const account  = raw.slice(8);
-      const b = MT_BANKS[bankCode];
-      html += field('Bank Code', bankCode, true);
-      html += field('Account Number', account, true);
-      if (b) {
-        html += field('Bank Name', b.name, false, true);
-        html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', b.address, false, true);
-      } else {
-        html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
-        html += field('SWIFT / BIC', 'Not available', false);
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', 'Not available', false, true);
-      }
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = MT_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
+    if (b) {
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
+    } else {
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+
   } else if (cc === 'CY') {
-      const bankCode = raw.slice(4, 7);
-      const branch   = raw.slice(7, 10);
-      const account  = raw.slice(10);
-      const b = CY_BANKS[bankCode];
-      html += field('Bank Code', bankCode, true);
-      html += field('Branch Code', branch, true);
-      html += field('Account Number', account, true);
-      if (b) {
-        html += field('Bank Name', b.name, false, true);
-        html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', b.address, false, true);
-      } else {
-        html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
-        html += field('SWIFT / BIC', 'Not available', false);
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', 'Not available', false, true);
-      }
+    const bankCode = raw.slice(4, 7);
+    const branch   = raw.slice(7, 10);
+    const account  = raw.slice(10);
+    const b = CY_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Branch Code', branch, true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
+    if (b) {
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
+    } else {
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+
   } else if (cc === 'NL') {
-      const bankCode = raw.slice(4, 8);
-      const account  = raw.slice(8);
-      const b = NL_BANKS[bankCode];
-      html += field('Bank Code', bankCode, true);
-      html += field('Account Number', account, true);
-      if (b) {
-        html += field('Bank Name', b.name, false, true);
-        html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', b.swift !== 'N/A');
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', b.address, false, true);
-      } else {
-        html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false, true);
-        html += field('SWIFT / BIC', 'Not available', false);
-        html += field('Currency', 'EUR', true);
-        html += field('Head Office Address', 'Not available', false, true);
-      }
+    const bankCode = raw.slice(4, 8);
+    const account  = raw.slice(8);
+    const b = NL_BANKS[bankCode];
+    html += field('Bank Code', bankCode, true);
+    html += field('Check Digits', raw.slice(2, 4), true);
+    html += field('Account Number', account, true, false, true);
+    html += field('IBAN', raw, true, false, true);
+    if (b) {
+      html += field('SWIFT / BIC', b.swift !== 'N/A' ? b.swift : 'Not available', true, false, b.swift !== 'N/A');
+      html += field('Bank Name', b.name, false, false, true);
+      html += field('Head Office Address', b.address, false, true, true);
+    } else {
+      html += field('SWIFT / BIC', 'Not available', false);
+      html += field('Bank Name', `Bank code ${bankCode} — not found in registry`, false);
+      html += field('Head Office Address', 'Not available', false, true);
+    }
+
   } else {
     const bban = raw.slice(4);
     const countryCurrency = ci.currency || 'Not available';
-
-    html += field('BBAN', bban, true, true);
-    html += field('Bank Name', '<span id="api-bank-name">Looking up...</span>', false, true);
+    html += field('BBAN', bban, true, true, true);
     html += field('SWIFT / BIC', '<span id="api-swift">Looking up...</span>', true);
-    html += field('Currency', '<span id="api-currency">Looking up...</span>', true);
+    html += field('Bank Name', '<span id="api-bank-name">Looking up...</span>', false, false);
     html += field('Head Office Address', '<span id="api-address">Looking up...</span>', false, true);
 
-fetch(`${WORKER_URL}?iban=${raw}`)
-  .then(r => r.json())
-  .then(data => {
-    document.getElementById('api-bank-name').textContent = data.bic?.name      || data.bic?.shortName || 'Not available';
-    document.getElementById('api-swift').textContent     = data.bic?.bic       || 'Not available';
-    document.getElementById('api-currency').textContent  = countryCurrency;
-    document.getElementById('api-address').textContent   = 'Not provided by AnyAPI';
-  })
-  .catch(() => {
-    document.getElementById('api-bank-name').textContent = 'API lookup failed';
-    document.getElementById('api-swift').textContent     = 'API lookup failed';
-    document.getElementById('api-currency').textContent  = countryCurrency;
-    document.getElementById('api-address').textContent   = 'API lookup failed';
-  });
+    fetch(`${WORKER_URL}?iban=${raw}`)
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById('api-bank-name').textContent = data.bic?.name || data.bic?.shortName || 'Not available';
+        document.getElementById('api-swift').textContent     = data.bic?.bic  || 'Not available';
+        document.getElementById('api-address').textContent   = 'Not provided by AnyAPI';
+      })
+      .catch(() => {
+        document.getElementById('api-bank-name').textContent = 'API lookup failed';
+        document.getElementById('api-swift').textContent     = 'API lookup failed';
+        document.getElementById('api-address').textContent   = 'API lookup failed';
+      });
   }
 
   fieldsDiv.innerHTML = html;
@@ -431,25 +466,23 @@ document.getElementById('ibanInput').addEventListener('keydown', e => {
 });
 
 (function(){
-const IN_DB = ['AE','SA','QA','KW','BH','OM','JO','TR','PK','EG','GB','BG','BE','LT','ES','MT','CY','NL'];
-Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
-  const chip = document.createElement('span');
-  chip.className = 'example-chip';
-  chip.innerHTML = `<img src="https://flagcdn.com/16x12/${code.toLowerCase()}.png" style="margin-right:5px;vertical-align:middle;">${c.country}`;
-  if (c.noIBAN) {
-    document.getElementById('noiban-countries').appendChild(chip);
-  } else if (IN_DB.includes(code)) {
-    document.getElementById('db-countries').appendChild(chip);
-  } else {
-    document.getElementById('soon-countries').appendChild(chip);
-  }
-});
+  const IN_DB = ['AE','SA','QA','KW','BH','OM','JO','TR','PK','EG','GB','BG','BE','LT','ES','MT','CY','NL'];
+  Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
+    const chip = document.createElement('span');
+    chip.className = 'example-chip';
+    chip.innerHTML = `<img src="https://flagcdn.com/16x12/${code.toLowerCase()}.png" style="margin-right:5px;vertical-align:middle;">${c.country}`;
+    if (c.noIBAN) {
+      document.getElementById('noiban-countries').appendChild(chip);
+    } else if (IN_DB.includes(code)) {
+      document.getElementById('db-countries').appendChild(chip);
+    } else {
+      document.getElementById('soon-countries').appendChild(chip);
+    }
+  });
 })();
-  
 
-  fetch('/components/footer.html')
-    .then(res => res.text())
-    .then(data => {
-      document.getElementById('footer').innerHTML = data;
-    });
-  
+fetch('/components/footer.html')
+  .then(res => res.text())
+  .then(data => {
+    document.getElementById('footer').innerHTML = data;
+  });
