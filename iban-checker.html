@@ -76,11 +76,16 @@
     .iban-formatted { font-family: var(--font-mono); font-size: 14px; font-weight: 500; letter-spacing: 0.06em; word-break: break-all; }
     .error-msg { font-size: 13px; color: var(--red-text); background: var(--red-bg); padding: 8px 12px; border-radius: var(--radius-md); margin-bottom: 0.75rem; display: none; }
     .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .field { background: var(--surface2); border-radius: var(--radius-md); padding: 0.75rem 1rem; }
+    .field { background: var(--surface2); border-radius: var(--radius-md); padding: 0.75rem 1rem; position: relative; }
     .field.full { grid-column: 1 / -1; }
     .field-label { font-size: 11px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-    .field-value { font-size: 14px; color: var(--text); font-weight: 500; line-height: 1.4; }
+    .field-value { font-size: 14px; color: var(--text); font-weight: 500; line-height: 1.4; padding-right: 36px; word-break: break-all; }
     .field-value.mono { font-family: var(--font-mono); }
+    .copy-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-hint); padding: 0; transition: background 0.15s, color 0.15s, border-color 0.15s; }
+    .copy-btn:hover { background: var(--surface); color: var(--text); opacity: 1; transform: translateY(-50%) scale(1); }
+    .copy-btn:active { transform: translateY(-50%) scale(0.95); }
+    .copy-btn.copied { border-color: var(--green-dot); color: var(--green-text); }
+    .copy-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .examples { margin-top: 1.5rem; }
     .examples h3 { font-size: 12px; font-weight: 500; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
     .example-list { display: flex; flex-wrap: wrap; gap: 6px; }
