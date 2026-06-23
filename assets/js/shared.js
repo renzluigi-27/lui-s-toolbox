@@ -254,11 +254,13 @@ function parseRerouteSheet(raw) {
   }
   const headers = (raw[hi] || []).map(h => h ? String(h).toLowerCase().trim() : '');
   const col = name => headers.findIndex(h => h.includes(name));
-  const cName    = col('client name');
-  const cCont    = col('container number');
-  const cRental  = col('new rental');
-  const cRestart = col('payout restart');
-  const cCycle   = col('payout cycle');
+  const cName        = col('client name');
+  const cCont        = col('container number');
+  const cRental      = col('new rental');
+  const cRestart     = col('payout restart');
+  const cPayoutDate  = col('payout date');
+  const cCycle       = col('payout cycle');
+  const cContractEnd = col('contract end date');
 
   const byKey = {}, byCont = {}, byName = {};
   raw.slice(hi + 1).forEach(r => {
@@ -270,8 +272,10 @@ function parseRerouteSheet(raw) {
     const entry = {
       clientName:  name,
       container:   cont,
-      newRental:   cRental  !== -1 ? parseNumber(r[cRental]) : 0,
-      restartDate: cRestart !== -1 ? parseDate(r[cRestart])  : null,
+      newRental:   cRental      !== -1 ? parseNumber(r[cRental])       : 0,
+      restartDate: cRestart     !== -1 ? parseDate(r[cRestart])        : null,
+      payoutDate:  cPayoutDate  !== -1 ? parseDate(r[cPayoutDate])     : null,
+      contractEnd: cContractEnd !== -1 ? parseDate(r[cContractEnd])    : null,
       isFlexible:  /flex/i.test(restartRaw),
       cycle:       (cCycle !== -1 && r[cCycle] != null) ? String(r[cCycle]).trim() : '',
     };
@@ -319,9 +323,9 @@ function rerouteFor(r) {
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED DEDUCTION ENGINE — used by payout.js (full) & ip-deduction.js
-// Rerouted clients: cycle derived from restart date day-of-month.
+// Rerouted clients: cycle derived from payout date day-of-month (col H),
+// falling back to restart date if payout date is blank.
 // Non-rerouted: original payout cycle field from payment info sheet.
-// It only affects WHEN within the timeline insurance anniversaries land.
 // ─────────────────────────────────────────────────────────────────
 const WEIGHTED_SPLITS = {
   'CONMO0379':   { 'Mohamed Rafi Hakeem': 0.75, 'Sundarrajan Dharmarajan Dhayalakumaran': 0.25 },
@@ -354,12 +358,14 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
     const rr = rerouteFor(r);
     if (rr && rr.e.isFlexible) return false;       // flexible: skip
     if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart: skip
-    // Rerouted clients: cycle derived from restart date day-of-month (day 1-15 = 15th, day 16+ = EOM)
+    // Rerouted clients: cycle derived from payout date day-of-month (col H),
+    // falling back to restart date if payout date is blank. Day 1-15 = 15th, day 16+ = EOM.
     // Non-rerouted: always use original payout cycle field
     const restart = rr ? rr.e.restartDate : null;
     let c;
     if (restart) {
-      c = restart.getDate() <= 15 ? '15' : '30';
+      const cycleRef = rr.e.payoutDate || restart;
+      c = cycleRef.getDate() <= 15 ? '15' : '30';
     } else {
       c = String(r.payoutCycle).replace(/\s/g, '');
     }
@@ -402,7 +408,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     const dedBasis = deductionBasis(r.firstPayout, (rr && rr.e.restartDate) ? rr.e.restartDate : null);
     g.containers.push(r.container);
     if (r.agent) g.agents.add(r.agent);
-    if (rr && rr.e.restartDate) g.rerouteDates.push(fmtDate(rr.e.restartDate));
+    if (rr && rr.e.restartDate) g.rerouteDates.push(fmtDate(rr.e.payoutDate || rr.e.restartDate));
     if (rr && rr.contOk && !rr.nameOk) g.deductionNotes.push('⚑ Verify name — restart matched by container only');
     if (rr && !rr.contOk && rr.nameOk) g.deductionNotes.push('⚑ Verify container — restart matched by name only');
 
@@ -413,9 +419,10 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
-      if (!clientHasContractEnd[r.clientName]) {
+      const effectiveContractEnd = (rr && rr.e.contractEnd) ? rr.e.contractEnd : r.contractEnd;
+      if (!effectiveContractEnd) {
         g.deductionNotes.push('⚑ No contract end date');
-      } else if (r.contractEnd && r.contractEnd < new Date()) {
+      } else if (effectiveContractEnd < new Date()) {
         g.deductionNotes.push('⚑ Contract end date has passed — verify');
       }
     }
