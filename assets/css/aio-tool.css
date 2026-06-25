@@ -222,6 +222,7 @@ select:focus {
   scrollbar-width: none;
 }
 .mode-tabs::-webkit-scrollbar { display: none; }
+#modeTabs2 { margin-top: -6px; }
 
 .mode-tab {
   flex: 1;
