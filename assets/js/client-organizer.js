@@ -161,7 +161,9 @@ window.ClientOrganizer = (() => {
         const pct = 5 + Math.round((i / pdfEntries.length) * 55);
         setProgress(pct, `Reading (${i + 1}/${pdfEntries.length}): ${filename}`);
 
-        const bytes = await entry.async('arraybuffer');
+        const rawBytes = await entry.async('uint8array');
+        const bytes = rawBytes.buffer.slice(rawBytes.byteOffset, rawBytes.byteOffset + rawBytes.byteLength);
+        const bytesCopy = bytes.slice(0);
         let text = '';
         let pageCount = 0;
         let pageTexts = [];
@@ -174,7 +176,7 @@ window.ClientOrganizer = (() => {
           // scanned/unreadable — text stays empty
         }
 
-        pdfRecords.push({ path, filename, bytes: bytes.slice(0), text, pageCount, pageTexts, readable: text.trim().length > 50 });
+        pdfRecords.push({ path, filename, bytes: bytesCopy, text, pageCount, pageTexts, readable: text.trim().length > 50 });
       }
 
       setProgress(60, 'Classifying documents...');
@@ -547,8 +549,8 @@ window.ClientOrganizer = (() => {
               else contractPages.push(p + 1);
             }
 
-            const contractBytes = await extractPages(slot.contract.bytes, contractPages);
-            const leaseBytes    = await extractPages(slot.contract.bytes, leasePages);
+            const contractBytes = await extractPages(slot.contract.bytes.slice(0), contractPages);
+            const leaseBytes    = await extractPages(slot.contract.bytes.slice(0), leasePages);
 
             outZip.file(`${folderName}/${clientName} - Contract ${suffix}.pdf`, contractBytes);
             outZip.file(`${folderName}/${clientName} - Lease Form ${suffix}.pdf`, leaseBytes);
@@ -608,10 +610,9 @@ window.ClientOrganizer = (() => {
   // we use pdf-lib via CDN for page extraction.
   // ─────────────────────────────────────────────────────────────────
   async function extractPages(pdfBytes, pageNumbers) {
-    // If pdf-lib is available, use it for proper page extraction
     if (window.PDFLib) {
       const { PDFDocument } = PDFLib;
-      const srcDoc  = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+      const srcDoc  = await PDFDocument.load(pdfBytes.slice(0), { ignoreEncryption: true });
       const newDoc  = await PDFDocument.create();
       // pageNumbers are 1-based
       const indices = pageNumbers.map(n => n - 1);
