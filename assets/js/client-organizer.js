@@ -391,11 +391,13 @@ window.ClientOrganizer = (() => {
   function cleanName(raw) {
     if (!raw) return '';
     let s = raw.trim();
-    // Remove leading honorifics
+    // Strip leading month+year prefix e.g. "June2026 - " or "JUNE - "
+    s = s.replace(/^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{0,4}\s*[-–]\s*/i, '');
+    // Strip honorifics
     s = s.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss|Engr\.)\s*/i, '');
-    // Collapse whitespace
+    // Strip trailing date leakage e.g. "12.06." or "12.06.2026"
+    s = s.replace(/\s+\d{1,2}[.\-]\d{1,2}[.\-]?\d{0,4}\s*$/, '');
     s = s.replace(/\s+/g, ' ').trim();
-    // Remove trailing punctuation
     s = s.replace(/[,.\-:]+$/, '').trim();
     return s.toUpperCase();
   }
