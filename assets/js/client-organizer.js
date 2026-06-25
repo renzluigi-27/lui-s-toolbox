@@ -242,11 +242,12 @@ window.ClientOrganizer = (() => {
 
     // Contract: has LMC branding + agreement language
     if (
-      (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT')) &&
-      upper.includes('LEGEND MARITIME')
-    ) {
-      docType = 'contract';
-    }
+  (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT') ||
+   upper.includes('RENTAL MANAGEMENT') || upper.includes('FACILITATION')) &&
+  (upper.includes('LEGEND MARITIME') || upper.includes('FIRST PARTY') || upper.includes('SECOND PARTY'))
+) {
+  docType = 'contract';
+}
     // Liberty Invoice: from Liberty Shipping Containers
     else if (upper.includes('LIBERTY SHIPPING CONTAINERS') && upper.includes('INVOICE')) {
       docType = 'liberty_invoice';
