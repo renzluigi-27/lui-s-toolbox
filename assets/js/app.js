@@ -184,6 +184,7 @@ function updateTabUI() {
   const isAudit = activeMode === 'audit';
   const isTrip  = activeMode === 'trip';
   const isEmail = activeMode === 'email';
+  const isClientOrg = activeMode === 'clientOrg';
 
   const genCards = [
     document.getElementById('mainUploadRow'),
@@ -191,7 +192,7 @@ function updateTabUI() {
     document.getElementById('refUploadZone').closest('.card'),
     document.getElementById('generateBtn').closest('.card'),
   ];
-  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail) ? 'none' : ''; });
+  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail || isClientOrg) ? 'none' : ''; });
 
   const auditMount = document.getElementById('auditMount');
   if (auditMount) {
@@ -212,6 +213,12 @@ function updateTabUI() {
   if (emailMount) {
     emailMount.style.display = isEmail ? 'block' : 'none';
     if (isEmail && window.EmailMatcherStandalone) EmailMatcherStandalone.init('emailMatcherMount');
+  }
+
+  const clientOrgMount = document.getElementById('clientOrgMount');
+  if (clientOrgMount) {
+    clientOrgMount.style.display = isClientOrg ? 'block' : 'none';
+    if (isClientOrg && window.ClientOrganizer) ClientOrganizer.init('clientOrgMount');
   }
 
   document.getElementById('emailSheetCard').style.display =
