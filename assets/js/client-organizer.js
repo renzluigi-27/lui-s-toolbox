@@ -213,9 +213,9 @@ window.ClientOrganizer = (() => {
   // CLASSIFY PDF
   // ─────────────────────────────────────────────────────────────────
   function classifyPdf({ filename, text, readable, pageTexts }) {
-    const upper    = text.toUpperCase();
+    const upper     = text.toUpperCase();
     const isScanned = !readable;
-    let docType    = 'unknown';
+    let docType     = 'unknown';
 
     if (
       (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT') ||
@@ -223,11 +223,10 @@ window.ClientOrganizer = (() => {
       (upper.includes('LEGEND MARITIME') || upper.includes('FIRST PARTY') || upper.includes('SECOND PARTY'))
     ) {
       docType = 'contract';
-    } else if (upper.includes('LIBERTY SHIPPING CONTAINERS') && upper.includes('INVOICE')) {
+    } else if (upper.includes('LIBERTY SHIPPING CONTAINERS FZ-LLC') && upper.includes('INVOICE')) {
       docType = 'liberty_invoice';
-    } else if (upper.includes('LEGEND MARITIME') && upper.includes('INVOICE') &&
-               (upper.includes('LEASING SERVICE FEE') || upper.includes('PARKING FEE') ||
-                upper.includes('LEGEND MARITIME CARGO'))) {
+    } else if (upper.includes('LEGEND MARITIME CARGO CONTAINERS RENTAL') && upper.includes('INVOICE') &&
+               (upper.includes('PARKING FEE') || upper.includes('SERVICE FEE'))) {
       docType = 'lmc_invoice';
     } else if (!readable) {
       const fn = filename.toUpperCase();
