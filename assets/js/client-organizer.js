@@ -87,7 +87,6 @@ window.ClientOrganizer = (() => {
       </div>
     `;
 
-    // Upload zone events
     const zone  = document.getElementById('coZipZone');
     const input = document.getElementById('coZipInput');
     zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
@@ -104,8 +103,8 @@ window.ClientOrganizer = (() => {
   // ─────────────────────────────────────────────────────────────────
   // STATE
   // ─────────────────────────────────────────────────────────────────
-  let _zipFile    = null;
-  let _outputZip  = null;
+  let _zipFile   = null;
+  let _outputZip = null;
 
   // ─────────────────────────────────────────────────────────────────
   // HANDLE ZIP UPLOAD
@@ -138,66 +137,51 @@ window.ClientOrganizer = (() => {
     try {
       setProgress(0, 'Reading ZIP...');
 
-      // 1. Read ZIP
-      const zipData  = await readFileAsArrayBuffer(_zipFile);
-      const jszip    = new JSZip();
-      const zip      = await jszip.loadAsync(zipData);
+      const zipData = await readFileAsArrayBuffer(_zipFile);
+      const jszip   = new JSZip();
+      const zip     = await jszip.loadAsync(zipData);
 
-      // Collect PDF entries only (skip folders, skip non-pdf)
       const pdfEntries = [];
       zip.forEach((path, entry) => {
         if (!entry.dir && path.match(/\.pdf$/i)) {
-          const filename = path.split('/').pop(); // strip any existing subfolder
+          const filename = path.split('/').pop();
           pdfEntries.push({ path, filename, entry });
         }
       });
 
       setProgress(5, `Found ${pdfEntries.length} PDF files. Extracting text...`);
 
-      // 2. Extract text from each PDF
       const pdfRecords = [];
       for (let i = 0; i < pdfEntries.length; i++) {
         const { path, filename, entry } = pdfEntries[i];
         const pct = 5 + Math.round((i / pdfEntries.length) * 55);
         setProgress(pct, `Reading (${i + 1}/${pdfEntries.length}): ${filename}`);
 
-        const rawBytes = await entry.async('uint8array');
-        const bytes = rawBytes.buffer.slice(rawBytes.byteOffset, rawBytes.byteOffset + rawBytes.byteLength);
+        const rawBytes  = await entry.async('uint8array');
+        const bytes     = rawBytes.buffer.slice(rawBytes.byteOffset, rawBytes.byteOffset + rawBytes.byteLength);
         const bytesCopy = bytes.slice(0);
-        let text = '';
-        let pageCount = 0;
-        let pageTexts = [];
+        let text = '', pageCount = 0, pageTexts = [];
         try {
           const result = await extractPdfText(bytes);
-          text       = result.fullText;
-          pageCount  = result.pageCount;
-          pageTexts  = result.pageTexts;
-        } catch(e) {
-          // scanned/unreadable — text stays empty
-        }
+          text      = result.fullText;
+          pageCount = result.pageCount;
+          pageTexts = result.pageTexts;
+        } catch(e) { /* scanned/unreadable */ }
 
         pdfRecords.push({ path, filename, bytes: bytesCopy, text, pageCount, pageTexts, readable: text.trim().length > 50 });
       }
 
       setProgress(60, 'Classifying documents...');
-
-      // 3. Classify each PDF
       const classified = pdfRecords.map(r => ({ ...r, ...classifyPdf(r) }));
 
       setProgress(65, 'Building client groups from contracts...');
-
-      // 4. Build client map anchored on contracts
       const clientMap = buildClientMap(classified);
 
       setProgress(75, 'Matching invoices to clients...');
-
-      // 5. Match non-contract PDFs to clients
-      const { matched, unmatched } = matchToClients(classified, clientMap);
+      const { unmatched } = matchToClients(classified, clientMap);
 
       setProgress(85, 'Assembling output ZIP...');
-
-      // 6. Build output ZIP
-      const { outputZip, summary } = await buildOutputZip(matched, unmatched, clientMap);
+      const { outputZip, summary } = await buildOutputZip(unmatched, clientMap);
       _outputZip = outputZip;
 
       setProgress(100, 'Done!');
@@ -211,95 +195,66 @@ window.ClientOrganizer = (() => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // PDF TEXT EXTRACTION via PDF.js
+  // PDF TEXT EXTRACTION
   // ─────────────────────────────────────────────────────────────────
   async function extractPdfText(arrayBuffer) {
     const pdf       = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const pageCount = pdf.numPages;
     const pageTexts = [];
-
     for (let p = 1; p <= pageCount; p++) {
       const page    = await pdf.getPage(p);
       const content = await page.getTextContent();
-      const text    = content.items.map(i => i.str).join(' ');
-      pageTexts.push(text);
+      pageTexts.push(content.items.map(i => i.str).join(' '));
     }
-
     return { fullText: pageTexts.join('\n'), pageCount, pageTexts };
   }
 
   // ─────────────────────────────────────────────────────────────────
   // CLASSIFY PDF
-  // Returns: { docType, clientName, containerType, contractNo, isScanned }
-  // docType: 'contract' | 'liberty_invoice' | 'lmc_invoice' | 'unknown'
   // ─────────────────────────────────────────────────────────────────
   function classifyPdf({ filename, text, readable, pageTexts }) {
-    const upper = text.toUpperCase();
+    const upper    = text.toUpperCase();
     const isScanned = !readable;
+    let docType    = 'unknown';
 
-    // ── Detect document type ──
-    let docType = 'unknown';
-
-    // Contract: has LMC branding + agreement language
     if (
-  (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT') ||
-   upper.includes('RENTAL MANAGEMENT') || upper.includes('FACILITATION')) &&
-  (upper.includes('LEGEND MARITIME') || upper.includes('FIRST PARTY') || upper.includes('SECOND PARTY'))
-) {
-  docType = 'contract';
-}
-    // Liberty Invoice: from Liberty Shipping Containers
-    else if (upper.includes('LIBERTY SHIPPING CONTAINERS') && upper.includes('INVOICE')) {
+      (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT') ||
+       upper.includes('CONTAINER LEASE AGREEMENT')   || upper.includes('RENTAL MANAGEMENT')) &&
+      (upper.includes('LEGEND MARITIME') || upper.includes('FIRST PARTY') || upper.includes('SECOND PARTY'))
+    ) {
+      docType = 'contract';
+    } else if (upper.includes('LIBERTY SHIPPING CONTAINERS') && upper.includes('INVOICE')) {
       docType = 'liberty_invoice';
-    }
-    // LMC Invoice: from Legend Maritime, invoice format
-    else if (upper.includes('LEGEND MARITIME') && upper.includes('INVOICE') &&
-             (upper.includes('LEASING SERVICE FEE') || upper.includes('PARKING FEE') ||
-              upper.includes('LEGEND MARITIME CARGO'))) {
+    } else if (upper.includes('LEGEND MARITIME') && upper.includes('INVOICE') &&
+               (upper.includes('LEASING SERVICE FEE') || upper.includes('PARKING FEE') ||
+                upper.includes('LEGEND MARITIME CARGO'))) {
       docType = 'lmc_invoice';
-    }
-    // Fallback: try filename
-    else if (!readable) {
+    } else if (!readable) {
       const fn = filename.toUpperCase();
       if (fn.includes('CONTRACT') || fn.includes('DRAFT') || fn.includes('AGREEMENT')) docType = 'contract';
       else if (fn.includes('LIBERTY') || fn.includes('VENDOR')) docType = 'liberty_invoice';
-      else if (fn.includes('LMC') && fn.includes('INVOICE') || fn.includes('LEASE INVOICE')) docType = 'lmc_invoice';
+      else if ((fn.includes('LMC') && fn.includes('INVOICE')) || fn.includes('LEASE INVOICE')) docType = 'lmc_invoice';
     }
 
-    // ── Extract contract number (e.g. CONAY2227) ──
     const contractNo = extractContractNo(text, filename);
 
-    // ── Extract client name ──
     let clientName = '';
-    if (docType === 'contract') {
-      clientName = extractClientNameFromContract(text);
-    } else if (docType === 'liberty_invoice') {
-      clientName = extractClientNameFromLiberty(text);
-    } else if (docType === 'lmc_invoice') {
-      clientName = extractClientNameFromLMC(text);
-    }
-
-    // Fallback: try filename
+    if      (docType === 'contract')       clientName = extractClientNameFromContract(text);
+    else if (docType === 'liberty_invoice') clientName = extractClientNameFromLiberty(text);
+    else if (docType === 'lmc_invoice')     clientName = extractClientNameFromLMC(text);
     if (!clientName) clientName = guessClientFromFilename(filename);
 
-    // ── Extract container type ──
     let containerType = '';
-    if (docType === 'contract') {
-      containerType = extractContainerTypeFromContract(text);
-    } else if (docType === 'liberty_invoice') {
-      containerType = extractContainerTypeFromLiberty(text);
-    } else if (docType === 'lmc_invoice') {
-      containerType = extractContainerTypeFromLMC(text);
-    }
+    if      (docType === 'contract')       containerType = extractContainerTypeFromContract(text);
+    else if (docType === 'liberty_invoice') containerType = extractContainerTypeFromLiberty(text);
+    else if (docType === 'lmc_invoice')     containerType = extractContainerTypeFromLMC(text);
 
-    // ── Detect lease form pages ──
-    let leaseFormPageIndex = -1; // 0-based index into pageTexts
+    let leaseFormPageIndex = -1;
     if (docType === 'contract' && pageTexts.length > 1) {
       for (let i = 0; i < pageTexts.length; i++) {
         if (pageTexts[i].toUpperCase().includes('LEASE FORM') &&
             pageTexts[i].toUpperCase().includes('ACCOUNT HOLDER')) {
-          leaseFormPageIndex = i;
-          break;
+          leaseFormPageIndex = i; break;
         }
       }
     }
@@ -310,60 +265,43 @@ window.ClientOrganizer = (() => {
   // ─────────────────────────────────────────────────────────────────
   // EXTRACT HELPERS
   // ─────────────────────────────────────────────────────────────────
-
   function extractContractNo(text, filename) {
-    // Pattern: CONAY followed by digits
     const m = text.match(/CON[A-Z]{0,4}\d{3,6}/i) || filename.match(/CON[A-Z]{0,4}\d{3,6}/i);
     return m ? m[0].toUpperCase() : '';
   }
 
   function extractClientNameFromContract(text) {
-    // Pattern: "2. Ms./Mr. FULLNAME" or "2\ Ms. FULLNAME"
     let m = text.match(/2[\\.]?\s*(?:Ms\.|Mr\.|Mrs\.|Dr\.)?\s*([A-Z][A-Z\s]{5,60}?)[\-–]/);
     if (m) return cleanName(m[1]);
-
-    // Pattern: "Second Party" or "Owner" followed by name in caps
     m = text.match(/(?:Second Party|Owner)[^:]*?[:\-–]\s*([A-Z][A-Z\s]{5,60}?)[\.\n,\-]/);
     if (m) return cleanName(m[1]);
-
-    // Pattern after "AND\n2" block
     m = text.match(/AND\s+2[\\.]?\s*(?:Ms\.|Mr\.|Mrs\.|Dr\.)?\s*([A-Z][A-Z\s]{5,60})/i);
     if (m) return cleanName(m[1]);
-
     return '';
   }
 
   function extractClientNameFromLiberty(text) {
-    // "Name: FULLNAME" in BILL TO section
     const m = text.match(/Name\s*:\s*([A-Z][A-Z\s]{5,60}?)(?:\n|INVOICE|Company|Passport)/i);
     return m ? cleanName(m[1]) : '';
   }
 
   function extractClientNameFromLMC(text) {
-    // "Name : FULLNAME" in BILL TO
     const m = text.match(/Name\s*:\s*([A-Z][A-Z\s]{5,60}?)(?:\n|Ph\s*:|Company|Passport)/i);
     return m ? cleanName(m[1]) : '';
   }
 
   function extractContainerTypeFromContract(text) {
-    // Section 2 style: "Container type: Special Container" + "Size: 40ft"
     const typeM = text.match(/Container\s+type\s*:\s*([^\n\r]{3,40})/i);
     const sizeM = text.match(/Size\s*:\s*([^\n\r]{2,20})/i);
     if (typeM && sizeM) return normalizeContainerType(sizeM[1].trim() + ' ' + typeM[1].trim());
-
-    // Schedule A style: "40FT HC DD" in table
     const schedM = text.match(/(?:Type of Container|SCHEDULE.{0,5}A)[^\n]*\n[^\n]*\n?\s*([0-9]{2}FT[^\n]{2,30})/i);
     if (schedM) return normalizeContainerType(schedM[1].trim());
-
-    // Fallback: look for ft pattern
     const ftM = text.match(/(\d{2}\s*(?:FT|FEET|ft)[^\n,]{0,30})/i);
     if (ftM) return normalizeContainerType(ftM[1].trim());
-
     return '';
   }
 
   function extractContainerTypeFromLiberty(text) {
-    // Description field in invoice table
     const m = text.match(/(?:DESCRIPTION|description)\s*\n?([^\n]{5,60})/i);
     if (m) return normalizeContainerType(m[1].trim());
     const ftM = text.match(/(\d{2}\s*(?:FT|FEET|ft)[^\n,]{0,30})/i);
@@ -378,33 +316,31 @@ window.ClientOrganizer = (() => {
   }
 
   function normalizeContainerType(raw) {
-    // Clean and shorten: "40 Feet Special Container" → "40ft Special"
-    let s = raw.replace(/\s+/g, ' ').trim();
+    let s = raw.replace(/[#\uf0b7\u2022\u00b7•]+/g, ' ').replace(/\s+/g, ' ').trim();
     s = s.replace(/(\d{2})\s*(?:FEET|FT)/i, '$1ft');
-    // Remove filler words
-    s = s.replace(/\b(Container|Unit|Shipping|New|Condition)\b/gi, '').replace(/\s+/g, ' ').trim();
-    // Trim trailing punctuation
+    s = s.replace(/\b(Container|Unit|Shipping|New|Condition|Quantity)\b/gi, '').replace(/\s+/g, ' ').trim();
     s = s.replace(/[,.\-]+$/, '').trim();
     return s;
   }
 
-  // Remove honorific prefixes from client name
   function cleanName(raw) {
     if (!raw) return '';
     let s = raw.trim();
-    // Strip leading month+year prefix e.g. "June2026 - " or "JUNE - "
-    s = s.replace(/^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{0,4}\s*[-–]\s*/i, '');
-    // Strip honorifics
-    s = s.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss|Engr\.)\s*/i, '');
+    // Strip bullet/special chars first
+    s = s.replace(/[#\uf0b7\u2022\u00b7•]+/g, ' ');
+    // Loop to strip month+honorific combos
+    for (let i = 0; i < 3; i++) {
+      s = s.replace(/^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{0,4}\s*[-–\s]+/i, '');
+      s = s.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss|Engr\.)\s*/i, '');
+    }
     // Strip trailing date leakage e.g. "12.06." or "12.06.2026"
-    s = s.replace(/\s+\d{1,2}[.\-]\d{1,2}[.\-]?\d{0,4}\s*$/, '');
+    s = s.replace(/\s+\d{1,2}[.\-]\d{1,2}[.\-]?\d{0,4}\.*\s*$/, '');
     s = s.replace(/\s+/g, ' ').trim();
     s = s.replace(/[,.\-:]+$/, '').trim();
     return s.toUpperCase();
   }
 
   function guessClientFromFilename(filename) {
-    // Strip known prefixes from filename to guess client name
     let s = filename.replace(/\.pdf$/i, '');
     const prefixes = [
       /^LMC[\s_]*(Invoice|Contract|Draft|Services?|Container)[^A-Z]*/i,
@@ -416,47 +352,36 @@ window.ClientOrganizer = (() => {
       /^Ms\.?\s*/i,
       /^Atfan[\s_]*/i,
       /FASLA[\s_]*Contract[\s_]*/i,
-      /\d{4,}/g, // strip date numbers
-      /[\s_-]+\d+[A-Z]{3}\d{2,4}[\s_-]*/gi, // strip date suffixes like 13FEB26
-      /[\s_-]*\([^)]*\)/g, // strip parentheticals
-      /[\s_-]*-\d+$/, // strip trailing -8 etc
+      /\d{4,}/g,
+      /[\s_-]+\d+[A-Z]{3}\d{2,4}[\s_-]*/gi,
+      /[\s_-]*\([^)]*\)/g,
+      /[\s_-]*-\d+$/,
     ];
     for (const p of prefixes) s = s.replace(p, ' ');
     return s.replace(/\s+/g, ' ').trim().toUpperCase();
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // BUILD CLIENT MAP from contracts (anchor)
+  // BUILD CLIENT MAP
   // ─────────────────────────────────────────────────────────────────
   function buildClientMap(classified) {
-    // clientMap: key = normalized client name
-    // value: { clientName, contractNo, containerTypes: Map<containerType, {files:[]}> }
     const clientMap = new Map();
-
     const contracts = classified.filter(r => r.docType === 'contract');
 
     for (const c of contracts) {
       if (!c.clientName) continue;
       const key = normalizeClientKey(c.clientName);
-
       if (!clientMap.has(key)) {
-        clientMap.set(key, {
-          clientName:  c.clientName,
-          contractNos: new Set(),
-          containers:  new Map(), // containerType → { contract, libertyInvoice, lmcInvoice, leaseForm }
-        });
+        clientMap.set(key, { clientName: c.clientName, contractNos: new Set(), containers: new Map() });
       }
-
       const entry = clientMap.get(key);
       if (c.contractNo) entry.contractNos.add(c.contractNo);
-
       const ctype = c.containerType || 'Unknown Container';
       if (!entry.containers.has(ctype)) {
-        entry.containers.set(ctype, { contract: null, libertyInvoice: null, lmcInvoice: null, leaseForm: null });
+        entry.containers.set(ctype, { contract: null, libertyInvoice: null, lmcInvoice: null });
       }
       entry.containers.get(ctype).contract = c;
     }
-
     return clientMap;
   }
 
@@ -464,63 +389,45 @@ window.ClientOrganizer = (() => {
   // MATCH INVOICES TO CLIENTS
   // ─────────────────────────────────────────────────────────────────
   function matchToClients(classified, clientMap) {
-    const unmatched = [];
-    const matched   = []; // already handled via clientMap mutation
-
+    const unmatched  = [];
     const nonContracts = classified.filter(r => r.docType !== 'contract');
 
     for (const doc of nonContracts) {
       if (!doc.clientName) {
-        unmatched.push({ ...doc, reason: 'Could not extract client name' });
-        continue;
+        unmatched.push({ ...doc, reason: 'Could not extract client name' }); continue;
       }
-
       const key = normalizeClientKey(doc.clientName);
       if (!clientMap.has(key)) {
-        // No matching contract found — try fuzzy
         const fuzzyKey = findFuzzyClient(key, clientMap);
-        if (fuzzyKey) {
-          assignToClient(clientMap.get(fuzzyKey), doc);
-        } else {
-          unmatched.push({ ...doc, reason: `No matching contract for client: ${doc.clientName}` });
-        }
+        if (fuzzyKey) assignToClient(clientMap.get(fuzzyKey), doc);
+        else unmatched.push({ ...doc, reason: `No matching contract for client: ${doc.clientName}` });
         continue;
       }
-
       assignToClient(clientMap.get(key), doc);
     }
 
-    // Handle scanned/unreadable
     const unknowns = classified.filter(r => r.docType === 'unknown' && !r.readable);
     for (const doc of unknowns) {
-      unmatched.push({ ...doc, reason: `Scanned or unreadable PDF — check manually (filename: ${doc.filename})` });
+      unmatched.push({ ...doc, reason: `Scanned or unreadable — check manually` });
     }
 
-    return { matched, unmatched };
+    return { unmatched };
   }
 
   function assignToClient(entry, doc) {
-    // Find best matching container slot
     const ctype = doc.containerType || '';
     let slot = null;
-
     if (ctype) {
-      // Try exact match first
       for (const [ct, s] of entry.containers) {
         if (normalizeContainerKey(ct) === normalizeContainerKey(ctype)) { slot = s; break; }
       }
     }
-    // Fallback: use first available slot
-    if (!slot && entry.containers.size > 0) {
-      slot = entry.containers.values().next().value;
-    }
-    // Fallback: create new slot
+    if (!slot && entry.containers.size > 0) slot = entry.containers.values().next().value;
     if (!slot) {
       const key = ctype || 'Unknown Container';
-      entry.containers.set(key, { contract: null, libertyInvoice: null, lmcInvoice: null, leaseForm: null });
+      entry.containers.set(key, { contract: null, libertyInvoice: null, lmcInvoice: null });
       slot = entry.containers.get(key);
     }
-
     if (doc.docType === 'liberty_invoice') slot.libertyInvoice = doc;
     else if (doc.docType === 'lmc_invoice') slot.lmcInvoice = doc;
   }
@@ -528,52 +435,41 @@ window.ClientOrganizer = (() => {
   // ─────────────────────────────────────────────────────────────────
   // BUILD OUTPUT ZIP
   // ─────────────────────────────────────────────────────────────────
-  async function buildOutputZip(matched, unmatched, clientMap) {
+  async function buildOutputZip(unmatched, clientMap) {
     const outZip  = new JSZip();
     const summary = { clients: [], totalFiles: 0, unmatched: 0 };
 
     for (const [, entry] of clientMap) {
       const { clientName, contractNos, containers } = entry;
-      const folderName = clientName; // already cleaned
 
       for (const [containerType, slot] of containers) {
         const suffix = `(${containerType})`;
 
-        // ── Contract + Lease Form split ──
         if (slot.contract) {
-          const { bytes, leaseFormPageIndex, pageCount, pageTexts } = slot.contract;
-
+          const { bytes, leaseFormPageIndex, pageCount } = slot.contract;
           if (leaseFormPageIndex >= 0 && pageCount > 1) {
-            // Split: contract pages = all except lease form page
-            const contractPages = [];
-            const leasePages    = [];
+            const contractPages = [], leasePages = [];
             for (let p = 0; p < pageCount; p++) {
-              if (p === leaseFormPageIndex) leasePages.push(p + 1); // 1-based
+              if (p === leaseFormPageIndex) leasePages.push(p + 1);
               else contractPages.push(p + 1);
             }
-
             const contractBytes = await extractPages(slot.contract.bytes.slice(0), contractPages);
             const leaseBytes    = await extractPages(slot.contract.bytes.slice(0), leasePages);
-
-            outZip.file(`${folderName}/${clientName} - Contract ${suffix}.pdf`, contractBytes);
-            outZip.file(`${folderName}/${clientName} - Lease Form ${suffix}.pdf`, leaseBytes);
+            outZip.file(`${clientName}/${clientName} - Contract ${suffix}.pdf`, contractBytes);
+            outZip.file(`${clientName}/${clientName} - Lease Form ${suffix}.pdf`, leaseBytes);
             summary.totalFiles += 2;
           } else {
-            // No lease form detected — save contract as-is
-            outZip.file(`${folderName}/${clientName} - Contract ${suffix}.pdf`, bytes);
+            outZip.file(`${clientName}/${clientName} - Contract ${suffix}.pdf`, bytes);
             summary.totalFiles++;
           }
         }
 
-        // ── LMC Invoice ──
         if (slot.lmcInvoice) {
-          outZip.file(`${folderName}/${clientName} - LMC Invoice ${suffix}.pdf`, slot.lmcInvoice.bytes);
+          outZip.file(`${clientName}/${clientName} - LMC Invoice ${suffix}.pdf`, slot.lmcInvoice.bytes);
           summary.totalFiles++;
         }
-
-        // ── Liberty Invoice ──
         if (slot.libertyInvoice) {
-          outZip.file(`${folderName}/${clientName} - Liberty Invoice ${suffix}.pdf`, slot.libertyInvoice.bytes);
+          outZip.file(`${clientName}/${clientName} - Liberty Invoice ${suffix}.pdf`, slot.libertyInvoice.bytes);
           summary.totalFiles++;
         }
 
@@ -589,17 +485,13 @@ window.ClientOrganizer = (() => {
       }
     }
 
-    // ── Unmatched folder ──
-    const unmatchedAll = unmatched;
-    summary.unmatched = unmatchedAll.length;
-    for (const doc of unmatchedAll) {
-      let note = doc.reason || 'Unknown reason';
-      // Try to get contract no from filename
-      const cno = doc.contractNo || extractContractNo('', doc.filename);
+    summary.unmatched = unmatched.length;
+    for (const doc of unmatched) {
+      const cno  = doc.contractNo || extractContractNo('', doc.filename);
       const hint = cno ? ` [Contract: ${cno}]` : '';
       outZip.file(`_UNMATCHED/${doc.filename}`, doc.bytes);
-      // Add a txt note alongside
-      outZip.file(`_UNMATCHED/${doc.filename}.note.txt`, `${note}${hint}\nOriginal filename: ${doc.filename}`);
+      outZip.file(`_UNMATCHED/${doc.filename}.note.txt`,
+        `${doc.reason || 'Unknown reason'}${hint}\nOriginal filename: ${doc.filename}`);
       summary.totalFiles++;
     }
 
@@ -607,28 +499,22 @@ window.ClientOrganizer = (() => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // PAGE EXTRACTION — split PDF pages using PDF.js + canvas re-encode
-  // We re-render each needed page to a new PDF-like byte blob.
-  // Since we can't easily merge PDFs in browser without a library,
-  // we use pdf-lib via CDN for page extraction.
+  // PAGE EXTRACTION via pdf-lib
   // ─────────────────────────────────────────────────────────────────
   async function extractPages(pdfBytes, pageNumbers) {
     if (window.PDFLib) {
       const { PDFDocument } = PDFLib;
-      const srcDoc  = await PDFDocument.load(pdfBytes.slice(0), { ignoreEncryption: true });
-      const newDoc  = await PDFDocument.create();
-      // pageNumbers are 1-based
-      const indices = pageNumbers.map(n => n - 1);
-      const pages   = await newDoc.copyPages(srcDoc, indices);
+      const srcDoc = await PDFDocument.load(pdfBytes.slice(0), { ignoreEncryption: true });
+      const newDoc = await PDFDocument.create();
+      const pages  = await newDoc.copyPages(srcDoc, pageNumbers.map(n => n - 1));
       pages.forEach(p => newDoc.addPage(p));
       return await newDoc.save();
     }
-    // Fallback: return original bytes (no split possible without pdf-lib)
     return pdfBytes;
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // DOWNLOAD OUTPUT ZIP
+  // DOWNLOAD
   // ─────────────────────────────────────────────────────────────────
   async function download() {
     if (!_outputZip) return;
@@ -663,25 +549,21 @@ window.ClientOrganizer = (() => {
     if (summary.unmatched > 0) {
       document.getElementById('coUnmatchedBox').style.display = 'block';
       document.getElementById('coUnmatchedMsg').textContent =
-        `⚠ ${summary.unmatched} file(s) could not be matched and are in _UNMATCHED/ folder. Check the .note.txt files inside for details.`;
+        `⚠ ${summary.unmatched} file(s) could not be matched — check _UNMATCHED/ folder.`;
     } else {
       document.getElementById('coUnmatchedBox').style.display = 'none';
     }
 
-    const tbody = document.getElementById('coTableBody');
-    tbody.innerHTML = summary.clients.map(c => {
+    document.getElementById('coTableBody').innerHTML = summary.clients.map(c => {
       const files = [
-        c.hasContract ? '✓ Contract' : '✗ Contract',
-        c.hasLease    ? '✓ Lease Form' : '— Lease Form',
-        c.hasLMC      ? '✓ LMC Invoice' : '✗ LMC Invoice',
-        c.hasLiberty  ? '✓ Liberty Invoice' : '✗ Liberty Invoice',
+        c.hasContract ? '✓ Contract'         : '✗ Contract',
+        c.hasLease    ? '✓ Lease Form'        : '— Lease Form',
+        c.hasLMC      ? '✓ LMC Invoice'       : '✗ LMC Invoice',
+        c.hasLiberty  ? '✓ Liberty Invoice'   : '✗ Liberty Invoice',
       ].join('<br>');
-
-      const allOk = c.hasContract && c.hasLMC && c.hasLiberty;
-      const badge = allOk
+      const badge = (c.hasContract && c.hasLMC && c.hasLiberty)
         ? `<span class="badge badge-ok">Complete</span>`
         : `<span class="badge badge-warn">Partial</span>`;
-
       return `<tr>
         <td class="td-name">${esc(c.client)}</td>
         <td class="td-mono">${esc(c.contractNo)}</td>
@@ -700,25 +582,19 @@ window.ClientOrganizer = (() => {
   function normalizeClientKey(name) {
     return name.toUpperCase().replace(/\s+/g, ' ').trim();
   }
-
   function normalizeContainerKey(ct) {
     return ct.toUpperCase().replace(/\s+/g, ' ').trim();
   }
-
   function findFuzzyClient(key, clientMap) {
-    // Simple: check if key contains or is contained by any existing key
     for (const [k] of clientMap) {
-      const a = key.replace(/\s/g, '');
-      const b = k.replace(/\s/g, '');
+      const a = key.replace(/\s/g, ''), b = k.replace(/\s/g, '');
       if (a.includes(b) || b.includes(a)) return k;
-      // Check first 3 words match
       const wa = key.split(' ').slice(0,3).join(' ');
       const wb = k.split(' ').slice(0,3).join(' ');
       if (wa === wb && wa.length > 5) return k;
     }
     return null;
   }
-
   function readFileAsArrayBuffer(file) {
     return new Promise((res, rej) => {
       const r = new FileReader();
@@ -727,27 +603,21 @@ window.ClientOrganizer = (() => {
       r.readAsArrayBuffer(file);
     });
   }
-
   function setProgress(pct, text) {
     document.getElementById('coProgressBar').style.width  = pct + '%';
     document.getElementById('coProgressText').textContent = text;
   }
-
   function coMsg(id, text, type) {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = text;
     el.className   = 'msg' + (text ? ` show ${type || 'error'}` : '');
   }
-
   function esc(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // PUBLIC API
-  // ─────────────────────────────────────────────────────────────────
   return { init, run, download };
 
 })();
