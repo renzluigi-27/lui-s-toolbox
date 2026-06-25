@@ -1,0 +1,749 @@
+// ─────────────────────────────────────────────────────────────────
+// CLIENT ORGANIZER — client-organizer.js
+// Reads a ZIP of PDFs, classifies by content, groups by client,
+// splits lease forms, outputs a sorted ZIP.
+// Depends on: PDF.js (pdfjsLib), JSZip
+// ─────────────────────────────────────────────────────────────────
+
+const ClientOrganizer = (() => {
+
+  // ── PDF.js worker setup ──
+  function setupPdfWorker() {
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // INIT — mount UI into container div
+  // ─────────────────────────────────────────────────────────────────
+  function init(mountId) {
+    setupPdfWorker();
+    const el = document.getElementById(mountId);
+    if (!el) return;
+    el.innerHTML = `
+      <div class="card">
+        <div class="section-label">Upload Closing ZIP</div>
+        <div class="upload-zone upload-zone-sm" id="coZipZone">
+          <input type="file" id="coZipInput" accept=".zip" />
+          <div class="upload-zone-text">
+            <strong>Click to upload</strong>
+            .zip file containing client PDFs
+          </div>
+        </div>
+        <div class="file-loaded" id="coZipLoaded">
+          <span>&#10003;</span>
+          <div>
+            <div class="file-loaded-name" id="coZipName">&mdash;</div>
+            <div class="file-loaded-meta" id="coZipMeta">&mdash;</div>
+          </div>
+        </div>
+        <div class="msg error" id="coZipError"></div>
+      </div>
+
+      <div class="card action-card">
+        <button class="btn-primary" id="coRunBtn" disabled onclick="ClientOrganizer.run()">
+          Organize Files
+        </button>
+        <div class="msg" id="coRunError"></div>
+        <span class="generate-hint" id="coHint">Upload a ZIP file to continue</span>
+      </div>
+
+      <div id="coProgressCard" class="card" style="display:none;">
+        <div class="section-label">Processing</div>
+        <div id="coProgressText" style="font-size:13px;color:var(--text-muted);margin-bottom:8px;">Starting...</div>
+        <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;">
+          <div id="coProgressBar" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;border-radius:6px;"></div>
+        </div>
+      </div>
+
+      <div id="coResultCard" class="card" style="display:none;">
+        <div class="results-header">
+          <div>
+            <div class="section-label" style="margin-bottom:2px;">Results</div>
+            <div class="results-title" id="coResultTitle">&mdash;</div>
+          </div>
+          <button class="btn-primary" onclick="ClientOrganizer.download()">&#8595; Download ZIP</button>
+        </div>
+        <div class="stats-grid" id="coStatsGrid"></div>
+        <div id="coUnmatchedBox" style="display:none;">
+          <div class="msg warn show" id="coUnmatchedMsg"></div>
+        </div>
+        <div class="table-wrap" style="margin-top:1rem;">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Contract No</th>
+                <th>Container</th>
+                <th>Files Found</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="coTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    `;
+
+    // Upload zone events
+    const zone  = document.getElementById('coZipZone');
+    const input = document.getElementById('coZipInput');
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault(); zone.classList.remove('dragover');
+      if (e.dataTransfer.files[0]) handleZip(e.dataTransfer.files[0]);
+    });
+    input.addEventListener('change', e => {
+      if (e.target.files[0]) handleZip(e.target.files[0]);
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // STATE
+  // ─────────────────────────────────────────────────────────────────
+  let _zipFile    = null;
+  let _outputZip  = null;
+
+  // ─────────────────────────────────────────────────────────────────
+  // HANDLE ZIP UPLOAD
+  // ─────────────────────────────────────────────────────────────────
+  function handleZip(file) {
+    coMsg('coZipError', '');
+    if (!file.name.match(/\.zip$/i)) {
+      coMsg('coZipError', 'Please upload a .zip file', 'error'); return;
+    }
+    _zipFile = file;
+    document.getElementById('coZipLoaded').classList.add('show');
+    document.getElementById('coZipName').textContent = file.name;
+    document.getElementById('coZipMeta').textContent = `${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    document.getElementById('coRunBtn').disabled = false;
+    document.getElementById('coHint').textContent = 'Ready to organize';
+    document.getElementById('coResultCard').style.display = 'none';
+    document.getElementById('coProgressCard').style.display = 'none';
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // MAIN RUN
+  // ─────────────────────────────────────────────────────────────────
+  async function run() {
+    if (!_zipFile) return;
+    coMsg('coRunError', '');
+    document.getElementById('coResultCard').style.display = 'none';
+    document.getElementById('coProgressCard').style.display = 'block';
+    document.getElementById('coRunBtn').disabled = true;
+
+    try {
+      setProgress(0, 'Reading ZIP...');
+
+      // 1. Read ZIP
+      const zipData  = await readFileAsArrayBuffer(_zipFile);
+      const jszip    = new JSZip();
+      const zip      = await jszip.loadAsync(zipData);
+
+      // Collect PDF entries only (skip folders, skip non-pdf)
+      const pdfEntries = [];
+      zip.forEach((path, entry) => {
+        if (!entry.dir && path.match(/\.pdf$/i)) {
+          const filename = path.split('/').pop(); // strip any existing subfolder
+          pdfEntries.push({ path, filename, entry });
+        }
+      });
+
+      setProgress(5, `Found ${pdfEntries.length} PDF files. Extracting text...`);
+
+      // 2. Extract text from each PDF
+      const pdfRecords = [];
+      for (let i = 0; i < pdfEntries.length; i++) {
+        const { path, filename, entry } = pdfEntries[i];
+        const pct = 5 + Math.round((i / pdfEntries.length) * 55);
+        setProgress(pct, `Reading (${i + 1}/${pdfEntries.length}): ${filename}`);
+
+        const bytes = await entry.async('arraybuffer');
+        let text = '';
+        let pageCount = 0;
+        let pageTexts = [];
+        try {
+          const result = await extractPdfText(bytes);
+          text       = result.fullText;
+          pageCount  = result.pageCount;
+          pageTexts  = result.pageTexts;
+        } catch(e) {
+          // scanned/unreadable — text stays empty
+        }
+
+        pdfRecords.push({ path, filename, bytes, text, pageCount, pageTexts, readable: text.trim().length > 50 });
+      }
+
+      setProgress(60, 'Classifying documents...');
+
+      // 3. Classify each PDF
+      const classified = pdfRecords.map(r => ({ ...r, ...classifyPdf(r) }));
+
+      setProgress(65, 'Building client groups from contracts...');
+
+      // 4. Build client map anchored on contracts
+      const clientMap = buildClientMap(classified);
+
+      setProgress(75, 'Matching invoices to clients...');
+
+      // 5. Match non-contract PDFs to clients
+      const { matched, unmatched } = matchToClients(classified, clientMap);
+
+      setProgress(85, 'Assembling output ZIP...');
+
+      // 6. Build output ZIP
+      const { outputZip, summary } = await buildOutputZip(matched, unmatched, clientMap);
+      _outputZip = outputZip;
+
+      setProgress(100, 'Done!');
+      renderResults(summary);
+
+    } catch(err) {
+      coMsg('coRunError', 'Error: ' + err.message, 'error');
+      document.getElementById('coProgressCard').style.display = 'none';
+      document.getElementById('coRunBtn').disabled = false;
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // PDF TEXT EXTRACTION via PDF.js
+  // ─────────────────────────────────────────────────────────────────
+  async function extractPdfText(arrayBuffer) {
+    const pdf       = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageCount = pdf.numPages;
+    const pageTexts = [];
+
+    for (let p = 1; p <= pageCount; p++) {
+      const page    = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      const text    = content.items.map(i => i.str).join(' ');
+      pageTexts.push(text);
+    }
+
+    return { fullText: pageTexts.join('\n'), pageCount, pageTexts };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // CLASSIFY PDF
+  // Returns: { docType, clientName, containerType, contractNo, isScanned }
+  // docType: 'contract' | 'liberty_invoice' | 'lmc_invoice' | 'unknown'
+  // ─────────────────────────────────────────────────────────────────
+  function classifyPdf({ filename, text, readable, pageTexts }) {
+    const upper = text.toUpperCase();
+    const isScanned = !readable;
+
+    // ── Detect document type ──
+    let docType = 'unknown';
+
+    // Contract: has LMC branding + agreement language
+    if (
+      (upper.includes('CONTAINER RENTAL MANAGEMENT') || upper.includes('FACILITATION AGREEMENT')) &&
+      upper.includes('LEGEND MARITIME')
+    ) {
+      docType = 'contract';
+    }
+    // Liberty Invoice: from Liberty Shipping Containers
+    else if (upper.includes('LIBERTY SHIPPING CONTAINERS') && upper.includes('INVOICE')) {
+      docType = 'liberty_invoice';
+    }
+    // LMC Invoice: from Legend Maritime, invoice format
+    else if (upper.includes('LEGEND MARITIME') && upper.includes('INVOICE') &&
+             (upper.includes('LEASING SERVICE FEE') || upper.includes('PARKING FEE') ||
+              upper.includes('LEGEND MARITIME CARGO'))) {
+      docType = 'lmc_invoice';
+    }
+    // Fallback: try filename
+    else if (!readable) {
+      const fn = filename.toUpperCase();
+      if (fn.includes('CONTRACT') || fn.includes('DRAFT') || fn.includes('AGREEMENT')) docType = 'contract';
+      else if (fn.includes('LIBERTY') || fn.includes('VENDOR')) docType = 'liberty_invoice';
+      else if (fn.includes('LMC') && fn.includes('INVOICE') || fn.includes('LEASE INVOICE')) docType = 'lmc_invoice';
+    }
+
+    // ── Extract contract number (e.g. CONAY2227) ──
+    const contractNo = extractContractNo(text, filename);
+
+    // ── Extract client name ──
+    let clientName = '';
+    if (docType === 'contract') {
+      clientName = extractClientNameFromContract(text);
+    } else if (docType === 'liberty_invoice') {
+      clientName = extractClientNameFromLiberty(text);
+    } else if (docType === 'lmc_invoice') {
+      clientName = extractClientNameFromLMC(text);
+    }
+
+    // Fallback: try filename
+    if (!clientName) clientName = guessClientFromFilename(filename);
+
+    // ── Extract container type ──
+    let containerType = '';
+    if (docType === 'contract') {
+      containerType = extractContainerTypeFromContract(text);
+    } else if (docType === 'liberty_invoice') {
+      containerType = extractContainerTypeFromLiberty(text);
+    } else if (docType === 'lmc_invoice') {
+      containerType = extractContainerTypeFromLMC(text);
+    }
+
+    // ── Detect lease form pages ──
+    let leaseFormPageIndex = -1; // 0-based index into pageTexts
+    if (docType === 'contract' && pageTexts.length > 1) {
+      for (let i = 0; i < pageTexts.length; i++) {
+        if (pageTexts[i].toUpperCase().includes('LEASE FORM') &&
+            pageTexts[i].toUpperCase().includes('ACCOUNT HOLDER')) {
+          leaseFormPageIndex = i;
+          break;
+        }
+      }
+    }
+
+    return { docType, clientName, containerType, contractNo, isScanned, leaseFormPageIndex };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // EXTRACT HELPERS
+  // ─────────────────────────────────────────────────────────────────
+
+  function extractContractNo(text, filename) {
+    // Pattern: CONAY followed by digits
+    const m = text.match(/CON[A-Z]{0,4}\d{3,6}/i) || filename.match(/CON[A-Z]{0,4}\d{3,6}/i);
+    return m ? m[0].toUpperCase() : '';
+  }
+
+  function extractClientNameFromContract(text) {
+    // Pattern: "2. Ms./Mr. FULLNAME" or "2\ Ms. FULLNAME"
+    let m = text.match(/2[\\.]?\s*(?:Ms\.|Mr\.|Mrs\.|Dr\.)?\s*([A-Z][A-Z\s]{5,60}?)[\-–]/);
+    if (m) return cleanName(m[1]);
+
+    // Pattern: "Second Party" or "Owner" followed by name in caps
+    m = text.match(/(?:Second Party|Owner)[^:]*?[:\-–]\s*([A-Z][A-Z\s]{5,60}?)[\.\n,\-]/);
+    if (m) return cleanName(m[1]);
+
+    // Pattern after "AND\n2" block
+    m = text.match(/AND\s+2[\\.]?\s*(?:Ms\.|Mr\.|Mrs\.|Dr\.)?\s*([A-Z][A-Z\s]{5,60})/i);
+    if (m) return cleanName(m[1]);
+
+    return '';
+  }
+
+  function extractClientNameFromLiberty(text) {
+    // "Name: FULLNAME" in BILL TO section
+    const m = text.match(/Name\s*:\s*([A-Z][A-Z\s]{5,60}?)(?:\n|INVOICE|Company|Passport)/i);
+    return m ? cleanName(m[1]) : '';
+  }
+
+  function extractClientNameFromLMC(text) {
+    // "Name : FULLNAME" in BILL TO
+    const m = text.match(/Name\s*:\s*([A-Z][A-Z\s]{5,60}?)(?:\n|Ph\s*:|Company|Passport)/i);
+    return m ? cleanName(m[1]) : '';
+  }
+
+  function extractContainerTypeFromContract(text) {
+    // Section 2 style: "Container type: Special Container" + "Size: 40ft"
+    const typeM = text.match(/Container\s+type\s*:\s*([^\n\r]{3,40})/i);
+    const sizeM = text.match(/Size\s*:\s*([^\n\r]{2,20})/i);
+    if (typeM && sizeM) return normalizeContainerType(sizeM[1].trim() + ' ' + typeM[1].trim());
+
+    // Schedule A style: "40FT HC DD" in table
+    const schedM = text.match(/(?:Type of Container|SCHEDULE.{0,5}A)[^\n]*\n[^\n]*\n?\s*([0-9]{2}FT[^\n]{2,30})/i);
+    if (schedM) return normalizeContainerType(schedM[1].trim());
+
+    // Fallback: look for ft pattern
+    const ftM = text.match(/(\d{2}\s*(?:FT|FEET|ft)[^\n,]{0,30})/i);
+    if (ftM) return normalizeContainerType(ftM[1].trim());
+
+    return '';
+  }
+
+  function extractContainerTypeFromLiberty(text) {
+    // Description field in invoice table
+    const m = text.match(/(?:DESCRIPTION|description)\s*\n?([^\n]{5,60})/i);
+    if (m) return normalizeContainerType(m[1].trim());
+    const ftM = text.match(/(\d{2}\s*(?:FT|FEET|ft)[^\n,]{0,30})/i);
+    if (ftM) return normalizeContainerType(ftM[1].trim());
+    return '';
+  }
+
+  function extractContainerTypeFromLMC(text) {
+    const ftM = text.match(/(\d{2}\s*(?:FT|FEET|ft)[^\n,]{0,30})/i);
+    if (ftM) return normalizeContainerType(ftM[1].trim());
+    return '';
+  }
+
+  function normalizeContainerType(raw) {
+    // Clean and shorten: "40 Feet Special Container" → "40ft Special"
+    let s = raw.replace(/\s+/g, ' ').trim();
+    s = s.replace(/(\d{2})\s*(?:FEET|FT)/i, '$1ft');
+    // Remove filler words
+    s = s.replace(/\b(Container|Unit|Shipping|New|Condition)\b/gi, '').replace(/\s+/g, ' ').trim();
+    // Trim trailing punctuation
+    s = s.replace(/[,.\-]+$/, '').trim();
+    return s;
+  }
+
+  // Remove honorific prefixes from client name
+  function cleanName(raw) {
+    if (!raw) return '';
+    let s = raw.trim();
+    // Remove leading honorifics
+    s = s.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss|Engr\.)\s*/i, '');
+    // Collapse whitespace
+    s = s.replace(/\s+/g, ' ').trim();
+    // Remove trailing punctuation
+    s = s.replace(/[,.\-:]+$/, '').trim();
+    return s.toUpperCase();
+  }
+
+  function guessClientFromFilename(filename) {
+    // Strip known prefixes from filename to guess client name
+    let s = filename.replace(/\.pdf$/i, '');
+    const prefixes = [
+      /^LMC[\s_]*(Invoice|Contract|Draft|Services?|Container)[^A-Z]*/i,
+      /^Liberty[\s_]*Invoice[\s_]*/i,
+      /^Libery[\s_]*Invoice[\s_]*/i,
+      /^LMC[\s_-]*/i,
+      /^Mr\.?\s*/i,
+      /^Mrs\.?\s*/i,
+      /^Ms\.?\s*/i,
+      /^Atfan[\s_]*/i,
+      /FASLA[\s_]*Contract[\s_]*/i,
+      /\d{4,}/g, // strip date numbers
+      /[\s_-]+\d+[A-Z]{3}\d{2,4}[\s_-]*/gi, // strip date suffixes like 13FEB26
+      /[\s_-]*\([^)]*\)/g, // strip parentheticals
+      /[\s_-]*-\d+$/, // strip trailing -8 etc
+    ];
+    for (const p of prefixes) s = s.replace(p, ' ');
+    return s.replace(/\s+/g, ' ').trim().toUpperCase();
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // BUILD CLIENT MAP from contracts (anchor)
+  // ─────────────────────────────────────────────────────────────────
+  function buildClientMap(classified) {
+    // clientMap: key = normalized client name
+    // value: { clientName, contractNo, containerTypes: Map<containerType, {files:[]}> }
+    const clientMap = new Map();
+
+    const contracts = classified.filter(r => r.docType === 'contract');
+
+    for (const c of contracts) {
+      if (!c.clientName) continue;
+      const key = normalizeClientKey(c.clientName);
+
+      if (!clientMap.has(key)) {
+        clientMap.set(key, {
+          clientName:  c.clientName,
+          contractNos: new Set(),
+          containers:  new Map(), // containerType → { contract, libertyInvoice, lmcInvoice, leaseForm }
+        });
+      }
+
+      const entry = clientMap.get(key);
+      if (c.contractNo) entry.contractNos.add(c.contractNo);
+
+      const ctype = c.containerType || 'Unknown Container';
+      if (!entry.containers.has(ctype)) {
+        entry.containers.set(ctype, { contract: null, libertyInvoice: null, lmcInvoice: null, leaseForm: null });
+      }
+      entry.containers.get(ctype).contract = c;
+    }
+
+    return clientMap;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // MATCH INVOICES TO CLIENTS
+  // ─────────────────────────────────────────────────────────────────
+  function matchToClients(classified, clientMap) {
+    const unmatched = [];
+    const matched   = []; // already handled via clientMap mutation
+
+    const nonContracts = classified.filter(r => r.docType !== 'contract');
+
+    for (const doc of nonContracts) {
+      if (!doc.clientName) {
+        unmatched.push({ ...doc, reason: 'Could not extract client name' });
+        continue;
+      }
+
+      const key = normalizeClientKey(doc.clientName);
+      if (!clientMap.has(key)) {
+        // No matching contract found — try fuzzy
+        const fuzzyKey = findFuzzyClient(key, clientMap);
+        if (fuzzyKey) {
+          assignToClient(clientMap.get(fuzzyKey), doc);
+        } else {
+          unmatched.push({ ...doc, reason: `No matching contract for client: ${doc.clientName}` });
+        }
+        continue;
+      }
+
+      assignToClient(clientMap.get(key), doc);
+    }
+
+    // Handle scanned/unreadable
+    const unknowns = classified.filter(r => r.docType === 'unknown' && !r.readable);
+    for (const doc of unknowns) {
+      unmatched.push({ ...doc, reason: `Scanned or unreadable PDF — check manually (filename: ${doc.filename})` });
+    }
+
+    return { matched, unmatched };
+  }
+
+  function assignToClient(entry, doc) {
+    // Find best matching container slot
+    const ctype = doc.containerType || '';
+    let slot = null;
+
+    if (ctype) {
+      // Try exact match first
+      for (const [ct, s] of entry.containers) {
+        if (normalizeContainerKey(ct) === normalizeContainerKey(ctype)) { slot = s; break; }
+      }
+    }
+    // Fallback: use first available slot
+    if (!slot && entry.containers.size > 0) {
+      slot = entry.containers.values().next().value;
+    }
+    // Fallback: create new slot
+    if (!slot) {
+      const key = ctype || 'Unknown Container';
+      entry.containers.set(key, { contract: null, libertyInvoice: null, lmcInvoice: null, leaseForm: null });
+      slot = entry.containers.get(key);
+    }
+
+    if (doc.docType === 'liberty_invoice') slot.libertyInvoice = doc;
+    else if (doc.docType === 'lmc_invoice') slot.lmcInvoice = doc;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // BUILD OUTPUT ZIP
+  // ─────────────────────────────────────────────────────────────────
+  async function buildOutputZip(matched, unmatched, clientMap) {
+    const outZip  = new JSZip();
+    const summary = { clients: [], totalFiles: 0, unmatched: 0 };
+
+    for (const [, entry] of clientMap) {
+      const { clientName, contractNos, containers } = entry;
+      const folderName = clientName; // already cleaned
+
+      for (const [containerType, slot] of containers) {
+        const suffix = `(${containerType})`;
+
+        // ── Contract + Lease Form split ──
+        if (slot.contract) {
+          const { bytes, leaseFormPageIndex, pageCount, pageTexts } = slot.contract;
+
+          if (leaseFormPageIndex >= 0 && pageCount > 1) {
+            // Split: contract pages = all except lease form page
+            const contractPages = [];
+            const leasePages    = [];
+            for (let p = 0; p < pageCount; p++) {
+              if (p === leaseFormPageIndex) leasePages.push(p + 1); // 1-based
+              else contractPages.push(p + 1);
+            }
+
+            const contractBytes = await extractPages(slot.contract.bytes, contractPages);
+            const leaseBytes    = await extractPages(slot.contract.bytes, leasePages);
+
+            outZip.file(`${folderName}/${clientName} - Contract ${suffix}.pdf`, contractBytes);
+            outZip.file(`${folderName}/${clientName} - Lease Form ${suffix}.pdf`, leaseBytes);
+            summary.totalFiles += 2;
+          } else {
+            // No lease form detected — save contract as-is
+            outZip.file(`${folderName}/${clientName} - Contract ${suffix}.pdf`, bytes);
+            summary.totalFiles++;
+          }
+        }
+
+        // ── LMC Invoice ──
+        if (slot.lmcInvoice) {
+          outZip.file(`${folderName}/${clientName} - LMC Invoice ${suffix}.pdf`, slot.lmcInvoice.bytes);
+          summary.totalFiles++;
+        }
+
+        // ── Liberty Invoice ──
+        if (slot.libertyInvoice) {
+          outZip.file(`${folderName}/${clientName} - Liberty Invoice ${suffix}.pdf`, slot.libertyInvoice.bytes);
+          summary.totalFiles++;
+        }
+
+        summary.clients.push({
+          client:      clientName,
+          contractNo:  [...contractNos].join(', ') || '—',
+          container:   containerType,
+          hasContract: !!slot.contract,
+          hasLease:    slot.contract && slot.contract.leaseFormPageIndex >= 0,
+          hasLMC:      !!slot.lmcInvoice,
+          hasLiberty:  !!slot.libertyInvoice,
+        });
+      }
+    }
+
+    // ── Unmatched folder ──
+    const unmatchedAll = unmatched;
+    summary.unmatched = unmatchedAll.length;
+    for (const doc of unmatchedAll) {
+      let note = doc.reason || 'Unknown reason';
+      // Try to get contract no from filename
+      const cno = doc.contractNo || extractContractNo('', doc.filename);
+      const hint = cno ? ` [Contract: ${cno}]` : '';
+      outZip.file(`_UNMATCHED/${doc.filename}`, doc.bytes);
+      // Add a txt note alongside
+      outZip.file(`_UNMATCHED/${doc.filename}.note.txt`, `${note}${hint}\nOriginal filename: ${doc.filename}`);
+      summary.totalFiles++;
+    }
+
+    return { outputZip: outZip, summary };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // PAGE EXTRACTION — split PDF pages using PDF.js + canvas re-encode
+  // We re-render each needed page to a new PDF-like byte blob.
+  // Since we can't easily merge PDFs in browser without a library,
+  // we use pdf-lib via CDN for page extraction.
+  // ─────────────────────────────────────────────────────────────────
+  async function extractPages(pdfBytes, pageNumbers) {
+    // If pdf-lib is available, use it for proper page extraction
+    if (window.PDFLib) {
+      const { PDFDocument } = PDFLib;
+      const srcDoc  = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+      const newDoc  = await PDFDocument.create();
+      // pageNumbers are 1-based
+      const indices = pageNumbers.map(n => n - 1);
+      const pages   = await newDoc.copyPages(srcDoc, indices);
+      pages.forEach(p => newDoc.addPage(p));
+      return await newDoc.save();
+    }
+    // Fallback: return original bytes (no split possible without pdf-lib)
+    return pdfBytes;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // DOWNLOAD OUTPUT ZIP
+  // ─────────────────────────────────────────────────────────────────
+  async function download() {
+    if (!_outputZip) return;
+    const blob = await _outputZip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'CLIENT_ORGANIZED_' + new Date().toISOString().slice(0,10) + '.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // RENDER RESULTS
+  // ─────────────────────────────────────────────────────────────────
+  function renderResults(summary) {
+    document.getElementById('coProgressCard').style.display = 'none';
+    document.getElementById('coResultCard').style.display  = 'block';
+    document.getElementById('coRunBtn').disabled = false;
+
+    const clientCount = new Set(summary.clients.map(c => c.client)).size;
+    document.getElementById('coResultTitle').textContent =
+      `${clientCount} client(s) · ${summary.totalFiles} files organized`;
+
+    document.getElementById('coStatsGrid').innerHTML = [
+      { val: clientCount,        lbl: 'Clients' },
+      { val: summary.totalFiles, lbl: 'Files' },
+      { val: summary.unmatched,  lbl: 'Unmatched' },
+      { val: summary.clients.filter(c => c.hasLease).length, lbl: 'Lease Forms Split' },
+    ].map(s => `<div class="stat-box"><span class="stat-val">${s.val}</span><span class="stat-lbl">${s.lbl}</span></div>`).join('');
+
+    if (summary.unmatched > 0) {
+      document.getElementById('coUnmatchedBox').style.display = 'block';
+      document.getElementById('coUnmatchedMsg').textContent =
+        `⚠ ${summary.unmatched} file(s) could not be matched and are in _UNMATCHED/ folder. Check the .note.txt files inside for details.`;
+    } else {
+      document.getElementById('coUnmatchedBox').style.display = 'none';
+    }
+
+    const tbody = document.getElementById('coTableBody');
+    tbody.innerHTML = summary.clients.map(c => {
+      const files = [
+        c.hasContract ? '✓ Contract' : '✗ Contract',
+        c.hasLease    ? '✓ Lease Form' : '— Lease Form',
+        c.hasLMC      ? '✓ LMC Invoice' : '✗ LMC Invoice',
+        c.hasLiberty  ? '✓ Liberty Invoice' : '✗ Liberty Invoice',
+      ].join('<br>');
+
+      const allOk = c.hasContract && c.hasLMC && c.hasLiberty;
+      const badge = allOk
+        ? `<span class="badge badge-ok">Complete</span>`
+        : `<span class="badge badge-warn">Partial</span>`;
+
+      return `<tr>
+        <td class="td-name">${esc(c.client)}</td>
+        <td class="td-mono">${esc(c.contractNo)}</td>
+        <td>${esc(c.container)}</td>
+        <td style="font-size:11px;line-height:1.8;">${files}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('coResultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // UTILITIES
+  // ─────────────────────────────────────────────────────────────────
+  function normalizeClientKey(name) {
+    return name.toUpperCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizeContainerKey(ct) {
+    return ct.toUpperCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function findFuzzyClient(key, clientMap) {
+    // Simple: check if key contains or is contained by any existing key
+    for (const [k] of clientMap) {
+      const a = key.replace(/\s/g, '');
+      const b = k.replace(/\s/g, '');
+      if (a.includes(b) || b.includes(a)) return k;
+      // Check first 3 words match
+      const wa = key.split(' ').slice(0,3).join(' ');
+      const wb = k.split(' ').slice(0,3).join(' ');
+      if (wa === wb && wa.length > 5) return k;
+    }
+    return null;
+  }
+
+  function readFileAsArrayBuffer(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = () => rej(new Error('File read error'));
+      r.readAsArrayBuffer(file);
+    });
+  }
+
+  function setProgress(pct, text) {
+    document.getElementById('coProgressBar').style.width  = pct + '%';
+    document.getElementById('coProgressText').textContent = text;
+  }
+
+  function coMsg(id, text, type) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className   = 'msg' + (text ? ` show ${type || 'error'}` : '');
+  }
+
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // PUBLIC API
+  // ─────────────────────────────────────────────────────────────────
+  return { init, run, download };
+
+})();
