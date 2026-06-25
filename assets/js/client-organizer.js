@@ -5,7 +5,7 @@
 // Depends on: PDF.js (pdfjsLib), JSZip
 // ─────────────────────────────────────────────────────────────────
 
-const ClientOrganizer = (() => {
+window.ClientOrganizer = (() => {
 
   // ── PDF.js worker setup ──
   function setupPdfWorker() {
