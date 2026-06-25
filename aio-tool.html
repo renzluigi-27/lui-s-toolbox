@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="/assets/css/aio-tool.css" />
   <link rel="stylesheet" href="/assets/css/liquid.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 <div class="bg-orbs">
@@ -31,7 +34,10 @@
           <button class="mode-tab active" data-mode="payout">Payout Generator</button>
           <button class="mode-tab" data-mode="ip">IP Deduction</button>
           <button class="mode-tab" data-mode="audit">Payout Auditor</button>
+        </div>
+        <div class="mode-tabs" id="modeTabs2">
           <button class="mode-tab" data-mode="email">Email Matcher</button>
+          <button class="mode-tab" data-mode="clientOrg">Client Organizer</button>
           <button class="mode-tab" data-mode="trip">Container Trip Updater</button>
         </div>
 
@@ -39,6 +45,7 @@
         <div id="auditMount" style="display:none;"></div>
         <div id="tripMount" style="display:none;"></div>
         <div id="emailMatcherMount" style="display:none;"></div>
+        <div id="clientOrgMount" style="display:none;"></div>
 
         <!-- Condensed upload row: Payment Info / Updated Payment Info / Email Sheet -->
         <div class="upload-row" id="mainUploadRow">
@@ -192,6 +199,7 @@
   <script src="/assets/js/email-matcher.js"></script>
   <script src="/assets/js/container-trip-updater.js"></script>
   <script src="/assets/js/payout-audit.js"></script>
+  <script src="/assets/js/client-organizer.js"></script>
   <script src="/assets/js/security.js"></script>
 
 </body>
