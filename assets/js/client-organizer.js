@@ -174,7 +174,7 @@ window.ClientOrganizer = (() => {
           // scanned/unreadable — text stays empty
         }
 
-        pdfRecords.push({ path, filename, bytes, text, pageCount, pageTexts, readable: text.trim().length > 50 });
+        pdfRecords.push({ path, filename, bytes: bytes.slice(0), text, pageCount, pageTexts, readable: text.trim().length > 50 });
       }
 
       setProgress(60, 'Classifying documents...');
