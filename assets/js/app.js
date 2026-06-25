@@ -215,12 +215,15 @@ function updateTabUI() {
     if (isEmail && window.EmailMatcherStandalone) EmailMatcherStandalone.init('emailMatcherMount');
   }
 
-  const clientOrgMount = document.getElementById('clientOrgMount');
+const clientOrgMount = document.getElementById('clientOrgMount');
   if (clientOrgMount) {
     clientOrgMount.style.display = isClientOrg ? 'block' : 'none';
-    if (isClientOrg && window.ClientOrganizer) ClientOrganizer.init('clientOrgMount');
+    if (isClientOrg && window.ClientOrganizer && !clientOrgMount.dataset.inited) {
+      ClientOrganizer.init('clientOrgMount');
+      clientOrgMount.dataset.inited = '1';
+    }
   }
-
+  
   document.getElementById('emailSheetCard').style.display =
     (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
   const rerouteCard = document.getElementById('rerouteSheetCard');
