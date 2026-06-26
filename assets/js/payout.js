@@ -3,8 +3,8 @@
 // Depends on: shared.js, app.js
 // Deduction logic (cycle filter, reroute, WEIGHTED_SPLITS, HC pending,
 // contract-closed/no-IBAN flags) lives in shared.js — calcPayeeDeductions().
-// This file adds rental/rentalDue, balance-pending notes, and its own
-// payout-specific extra notes/flags on top.
+// This file adds rental/rentalDue, totalCost, balance-pending notes,
+// and payout-specific extra notes/flags on top.
 // ─────────────────────────────────────────────────────────────────
 
 function runPayout(yr, mo, cycle) {
@@ -14,23 +14,29 @@ function runPayout(yr, mo, cycle) {
   // Build email records (optional — blank fields if no email sheet uploaded)
   const emailRecords = emailData.length ? buildEmailRecords() : [];
 
-  // Filter by cycle + reroute validity (shared logic — original cycle always wins)
+  // Filter by cycle + reroute validity
   const filtered = filterRowsForCycle(paymentData, cycle, payoutDate);
 
-  // Shared deduction engine — rent/rentalDue handled separately below
+  // Shared deduction engine
   const { groups, sharedGroups, mismatchFlags } = calcPayeeDeductions(filtered, yr, mo, payoutDate);
 
-  // ── Payout-specific layer: rental totals, balance notes, extra flags ──
-  const rentalByKey = {};
+  // ── Payout-specific layer: rental totals, total cost, balance notes, extra flags ──
+  const rentalByKey    = {};
+  const totalCostByKey = {};
   const balanceNotesByKey = {};
+
   filtered.forEach(r => {
     const ibanValid = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
     const key = (ibanValid ? r.iban.replace(/\s/g, '') : r.accountNo) || r.clientName;
-    if (!groups[key]) return; // safety — should always exist from shared engine
+    if (!groups[key]) return; // safety
 
-    const rr = rerouteFor(r);
+    // Rental: use revisedRental [LMC] for rerouted clients, returnAmt for others
     if (!rentalByKey[key]) rentalByKey[key] = 0;
-    rentalByKey[key] += (rr && rr.e.newRental) ? rr.e.newRental : r.returnAmt;
+    rentalByKey[key] += (r.isRerouted && r.revisedRental) ? r.revisedRental : r.returnAmt;
+
+    // Total cost: sum col 15 across all containers per client
+    if (!totalCostByKey[key]) totalCostByKey[key] = 0;
+    totalCostByKey[key] += r.totalCost || 0;
 
     if (r.returnInUSD) groups[key].deductionNotes.push('⚑ Rental amount is in USD — verify AED conversion');
 
@@ -52,7 +58,8 @@ function runPayout(yr, mo, cycle) {
   results = Object.values(groups).map(g => {
     const key = (g.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(g.iban.replace(/\s/g, '')))
       ? g.iban.replace(/\s/g, '') : (g.accountNo || g.clientName);
-    const totalReturn = rentalByKey[key] || 0;
+    const totalReturn    = rentalByKey[key]    || 0;
+    const totalCost      = totalCostByKey[key] || 0;
     const balanceNoteArr = balanceNotesByKey[key] ? [...balanceNotesByKey[key]] : [];
     const balanceNumeric = balanceNoteArr.length > 0
       ? (() => { const m = balanceNoteArr.join(' ').match(/[\d]+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; })() : null;
@@ -65,7 +72,7 @@ function runPayout(yr, mo, cycle) {
     const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
 
     return {
-      ...g, totalReturn,
+      ...g, totalReturn, totalCost,
       rentalDue: hasBalance ? null : (totalReturn - g.totalDeduction),
       balanceAddition: balanceNumeric, note: allNotes,
       emailSheetClientName: em ? em.emailSheetClientName : '',
@@ -84,7 +91,7 @@ function runPayout(yr, mo, cycle) {
   const totalReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totalDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totalDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  const totalUnits = results.reduce((s,r) => s + r.containers.length, 0);
+  const totalUnits  = results.reduce((s,r) => s + r.containers.length, 0);
   renderStats([
     { val: results.length,            lbl: 'Payees' },
     { val: totalUnits,                lbl: 'Total Units' },
@@ -133,30 +140,40 @@ function exportPayout() {
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
 
-  const headers = ['CLIENT TYPE','CLIENT NAME',
-    'CLIENT NAME (EMAIL SHEET)','EMAIL 1','EMAIL 2','MOBILE','NATIONALITY','EID/PASSPORT/NATIONAL CARD',
-    'UNIT','FIRST PAYOUT',
-    'MONTHLY RENT','DEDUCTION','ADDITION','RENTAL DUE',
-    'ACCOUNT NO.','IBAN NO.','SWIFT CODE','BANK NAME','AGENT NAME','NOTES'];
+  const headers = [
+    'CLIENT TYPE', 'CLIENT NAME',
+    'CLIENT NAME (EMAIL SHEET)', 'EMAIL 1', 'EMAIL 2', 'MOBILE', 'NATIONALITY', 'EID/PASSPORT/NATIONAL CARD',
+    'UNIT', 'FIRST PAYOUT', 'TOTAL COST',
+    'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE',
+    'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'NOTES',
+  ];
 
   const rows = results.map(r => [
     r.clientType || '', r.clientName,
     r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
     r.containers.length,
-    r.firstPayoutDisplay || '', r.totalReturn,
+    r.firstPayoutDisplay || '',
+    r.totalCost || null,
+    r.totalReturn,
     r.totalDeduction || null, r.balanceAddition || null,
     r.rentalDue !== null ? r.rentalDue : null,
     r.accountNo, r.iban, r.swift, r.bankName, r.agent || '', r.note || '',
   ]);
 
-  const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
-  const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
-  const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['','TOTAL','','','','','','','','',totReturn,totDeduct,'',totDue,'','','','','','']);
+  const totReturn   = results.reduce((s,r) => s + r.totalReturn, 0);
+  const totCost     = results.reduce((s,r) => s + (r.totalCost || 0), 0);
+  const totDeduct   = results.reduce((s,r) => s + r.totalDeduction, 0);
+  const totDue      = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
+  rows.push(['','TOTAL','','','','','','','','', totCost, totReturn, totDeduct,'', totDue,'','','','','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = [{wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},{wch:8},{wch:14},{wch:14},{wch:12},{wch:12},{wch:14},{wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50}];
+  ws['!cols'] = [
+    {wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},
+    {wch:8},{wch:14},{wch:14},
+    {wch:14},{wch:12},{wch:12},{wch:14},
+    {wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50},
+  ];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} - ${cycle === '15' ? '15th' : 'EOM'}`.substring(0, 31));
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }
