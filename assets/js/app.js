@@ -12,8 +12,6 @@ let refData       = [];
 let emailData     = [];
 let results       = [];
 let activeMode    = 'payout';
-let rerouteData   = [];
-let rerouteMap    = {};
 let auditInited   = false;
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -181,9 +179,9 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
 });
 
 function updateTabUI() {
-  const isAudit = activeMode === 'audit';
-  const isTrip  = activeMode === 'trip';
-  const isEmail = activeMode === 'email';
+  const isAudit    = activeMode === 'audit';
+  const isTrip     = activeMode === 'trip';
+  const isEmail    = activeMode === 'email';
   const isClientOrg = activeMode === 'clientOrg';
 
   const genCards = [
@@ -215,7 +213,7 @@ function updateTabUI() {
     if (isEmail && window.EmailMatcherStandalone) EmailMatcherStandalone.init('emailMatcherMount');
   }
 
-const clientOrgMount = document.getElementById('clientOrgMount');
+  const clientOrgMount = document.getElementById('clientOrgMount');
   if (clientOrgMount) {
     clientOrgMount.style.display = isClientOrg ? 'block' : 'none';
     if (isClientOrg && window.ClientOrganizer && !clientOrgMount.dataset.inited) {
@@ -223,11 +221,14 @@ const clientOrgMount = document.getElementById('clientOrgMount');
       clientOrgMount.dataset.inited = '1';
     }
   }
-  
+
   document.getElementById('emailSheetCard').style.display =
     (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
+
+  // Reroute sheet card — now optional, only shown for payout/ip
   const rerouteCard = document.getElementById('rerouteSheetCard');
   if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
+
   updateRefHint();
   updateGenerateBtn();
 }
@@ -299,18 +300,12 @@ function resetRefUpload() {
 }
 
 function updateGenerateBtn() {
-  const hasPayment    = paymentData.length > 0;
-  const hasReroute    = rerouteData.length > 0;
-  const needsReroute  = activeMode === 'payout' || activeMode === 'ip';
-  const ready = hasPayment && (!needsReroute || hasReroute);
+  // Reroute sheet is now optional — only payment info sheet is required
+  const ready = paymentData.length > 0;
   document.getElementById('generateBtn').disabled = !ready;
   document.getElementById('generateHint').textContent = ready
     ? 'Ready to generate'
-    : !hasPayment
-      ? 'Upload payment info sheet to continue'
-      : needsReroute && !hasReroute
-        ? 'Upload updated payment info sheet to continue'
-        : 'Upload required files to continue';
+    : 'Upload payment info sheet to continue';
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -355,7 +350,8 @@ function handleMainFile(file) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// FILE UPLOAD — updated payment info sheet (reroute, payout/ip only)
+// FILE UPLOAD — updated payment info sheet (optional backup reference)
+// Kept for compatibility but no longer required to generate.
 // ─────────────────────────────────────────────────────────────────
 const rerouteZone = document.getElementById('rerouteUploadZone');
 rerouteZone.addEventListener('dragover',  e => { e.preventDefault(); rerouteZone.classList.add('dragover'); });
@@ -374,12 +370,9 @@ function handleRerouteFile(file) {
     showMsg('rerouteError', 'Please upload an Excel file (.xlsx or .xls)', 'error'); return;
   }
   readExcel(file, rows => {
-    rerouteData = rows;
-    rerouteMap  = parseRerouteSheet(rows);
     document.getElementById('rerouteFileLoaded').classList.add('show');
     document.getElementById('rerouteLoadedName').textContent = file.name;
-    document.getElementById('rerouteLoadedMeta').textContent = `${Object.keys(rerouteMap.byKey || {}).length} rerouted container(s) loaded`;
-    updateGenerateBtn();
+    document.getElementById('rerouteLoadedMeta').textContent = `${rows.length - 1} row(s) loaded (backup reference only)`;
   }, err => showMsg('rerouteError', 'Error reading file: ' + err, 'error'));
 }
 
@@ -466,6 +459,23 @@ function readExcel(file, onSuccess, onError) {
 
 // ─────────────────────────────────────────────────────────────────
 // PARSE PAYMENT INFO SHEET
+// Now reads reroute data directly from the unified sheet [LMC] columns.
+// Column positions (0-based):
+//   15 = Total cost
+//   16 = Container type
+//   21 = Product Identification number (container)
+//   22 = Return amount
+//   23 = Revised Rental Income [LMC]
+//   24 = First payout date
+//   25 = Payout Restart Date [LMC]  ← also = Payout date [ACCOUNTS ONLY]
+//   28 = New Payout Cycle [LMC]
+//   32 = New Contract End Date [LMC]
+//   34 = Account no
+//   35 = IBAN
+//   36 = Swift Code
+//   37 = Bank Name
+//   40 = Client types
+//   42 = Agent Closing
 // ─────────────────────────────────────────────────────────────────
 function parsePaymentSheet(raw) {
   let hi = 0;
@@ -480,22 +490,26 @@ function parsePaymentSheet(raw) {
     insurance:      col('insurance paid'),
     healthCheck:    col('health check'),
     payReceived:    col('payment received date'),
-    container:      col('product identification number'),
-    returnAmt:      col('return amount'),
-    firstPayout:    col('first payout date'),
-    payoutCycle:    col('payout cycle'),
-    contractEnd:    col('contract end date'),
-    accountNo:      col('account no'),
-    iban:           col('iban'),
-    swift:          col('swift code'),
-    bankName:       col('bank name'),
-    clientType:     col('client type'),
-    contractNo:     col('contract no'),
+    container:      21,   // Product Identification number
+    totalCost:      15,   // Total cost
+    containerType:  16,   // Container type
+    returnAmt:      22,   // Return amount
+    revisedRental:  23,   // Revised Rental Income [LMC]
+    firstPayout:    24,   // First payout date
+    restartDate:    25,   // Payout Restart Date [LMC]
+    newPayoutCycle: 28,   // New Payout Cycle [LMC]
+    payoutCycle:    col('payout frequency'),  // original cycle (col 30)
+    oldContractEnd: 30,   // Old Contract end date
+    newContractEnd: 32,   // New Contract End Date [LMC]
+    accountNo:      34,   // Account no
+    iban:           35,   // IBAN
+    swift:          36,   // Swift Code
+    bankName:       37,   // Bank Name
+    clientType:     40,   // Client types
+    agent:          42,   // Agent Closing
+    contractNo:     col('contract no') !== -1 ? col('contract no') : 0,
     contractClosed: col('contract closed'),
     balance:        col('balance amount pending'),
-    containerType:  16,
-    agent:          37,
-    totalTrips:     36,
     payCalcStart:   col('payout calculation start date'),
   };
 
@@ -524,7 +538,7 @@ function parsePaymentSheet(raw) {
     if (rawContractNo && !(isNoNumber && NO_FILLDOWN_CLIENTS.has(clientNameRaw))) lastContractNo = rawContractNo;
     const contractNo = lastContractNo;
 
-    let rawContainer = (C.container !== -1 && r[C.container]) ? String(r[C.container]).trim() : '';
+    let rawContainer = (r[C.container]) ? String(r[C.container]).trim() : '';
     const pinFilledDown = !rawContainer;
     if (rawContainer) lastContainer = rawContainer;
     else rawContainer = lastContainer;
@@ -537,16 +551,16 @@ function parsePaymentSheet(raw) {
 
     if (!clientName) continue;
 
-    const rawCycleDirect = (C.payoutCycle !== -1 && r[C.payoutCycle]) ? String(r[C.payoutCycle]).trim() : '';
+    const rawCycleDirect = r[C.payoutCycle] ? String(r[C.payoutCycle]).trim() : '';
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
     const payoutCycle = rawCycleDirect || lastPayoutCycle;
 
-    const rawClientType = (C.clientType !== -1 && r[C.clientType]) ? String(r[C.clientType]).trim() : '';
+    const rawClientType = r[C.clientType] ? String(r[C.clientType]).trim() : '';
     const clientTypeBlank = !rawClientType;
     if (rawClientType) lastClientType = rawClientType;
     const clientType = rawClientType || lastClientType;
 
-    const rawContainerType = (C.containerType !== -1 && r[C.containerType]) ? String(r[C.containerType]).trim() : '';
+    const rawContainerType = r[C.containerType] ? String(r[C.containerType]).trim() : '';
     const containerTypeBlank = !rawContainerType;
     if (rawContainerType) lastContainerType = rawContainerType;
     const containerType = rawContainerType || lastContainerType;
@@ -558,11 +572,25 @@ function parsePaymentSheet(raw) {
     const contractClosedFlag = closedRaw && !SKIP_CLOSED.some(s => closedRaw.includes(s))
       ? `⚑ Contract Closed field: "${r[C.contractClosed]}" — review` : '';
 
-    const firstPayout  = parseDate(r[C.firstPayout]);
-    const payReceived  = parseDate(r[C.payReceived]);
-    const contractEndRaw = (C.contractEnd !== -1 && r[C.contractEnd]) ? parseDate(r[C.contractEnd]) : null;
-    const contractEnd = contractEndRaw || (payReceived ? addYears(payReceived, 3) : null);
-    const payCalcStart = (C.payCalcStart !== -1 && r[C.payCalcStart]) ? parseDate(r[C.payCalcStart]) : null;
+    const firstPayout    = parseDate(r[C.firstPayout]);
+    const payReceived    = parseDate(r[C.payReceived]);
+    const payCalcStart   = (C.payCalcStart !== -1 && r[C.payCalcStart]) ? parseDate(r[C.payCalcStart]) : null;
+
+    // Reroute fields from [LMC] columns
+    const restartDate    = parseDate(r[C.restartDate]);
+    const newContractEnd = parseDate(r[C.newContractEnd]);
+    const oldContractEnd = parseDate(r[C.oldContractEnd]);
+
+    // A client is rerouted if restartDate exists AND differs from firstPayout
+    const isRerouted = !!(restartDate && firstPayout &&
+      !(restartDate.getFullYear() === firstPayout.getFullYear() &&
+        restartDate.getMonth()    === firstPayout.getMonth()    &&
+        restartDate.getDate()     === firstPayout.getDate()));
+
+    // Contract end: use [LMC] for rerouted, old for non-rerouted, fallback to derived
+    const contractEnd = isRerouted
+      ? (newContractEnd || oldContractEnd || (payReceived ? addYears(payReceived, 3) : null))
+      : (oldContractEnd || (payReceived ? addYears(payReceived, 3) : null));
 
     let iban      = r[C.iban]      ? String(r[C.iban]).trim()      : '';
     let accountNo = r[C.accountNo] ? String(r[C.accountNo]).trim() : '';
@@ -570,18 +598,20 @@ function parsePaymentSheet(raw) {
     if (iban      && iban.includes('E+'))      iban      = Number(iban).toLocaleString('fullwide', {useGrouping:false});
     const noIban = !iban && !accountNo;
 
-    const totalTripsRaw = (C.totalTrips !== -1 && r[C.totalTrips] != null)
-      ? String(r[C.totalTrips]).trim() : null;
-    const totalTripsNA  = totalTripsRaw !== null && totalTripsRaw.toLowerCase() === 'n/a';
-    const totalTripsNum = totalTripsRaw !== null ? parseInt(totalTripsRaw) : null;
-    const totalTrips    = (!totalTripsNA && totalTripsNum !== null && !isNaN(totalTripsNum)) ? totalTripsNum : null;
-
-    const returnRaw  = (C.returnAmt !== -1 && r[C.returnAmt]) ? String(r[C.returnAmt]).trim() : '';
+    const returnRaw  = r[C.returnAmt] ? String(r[C.returnAmt]).trim() : '';
     const returnBase = returnRaw.split('(')[0].trim();
     const returnNum  = parseFloat(returnBase.replace(/[^0-9.\-]/g, ''));
     const isFlexible = /\d+%/.test(returnRaw) || (!isNaN(returnNum) && returnNum > 0 && returnNum < 1);
     const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
     const returnInUSD = /usd/i.test(returnRaw);
+
+    // Revised rental from [LMC] column — use for rerouted clients
+    const revisedRentalRaw = r[C.revisedRental] ? String(r[C.revisedRental]).trim() : '';
+    const revisedRental = (revisedRentalRaw && !/[#N\/A]/i.test(revisedRentalRaw))
+      ? parseNumber(r[C.revisedRental]) : 0;
+
+    // Total cost (col 15) — summed per client in payout.js
+    const totalCost = parseNumber(r[C.totalCost]);
 
     const insuranceRaw          = r[C.insurance];
     const insuranceYearsCovered = parseInsuranceYears(insuranceRaw);
@@ -612,8 +642,13 @@ function parsePaymentSheet(raw) {
       returnAmt,
       returnRaw,
       returnInUSD,
+      revisedRental,
+      totalCost,
       isFlexible,
       firstPayout,
+      restartDate,
+      isRerouted,
+      newContractEnd,
       payoutCycle,
       contractEnd,
       accountNo,
@@ -625,8 +660,6 @@ function parsePaymentSheet(raw) {
       contractClosedFlag,
       balanceNote,
       noIban,
-      totalTrips,
-      totalTripsNA,
       isSharedContainer,
       pinFilledDown,
       agent: rawAgent,
