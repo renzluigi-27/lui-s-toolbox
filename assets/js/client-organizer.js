@@ -7,7 +7,6 @@
 
 window.ClientOrganizer = (() => {
 
-  // ── PDF.js worker setup ──
   function setupPdfWorker() {
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -16,7 +15,7 @@ window.ClientOrganizer = (() => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // INIT — mount UI into container div
+  // INIT
   // ─────────────────────────────────────────────────────────────────
   function init(mountId) {
     setupPdfWorker();
@@ -238,13 +237,13 @@ window.ClientOrganizer = (() => {
     const contractNo = extractContractNo(text, filename);
 
     let clientName = '';
-    if      (docType === 'contract')       clientName = extractClientNameFromContract(text);
+    if      (docType === 'contract')        clientName = extractClientNameFromContract(text);
     else if (docType === 'liberty_invoice') clientName = extractClientNameFromLiberty(text);
     else if (docType === 'lmc_invoice')     clientName = extractClientNameFromLMC(text);
     if (!clientName) clientName = guessClientFromFilename(filename);
 
     let containerType = '';
-    if      (docType === 'contract')       containerType = extractContainerTypeFromContract(text);
+    if      (docType === 'contract')        containerType = extractContainerTypeFromContract(text);
     else if (docType === 'liberty_invoice') containerType = extractContainerTypeFromLiberty(text);
     else if (docType === 'lmc_invoice')     containerType = extractContainerTypeFromLMC(text);
 
@@ -325,14 +324,11 @@ window.ClientOrganizer = (() => {
   function cleanName(raw) {
     if (!raw) return '';
     let s = raw.trim();
-    // Strip bullet/special chars first
     s = s.replace(/[#\uf0b7\u2022\u00b7•]+/g, ' ');
-    // Loop to strip month+honorific combos
     for (let i = 0; i < 3; i++) {
       s = s.replace(/^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*\d{0,4}\s*[-–\s]+/i, '');
       s = s.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.|Miss|Engr\.)\s*/i, '');
     }
-    // Strip trailing date leakage e.g. "12.06." or "12.06.2026"
     s = s.replace(/\s+\d{1,2}[.\-]\d{1,2}[.\-]?\d{0,4}\.*\s*$/, '');
     s = s.replace(/\s+/g, ' ').trim();
     s = s.replace(/[,.\-:]+$/, '').trim();
@@ -388,26 +384,69 @@ window.ClientOrganizer = (() => {
   // MATCH INVOICES TO CLIENTS
   // ─────────────────────────────────────────────────────────────────
   function matchToClients(classified, clientMap) {
-    const unmatched  = [];
+    const unmatched    = [];
     const nonContracts = classified.filter(r => r.docType !== 'contract');
 
+    // Match readable invoices first
     for (const doc of nonContracts) {
+      if (doc.docType === 'unknown') continue; // handle separately below
       if (!doc.clientName) {
         unmatched.push({ ...doc, reason: 'Could not extract client name' }); continue;
       }
       const key = normalizeClientKey(doc.clientName);
       if (!clientMap.has(key)) {
         const fuzzyKey = findFuzzyClient(key, clientMap);
-        if (fuzzyKey) assignToClient(clientMap.get(fuzzyKey), doc);
-        else unmatched.push({ ...doc, reason: `No matching contract for client: ${doc.clientName}` });
+        if (fuzzyKey) {
+          assignToClient(clientMap.get(fuzzyKey), doc);
+        } else {
+          // Create placeholder client entry
+          clientMap.set(key, {
+            clientName:  doc.clientName,
+            contractNos: new Set(),
+            containers:  new Map([['Unknown Container', { contract: null, libertyInvoice: null, lmcInvoice: null }]])
+          });
+          assignToClient(clientMap.get(key), doc);
+        }
         continue;
       }
       assignToClient(clientMap.get(key), doc);
     }
 
-    const unknowns = classified.filter(r => r.docType === 'unknown' && !r.readable);
+    // Handle unknowns — try filename matching
+    const unknowns = classified.filter(r => r.docType === 'unknown');
+    const SKIP_NAMES = ['ILOVEPDF', 'MERGED', 'ORGANIZED', 'DOCUMENT', 'FILE'];
     for (const doc of unknowns) {
-      unmatched.push({ ...doc, reason: `Scanned or unreadable — check manually` });
+      const nameFromFile = guessClientFromFilename(doc.filename);
+      const isGeneric    = SKIP_NAMES.some(s => nameFromFile.includes(s));
+
+      if (!isGeneric && nameFromFile.length > 5) {
+        const key = normalizeClientKey(nameFromFile);
+        if (clientMap.has(key)) {
+          assignToClient(clientMap.get(key), { ...doc, docType: 'liberty_invoice' });
+          continue;
+        }
+        const fuzzyKey = findFuzzyClient(key, clientMap);
+        if (fuzzyKey) {
+          assignToClient(clientMap.get(fuzzyKey), { ...doc, docType: 'liberty_invoice' });
+          continue;
+        }
+        // Create placeholder from filename
+        clientMap.set(key, {
+          clientName:  nameFromFile,
+          contractNos: new Set(),
+          containers:  new Map([['Unknown Container', { contract: null, libertyInvoice: null, lmcInvoice: null }]])
+        });
+        assignToClient(clientMap.get(key), { ...doc, docType: 'liberty_invoice' });
+        continue;
+      }
+
+      // Generic filename — goes to unmatched
+      unmatched.push({
+        ...doc,
+        reason: doc.readable
+          ? 'Could not classify or match — check manually'
+          : 'Scanned or unreadable — check manually'
+      });
     }
 
     return { unmatched };
@@ -498,7 +537,7 @@ window.ClientOrganizer = (() => {
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // PAGE EXTRACTION via pdf-lib
+  // PAGE EXTRACTION
   // ─────────────────────────────────────────────────────────────────
   async function extractPages(pdfBytes, pageNumbers) {
     if (window.PDFLib) {
@@ -555,10 +594,10 @@ window.ClientOrganizer = (() => {
 
     document.getElementById('coTableBody').innerHTML = summary.clients.map(c => {
       const files = [
-        c.hasContract ? '✓ Contract'         : '✗ Contract',
-        c.hasLease    ? '✓ Lease Form'        : '— Lease Form',
-        c.hasLMC      ? '✓ LMC Invoice'       : '✗ LMC Invoice',
-        c.hasLiberty  ? '✓ Liberty Invoice'   : '✗ Liberty Invoice',
+        c.hasContract ? '✓ Contract'       : '✗ Contract',
+        c.hasLease    ? '✓ Lease Form'      : '— Lease Form',
+        c.hasLMC      ? '✓ LMC Invoice'     : '✗ LMC Invoice',
+        c.hasLiberty  ? '✓ Liberty Invoice' : '✗ Liberty Invoice',
       ].join('<br>');
       const badge = (c.hasContract && c.hasLMC && c.hasLiberty)
         ? `<span class="badge badge-ok">Complete</span>`
