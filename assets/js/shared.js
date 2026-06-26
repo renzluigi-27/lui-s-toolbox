@@ -98,7 +98,7 @@ function esc(s) {
 // INSURANCE & DEDUCTION LOGIC
 // ─────────────────────────────────────────────────────────────────
 const NEW_INSURANCE_FROM = new Date(2026, 5, 30);   // 30 Jun 2026
-const NEVER_PAID_FROM = new Date(2026, 2, 1);      // 1 Mar 2026
+const NEVER_PAID_FROM = new Date(2026, 2, 1);       // 1 Mar 2026
 
 function isSpecialtyContainer(t) {
   const s = String(t || '').toUpperCase();
@@ -245,86 +245,22 @@ function lookupEmailRecord(emailRecords, name) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// REROUTE MAP BUILDER
+// REROUTE HELPERS
+// Reroute data now comes directly from row fields parsed in app.js.
+// A row is rerouted if: restartDate is set AND restartDate != firstPayout.
+// Special never-paid batch: original firstPayout is Mar 15, Mar 30, or Apr 15
+// — for these, deduction basis uses restartDate instead of firstPayout.
 // ─────────────────────────────────────────────────────────────────
-function parseRerouteSheet(raw) {
-  let hi = 0;
-  for (let i = 0; i < Math.min(5, raw.length); i++) {
-    if (raw[i] && raw[i].some(v => v && String(v).toLowerCase().includes('client name'))) { hi = i; break; }
-  }
-  const headers = (raw[hi] || []).map(h => h ? String(h).toLowerCase().trim() : '');
-  const col = name => headers.findIndex(h => h.includes(name));
-  const cName        = col('client name');
-  const cCont        = col('container number');
-  const cRental      = col('new rental');
-  const cRestart     = col('payout restart');
-  const cPayoutDate  = col('payout date');
-  const cCycle       = col('payout cycle');
-  const cContractEnd = col('contract end date');
-
-  const byKey = {}, byCont = {}, byName = {};
-  raw.slice(hi + 1).forEach(r => {
-    if (!r) return;
-    const name = (cName !== -1 && r[cName] != null) ? String(r[cName]).trim() : '';
-    const cont = (cCont !== -1 && r[cCont] != null) ? String(r[cCont]).trim() : '';
-    if (!name && !cont) return;
-    const restartRaw = (cRestart !== -1 && r[cRestart] != null) ? String(r[cRestart]).trim() : '';
-    const entry = {
-      clientName:  name,
-      container:   cont,
-      newRental:   cRental      !== -1 ? parseNumber(r[cRental])       : 0,
-      restartDate: cRestart     !== -1 ? parseDate(r[cRestart])        : null,
-      payoutDate:  cPayoutDate  !== -1 ? parseDate(r[cPayoutDate])     : null,
-      contractEnd: cContractEnd !== -1 ? parseDate(r[cContractEnd])    : null,
-      isFlexible:  /flex/i.test(restartRaw),
-      cycle:       (cCycle !== -1 && r[cCycle] != null) ? String(r[cCycle]).trim() : '',
-    };
-    const nkey = normalizeName(name, false);
-    byKey[cont + '||' + nkey] = entry;
-    if (cont) (byCont[cont] = byCont[cont] || []).push(entry);
-    if (nkey) (byName[nkey] = byName[nkey] || []).push(entry);
-  });
-  return { byKey, byCont, byName };
-}
-
-// ─────────────────────────────────────────────────────────────────
-// REROUTE / NAME-VARIANT HELPERS — shared by payout.js / ip-deduction.js
-// ─────────────────────────────────────────────────────────────────
-function nameVariants(raw) {
-  const s = String(raw || '');
-  const m = s.match(/\(([^)]*)\)/);
-  const out = [];
-  if (m) { out.push(normalizeName(m[1], false)); out.push(normalizeName(s.replace(/\([^)]*\)/g, ''), false)); }
-  out.push(normalizeName(s, false));
-  return out.filter(Boolean);
-}
-
-function namesOverlap(a, b) {
-  const A = nameVariants(a), B = nameVariants(b);
-  return A.some(x => B.includes(x));
-}
-
-function rerouteFor(r) {
-  if (!r || (!r.container && !r.clientName)) return null;
-  if (r.pinFilledDown && !r.isSharedContainer) return null;
-  const cont = r.container || '', nkey = normalizeName(r.clientName || '', false);
-  const exact = rerouteMap.byKey[cont + '||' + nkey];
-  if (exact) return { e: exact, contOk: true, nameOk: true };
-  if (cont && rerouteMap.byCont[cont]) {
-    const list = rerouteMap.byCont[cont];
-    const pick = list.find(e => namesOverlap(r.clientName, e.clientName)) || list[0];
-    return { e: pick, contOk: true, nameOk: namesOverlap(r.clientName, pick.clientName) };
-  }
-  for (const v of nameVariants(r.clientName)) {
-    if (rerouteMap.byName[v]) return { e: rerouteMap.byName[v][0], contOk: false, nameOk: true };
-  }
-  return null;
+function isNeverPaidDate(d) {
+  if (!d) return false;
+  const mo = d.getMonth() + 1; // 1-based
+  const dy = d.getDate();
+  return (mo === 3 && (dy === 15 || dy === 30)) || (mo === 4 && dy === 15);
 }
 
 // ─────────────────────────────────────────────────────────────────
 // SHARED DEDUCTION ENGINE — used by payout.js (full) & ip-deduction.js
-// Rerouted clients: cycle derived from payout date day-of-month (col H),
-// falling back to restart date if payout date is blank.
+// Rerouted clients: cycle derived from restartDate [LMC] day-of-month.
 // Non-rerouted: original payout cycle field from payment info sheet.
 // ─────────────────────────────────────────────────────────────────
 const WEIGHTED_SPLITS = {
@@ -355,36 +291,32 @@ function buildHcPendingMap() {
 function filterRowsForCycle(rows, cycle, payoutDate) {
   return rows.filter(r => {
     if (r.pinFilledDown && !r.isSharedContainer) return false;
-    const rr = rerouteFor(r);
-    if (rr && rr.e.isFlexible) return false;       // flexible: skip
-    if (rr && !rr.e.restartDate) return false;     // rerouted but no readable restart: skip
-    // Rerouted clients: cycle derived from payout date day-of-month (col H),
-    // falling back to restart date if payout date is blank. Day 1-15 = 15th, day 16+ = EOM.
-    // Non-rerouted: always use original payout cycle field
-    const restart = rr ? rr.e.restartDate : null;
+    if (r.isFlexible) return false;
+    // Rerouted: must have a valid restartDate
+    if (r.isRerouted && !r.restartDate) return false;
+
+    // Cycle determination:
+    // - Rerouted clients: use restartDate [LMC] day-of-month
+    //   (same as old logic using payout date from reroute sheet col H,
+    //    since Payout Restart Date [LMC] == Payout date [ACCOUNTS ONLY])
+    // - Non-rerouted: always use original payoutCycle field
     let c;
-    if (restart) {
-      const cycleRef = rr.e.payoutDate || restart;
-      c = cycleRef.getDate() <= 15 ? '15' : '30';
+    if (r.isRerouted) {
+      c = r.restartDate.getDate() <= 15 ? '15' : '30';
     } else {
       c = String(r.payoutCycle).replace(/\s/g, '');
     }
+
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
-    const effStart = restart || r.firstPayout;
-    const started  = !effStart || effStart <= payoutDate;
+    const effStart   = r.isRerouted ? r.restartDate : r.firstPayout;
+    const started    = !effStart || effStart <= payoutDate;
     return cycleMatch && started;
   });
 }
 
 function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
-  const hcCutoff = new Date(2025, 5, 30);
+  const hcCutoff    = new Date(2025, 5, 30);
   const hcPendingMap = buildHcPendingMap();
-
-  const clientHasContractEnd = {};
-  filteredRows.forEach(r => {
-    if (!clientHasContractEnd[r.clientName]) clientHasContractEnd[r.clientName] = false;
-    if (r.contractEnd) clientHasContractEnd[r.clientName] = true;
-  });
 
   const { sharedGroups, mismatchFlags } = analyzeGroups(filteredRows);
   const mismatchContainers = new Set(mismatchFlags.map(f => f.container));
@@ -404,13 +336,11 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     }
 
     const g = groups[key];
-    const rr = rerouteFor(r);
-    const dedBasis = deductionBasis(r.firstPayout, (rr && rr.e.restartDate) ? rr.e.restartDate : null);
     g.containers.push(r.container);
     if (r.agent) g.agents.add(r.agent);
-    if (rr && rr.e.restartDate) g.rerouteDates.push(fmtDate(rr.e.payoutDate || rr.e.restartDate));
-    if (rr && rr.contOk && !rr.nameOk) g.deductionNotes.push('⚑ Verify name — restart matched by container only');
-    if (rr && !rr.contOk && rr.nameOk) g.deductionNotes.push('⚑ Verify container — restart matched by name only');
+
+    // Reroute display date — restartDate [LMC] acts as the payout date for display
+    if (r.isRerouted && r.restartDate) g.rerouteDates.push(fmtDate(r.restartDate));
 
     if (r.contractClosedFlag) g.deductionNotes.push(r.contractClosedFlag);
     if (r.groupId === '__MANUAL_CHECK__') g.deductionNotes.push('⚑ No container or contract number — manual check required');
@@ -419,7 +349,8 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
-      const effectiveContractEnd = (rr && rr.e.contractEnd) ? rr.e.contractEnd : r.contractEnd;
+      // Use newContractEnd [LMC] for rerouted clients, fallback to original contractEnd
+      const effectiveContractEnd = (r.isRerouted && r.newContractEnd) ? r.newContractEnd : r.contractEnd;
       if (!effectiveContractEnd) {
         g.deductionNotes.push('⚑ No contract end date');
       } else if (effectiveContractEnd < new Date()) {
@@ -427,20 +358,28 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       }
     }
 
+    // Deduction basis:
+    // - Never-paid batch (Mar 15 / Mar 30 / Apr 15 original first payout) → use restartDate
+    // - Other rerouted (old clients) → use original firstPayout
+    // - New clients (firstPayout == restartDate) → use that same date
+    const dedBasis = (r.isRerouted && isNeverPaidDate(r.firstPayout))
+      ? r.restartDate
+      : r.firstPayout;
+
     const isHcEligible = r.payReceived && r.payReceived <= hcCutoff;
     const cleanIban    = r.iban ? r.iban.replace(/\s/g, '') : '';
-    const hcPending     = hcPendingMap[cleanIban] || false;
+    const hcPending    = hcPendingMap[cleanIban] || false;
 
     if (r.container && mismatchContainers.has(r.container)) {
       const mf = mismatchFlags.find(f => f.container === r.container);
       g.deductionNotes.push(`⚑ Duplicate container mismatch — container ${r.container} appears under different contracts (${mf.contractNos.join(' / ')}) — manual check`);
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
+        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -452,7 +391,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       g.deductionItems.push(...splitItems);
       if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, !!rr);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
@@ -461,11 +400,11 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
   // Finalize: build the deduction-only note string per group
   Object.values(groups).forEach(g => {
     const roundedDeduction = Math.round(g.totalDeduction);
-    const y1Items   = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
-    const ipItems   = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
-    const hcApplied = g.deductionItems.filter(it => it.type === 'HC');
+    const y1Items        = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
+    const ipItems        = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
+    const hcApplied      = g.deductionItems.filter(it => it.type === 'HC');
     const hcPendingItems = g.deductionItems.filter(it => it.type === 'HC Pending');
-    const y1WithOthers = y1Items.length > 0 && ipItems.length > 0;
+    const y1WithOthers   = y1Items.length > 0 && ipItems.length > 0;
 
     const dedNotes = [];
     if (ipItems.length > 0) {
