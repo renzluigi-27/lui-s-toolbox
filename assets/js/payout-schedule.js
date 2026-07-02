@@ -8,12 +8,6 @@
 
 window.PayoutSchedule = (function () {
 
-  // ───────────────────────────────────────────────────────────
-  // ASSET PATHS — adjust if your repo's image folder differs
-  // ───────────────────────────────────────────────────────────
-  const LOGO_URL      = '/assets/logo-1.png';
-  const FOOT_LOGO_URL = '/assets/foot-logo-1.png';
-
   const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
 
   let scheduleRows  = [];   // parsed payment sheet rows (own copy, independent of Payout Generator)
@@ -113,17 +107,9 @@ window.PayoutSchedule = (function () {
     const style = document.createElement('style');
     style.id = 'ps-styles';
     style.textContent = `
-      /* Tab bar spacing fix — 7 tabs were packed too tight and truncating labels */
-      .mode-tabs { flex-wrap: wrap; gap: 6px; row-gap: 8px; }
-      .mode-tab {
-        margin: 0 !important; white-space: nowrap !important;
-        overflow: visible !important; text-overflow: clip !important;
-        max-width: none !important; width: auto !important; flex-shrink: 0 !important;
-      }
-
-      /* Upload row card spacing fix */
-      .upload-row { gap: 16px; }
-      .upload-row .card { margin: 0; }
+      /* Note: tab bar and upload-row spacing are already handled correctly
+         by aio-tool.css (flex:1/min-width/overflow-x:auto scrolling for tabs,
+         grid gap:14px for upload cards) — no overrides needed here. */
 
       .ps-search-wrap { position: relative; }
       .ps-search-wrap input[type="text"] {
@@ -471,6 +457,18 @@ window.PayoutSchedule = (function () {
     return blocks;
   }
 
+  function buildRangeLabels(blocks) {
+    const labels = [];
+    let cursor = 1;
+    blocks.forEach(len => {
+      const start = cursor;
+      const end = cursor + len - 1;
+      labels.push(start === end ? `${start}` : `${start}-${end}`);
+      cursor = end + 1;
+    });
+    return labels;
+  }
+
   function generateDates(startDate, cycle, totalMonths) {
     const dates = [];
     const baseYear = startDate.getFullYear();
@@ -565,11 +563,11 @@ window.PayoutSchedule = (function () {
       const cycle = startDate.getDate() <= 15 ? '15' : 'eom';
       const rerouted = selectedGroup ? !isNonReroutedClient(selectedGroup.row) : false;
 
-      const { rows } = buildScheduleRows({
+      const { rows, blocks } = buildScheduleRows({
         startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted,
       });
 
-      const pdfBytes = await buildPDF({ contractRef, rows });
+      const pdfBytes = await buildPDF({ contractRef, rows, blocks, rerouted });
       downloadPDF(pdfBytes, `Payment_Schedule_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
@@ -592,111 +590,83 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   // PDF GENERATION — pdf-lib, matches LMC letterhead layout
   // ───────────────────────────────────────────────────────────
-  const NAVY = () => PDFLib.rgb(0x11 / 255, 0x2f / 255, 0x56 / 255);
   const YELLOW = () => PDFLib.rgb(1, 0.92, 0.23);
-  const GREY_TEXT = () => PDFLib.rgb(0.55, 0.55, 0.55);
   const BLACK = () => PDFLib.rgb(0, 0, 0);
-  const WHITE = () => PDFLib.rgb(1, 1, 1);
   const LIGHT_BORDER = () => PDFLib.rgb(0.8, 0.8, 0.8);
 
-  const PAGE_W = 595.28, PAGE_H = 841.89;
-  const BAR_W = 34;
-  const MARGIN_L = 100, MARGIN_R = 45;
+  const LETTERHEAD_URL = '/assets/lmc_letterhead.pdf';
+
+  const MARGIN_L = 90, MARGIN_R = 25;
   const TABLE_LEFT = MARGIN_L;
-  const TABLE_RIGHT = PAGE_W - MARGIN_R;
-  const TABLE_WIDTH = TABLE_RIGHT - TABLE_LEFT;
-  const COL_CONTAINER = 130, COL_DATE = 85, COL_PAYMENT = 110, COL_DEDUCT_AMT = 65;
-  const COL_DEDUCT_LABEL = TABLE_WIDTH - COL_CONTAINER - COL_DATE - COL_PAYMENT - COL_DEDUCT_AMT;
-  const ROW_H = 15.5;
-  const YEAR_BAR_H = 15.5;
-  const TABLE_TOP_FIRST_PAGE = PAGE_H - 210;
-  const TABLE_TOP_OTHER_PAGE = PAGE_H - 130;
+  const COL_CONTAINER = 110, COL_DATE = 75, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
+  const BORDERED_WIDTH = COL_CONTAINER + COL_DATE + COL_PAYMENT + COL_DEDUCT_AMT;
+  const LABEL_X = TABLE_LEFT + BORDERED_WIDTH + 8;
+  const ROW_H = 16;
+  const YEAR_BAR_H = 16;
+  const TABLE_TOP_FIRST_PAGE_OFFSET = 210; // distance from top of page to first table row
+  const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
 
-  async function fetchImageBytes(url) {
-    try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      return new Uint8Array(await res.arrayBuffer());
-    } catch (e) { return null; }
+  async function fetchBytes(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
+    return new Uint8Array(await res.arrayBuffer());
   }
 
-  async function buildPDF({ contractRef, rows }) {
+  async function buildPDF({ contractRef, rows, blocks, rerouted }) {
     const pdfDoc = await PDFLib.PDFDocument.create();
     const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
-    const logoBytes = await fetchImageBytes(LOGO_URL);
-    const logoImg = logoBytes ? await pdfDoc.embedPng(logoBytes) : null;
+    // Use the real LMC letterhead PDF as the background template on every page
+    const letterheadBytes = await fetchBytes(LETTERHEAD_URL);
+    const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
+    const PAGE_W = letterheadPage.width;
+    const PAGE_H = letterheadPage.height;
+    const FULL_BAR_WIDTH = (PAGE_W - MARGIN_R) - TABLE_LEFT;
+    const TABLE_TOP_FIRST_PAGE = PAGE_H - TABLE_TOP_FIRST_PAGE_OFFSET;
+    const TABLE_TOP_OTHER_PAGE = PAGE_H - TABLE_TOP_OTHER_PAGE_OFFSET;
 
     let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-    let isFirstPage = true;
     let y = 0;
 
-    function drawLeftBar(p) {
-      p.drawRectangle({ x: 0, y: 0, width: BAR_W, height: PAGE_H, color: NAVY() });
-      // chevron notch near top
-      const notchTop = PAGE_H - 40;
-      p.drawSvgPath(`M0,0 L${BAR_W},18 L0,36 Z`, { x: 0, y: notchTop, color: WHITE() });
+    function drawLetterhead(p) {
+      p.drawPage(letterheadPage, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
     }
 
-    function drawFooter(p) {
-      const lineY = 70;
-      p.drawLine({ start: { x: BAR_W + 30, y: lineY }, end: { x: BAR_W + 190, y: lineY }, thickness: 1, color: NAVY() });
-      p.drawCircle({ x: BAR_W + 200, y: lineY, size: 3, color: NAVY() });
-      p.drawCircle({ x: BAR_W + 214, y: lineY, size: 3, color: NAVY() });
-      p.drawRectangle({ x: BAR_W + 222, y: lineY - 4, width: 14, height: 8, color: NAVY() });
-
-      const addrX = PAGE_W - 220;
-      let ay = lineY + 28;
-      const addrLines = ['Office 310 SIT Tower', 'Dubai Silicon Oasis, Dubai UAE', 'info@legendmaritime.com', 'legendmaritime.com'];
-      addrLines.forEach(line => {
-        p.drawText(line, { x: addrX, y: ay, size: 8.5, font, color: GREY_TEXT() });
-        ay -= 13;
-      });
-    }
-
-    function drawHeader(p, showTitle) {
-      if (logoImg) {
-        const scale = 110 / logoImg.width;
-        p.drawImage(logoImg, { x: BAR_W + 30, y: PAGE_H - 90, width: 110, height: logoImg.height * scale });
-      } else {
-        p.drawText('LEGEND MARITIME', { x: BAR_W + 30, y: PAGE_H - 60, size: 16, font: fontBold, color: NAVY() });
-      }
-      if (showTitle) {
-        const title = `Payment Schedule for ${contractRef}`;
-        const size = 13;
-        const tw = fontBold.widthOfTextAtSize(title, size);
-        const tx = (PAGE_W - tw) / 2;
-        const ty = PAGE_H - 150;
-        p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
-        p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
-      }
+    function drawTitle(p) {
+      const title = `Payment Schedule for ${contractRef}`;
+      const size = 13;
+      const tw = fontBold.widthOfTextAtSize(title, size);
+      const tx = (PAGE_W - tw) / 2;
+      const ty = PAGE_H - 150;
+      p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
+      p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
     }
 
     function drawTableHeader(p, topY) {
-      p.drawRectangle({ x: TABLE_LEFT, y: topY - ROW_H, width: TABLE_WIDTH, height: ROW_H, color: YELLOW() });
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - ROW_H, width: FULL_BAR_WIDTH, height: ROW_H, color: YELLOW() });
       const heads = [
         ['Container numbers', TABLE_LEFT, COL_CONTAINER],
         ['Payout date', TABLE_LEFT + COL_CONTAINER, COL_DATE],
         ['Monthly Payment (AED)', TABLE_LEFT + COL_CONTAINER + COL_DATE, COL_PAYMENT],
-        ['Deduction', TABLE_LEFT + COL_CONTAINER + COL_DATE + COL_PAYMENT, COL_DEDUCT_AMT + COL_DEDUCT_LABEL],
+        ['Deduction', TABLE_LEFT + COL_CONTAINER + COL_DATE + COL_PAYMENT, COL_DEDUCT_AMT],
       ];
       heads.forEach(([label, x, w]) => {
-        p.drawText(label, { x: x + 4, y: topY - ROW_H + 4.5, size: 8, font: fontBold, color: BLACK() });
+        p.drawText(label, { x: x + 4, y: topY - ROW_H + 5, size: 8, font: fontBold, color: BLACK() });
       });
       let bx = TABLE_LEFT;
-      [COL_CONTAINER, COL_DATE, COL_PAYMENT, COL_DEDUCT_AMT + COL_DEDUCT_LABEL].forEach(w => {
-        p.drawRectangle({ x: bx, y: topY - ROW_H, width: w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5, color: undefined });
+      [COL_CONTAINER, COL_DATE, COL_PAYMENT, COL_DEDUCT_AMT].forEach(w => {
+        p.drawRectangle({ x: bx, y: topY - ROW_H, width: w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5 });
         bx += w;
       });
       return topY - ROW_H;
     }
 
     function drawYearBar(p, topY, label) {
-      p.drawRectangle({ x: TABLE_LEFT, y: topY - YEAR_BAR_H, width: TABLE_WIDTH, height: YEAR_BAR_H, color: YELLOW() });
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - YEAR_BAR_H, width: FULL_BAR_WIDTH, height: YEAR_BAR_H, color: YELLOW() });
       const tw = fontBold.widthOfTextAtSize(label, 8);
-      p.drawText(label, { x: TABLE_LEFT + (TABLE_WIDTH - tw) / 2, y: topY - YEAR_BAR_H + 4.5, size: 8, font: fontBold, color: BLACK() });
+      p.drawText(label, { x: TABLE_LEFT + (BORDERED_WIDTH - tw) / 2, y: topY - YEAR_BAR_H + 5, size: 8, font: fontBold, color: BLACK() });
       return topY - YEAR_BAR_H;
     }
 
@@ -712,13 +682,11 @@ window.PayoutSchedule = (function () {
         p.drawRectangle({ x: bx, y: topY - ROW_H, width: c.w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5 });
         const tw = font.widthOfTextAtSize(c.text, 8);
         const tx = c.align === 'right' ? bx + c.w - tw - 4 : bx + 4;
-        p.drawText(c.text, { x: tx, y: topY - ROW_H + 4.5, size: 8, font, color: BLACK() });
+        p.drawText(c.text, { x: tx, y: topY - ROW_H + 5, size: 8, font, color: BLACK() });
         bx += c.w;
       });
-      // deduction label column (no border split needed beyond last box)
-      p.drawRectangle({ x: bx, y: topY - ROW_H, width: COL_DEDUCT_LABEL, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5 });
       if (row.deductionLabel) {
-        p.drawText(row.deductionLabel, { x: bx + 4, y: topY - ROW_H + 4.5, size: 7.5, font, color: BLACK() });
+        p.drawText(row.deductionLabel, { x: LABEL_X, y: topY - ROW_H + 5, size: 7.5, font, color: BLACK() });
       }
       return topY - ROW_H;
     }
@@ -728,31 +696,26 @@ window.PayoutSchedule = (function () {
       return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     }
 
-    drawLeftBar(page);
-    drawHeader(page, true);
-    drawFooter(page);
+    drawLetterhead(page);
+    drawTitle(page);
     y = drawTableHeader(page, TABLE_TOP_FIRST_PAGE);
 
     let currentYearIdx = -1;
-    const yearLabels = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '6th Year', '7th Year', '8th Year'];
+    const yearLabels = rerouted ? buildRangeLabels(blocks) : ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '6th Year', '7th Year', '8th Year'];
 
     for (const row of rows) {
       if (row.isYearStart) {
         currentYearIdx = row.yearIndex;
         if (y - YEAR_BAR_H < BOTTOM_MARGIN) {
           page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-          drawLeftBar(page);
-          drawHeader(page, false);
-          drawFooter(page);
+          drawLetterhead(page);
           y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
         }
         y = drawYearBar(page, y, yearLabels[currentYearIdx] || `Year ${currentYearIdx + 1}`);
       }
       if (y - ROW_H < BOTTOM_MARGIN) {
         page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-        drawLeftBar(page);
-        drawHeader(page, false);
-        drawFooter(page);
+        drawLetterhead(page);
         y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
       }
       y = drawDataRow(page, y, row);
