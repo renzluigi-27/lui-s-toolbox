@@ -109,24 +109,9 @@ window.PayoutSchedule = (function () {
     const style = document.createElement('style');
     style.id = 'ps-styles';
     style.textContent = `
-      /* aio-tool.css sets .mode-tab { flex:1; min-width:120px }. That explicit
-         min-width overrides the browser's automatic "never shrink below your
-         own content" floor. "Container Trip Updater" needs more than 120px,
-         so the button stays locked at 120px and the text overflows past its
-         edge into the next tab. Fix: size each tab to its own content instead
-         of a fixed 120px, so this can't happen regardless of label length.
-         .mode-tabs already has overflow-x:auto, so if tabs ever don't fit on
-         one line the bar scrolls horizontally instead of overlapping. */
-      .mode-tab {
-        flex: 0 0 auto !important;
-        min-width: 0 !important;
-        white-space: nowrap !important;
-        padding: 0 14px !important;
-      }
-
-      /* Note: tab bar and upload-row spacing are already handled correctly
-         by aio-tool.css (flex:1/min-width/overflow-x:auto scrolling for tabs,
-         grid gap:14px for upload cards) — no overrides needed here. */
+      /* Tab truncation is now fixed at the root in global.css (widened
+         .container from 900px to 1150px, giving the 7-tab bar enough room
+         at its native 120px-min-width sizing). No override needed here. */
 
       .ps-search-wrap { position: relative; }
       .ps-search-wrap input[type="text"] {
@@ -457,20 +442,15 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   // SCHEDULE MATH
   // ───────────────────────────────────────────────────────────
-  function yearBlocks(totalMonths, isRerouted) {
+  function yearBlocks(totalMonths) {
     const blocks = [];
     if (totalMonths <= 0) return blocks;
-    if (isRerouted) {
-      let remaining = totalMonths;
-      while (remaining > 0) { const c = Math.min(12, remaining); blocks.push(c); remaining -= c; }
-    } else {
-      let remainder = totalMonths % 12;
-      if (remainder === 0) remainder = 12;
-      const first = Math.min(remainder, totalMonths);
-      blocks.push(first);
-      let remaining = totalMonths - first;
-      while (remaining > 0) { const c = Math.min(12, remaining); blocks.push(c); remaining -= c; }
-    }
+    let remainder = totalMonths % 12;
+    if (remainder === 0) remainder = 12;
+    const first = Math.min(remainder, totalMonths);
+    blocks.push(first);
+    let remaining = totalMonths - first;
+    while (remaining > 0) { const c = Math.min(12, remaining); blocks.push(c); remaining -= c; }
     return blocks;
   }
 
@@ -492,20 +472,25 @@ window.PayoutSchedule = (function () {
     return dates;
   }
 
-  function buildScheduleRows(opts) {
-    const { startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted } = opts;
-    const blocks = yearBlocks(totalMonths, rerouted);
-    const dates = generateDates(startDate, cycle, totalMonths);
+  function isNeverPaidDate(d) {
+    if (!d) return false;
+    const mo = d.getMonth() + 1, dy = d.getDate();
+    return (mo === 3 && (dy === 15 || dy === 30)) || (mo === 4 && dy === 15);
+  }
 
+  // Non-rerouted: matches your original historical contract PDFs (CONAD0536,
+  // CONAD1983, etc.) — Year 1/2/3 blocks, deduction on the first row of each.
+  function buildNonReroutedRows(opts) {
+    const { startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers } = opts;
+    const blocks = yearBlocks(totalMonths);
+    const dates = generateDates(startDate, cycle, totalMonths);
     const out = [];
-    let monthCursor = 0;
-    let containerCursor = 0;
+    let monthCursor = 0, containerCursor = 0;
 
     blocks.forEach((blockLen, yearIdx) => {
       for (let m = 0; m < blockLen; m++) {
         const isYearStart = m === 0;
-        let deductionAmount = 0;
-        let deductionLabel = '';
+        let deductionAmount = 0, deductionLabel = '';
         if (isYearStart) {
           if (yearIdx === 0) {
             deductionAmount = insurance;
@@ -535,6 +520,59 @@ window.PayoutSchedule = (function () {
       }
     });
     return { rows: out, blocks };
+  }
+
+  // Rerouted: matches shared.js's calcDeduction — Y1/Y2/Y3 insurance timing
+  // follows the ORIGINAL First Payout Date's calendar anniversary (or Payout
+  // Restart Date only for the never-paid-batch exception: original first
+  // payout on Mar 15, Mar 30, or Apr 15). Health Check applies at Y2/Y3 only.
+  // If a deduction would make Monthly Payment negative, it's auto-split
+  // across however many consecutive months keeps each payment >= 0.
+  function buildReroutedRows(opts) {
+    const { startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, dedBasis } = opts;
+    const dates = generateDates(startDate, cycle, totalMonths);
+
+    const y1 = new Date(dedBasis);
+    const y2 = subtractOneMonth(addYears(dedBasis, 1));
+    const y3 = addYears(dedBasis, 2);
+    const sameMonth = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
+    const out = dates.map((date, i) => ({
+      tripNumber: i + 1,
+      container: '',
+      date,
+      monthlyPayment: rent,
+      deductionAmount: 0,
+      deductionLabel: '',
+    }));
+
+    let containerCursor = 0;
+    out.forEach(r => {
+      if (containerCursor < containers.length) { r.container = containers[containerCursor]; containerCursor++; }
+    });
+
+    out.forEach((row, i) => {
+      let amount = 0, label = '';
+      if (sameMonth(row.date, y1)) { amount = insurance; label = 'IP'; }
+      else if (sameMonth(row.date, y2) || sameMonth(row.date, y3)) {
+        if (hcEnabled) { amount = insurance + hcAmount; label = 'IP & HC'; }
+        else { amount = insurance; label = 'IP'; }
+      }
+      if (amount <= 0) return;
+      const n = Math.max(1, Math.ceil(amount / rent));
+      const share = amount / n;
+      for (let k = 0; k < n && (i + k) < out.length; k++) {
+        out[i + k].deductionAmount += share;
+        out[i + k].monthlyPayment = rent - out[i + k].deductionAmount;
+        out[i + k].deductionLabel = label;
+      }
+    });
+
+    return { rows: out, blocks: null };
+  }
+
+  function buildScheduleRows(opts) {
+    return opts.rerouted ? buildReroutedRows(opts) : buildNonReroutedRows(opts);
   }
 
   // ───────────────────────────────────────────────────────────
@@ -569,12 +607,21 @@ window.PayoutSchedule = (function () {
       const cycle = startDate.getDate() <= 15 ? '15' : 'eom';
       const rerouted = selectedGroup ? !isNonReroutedClient(selectedGroup.row) : false;
 
+      // Deduction anniversary basis: original First Payout Date, except the
+      // never-paid-batch exception which uses Payout Restart Date instead.
+      let dedBasis = startDate;
+      if (rerouted && selectedGroup) {
+        const origFirstPayout = selectedGroup.row.firstPayout;
+        const restart = selectedGroup.row.restartDate;
+        dedBasis = (origFirstPayout && isNeverPaidDate(origFirstPayout)) ? (restart || startDate) : (origFirstPayout || startDate);
+      }
+
       const { rows, blocks } = buildScheduleRows({
-        startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted,
+        startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted, dedBasis,
       });
 
-      const pdfBytes = await buildPDF({ contractRef, rows, blocks, rerouted });
-      downloadPDF(pdfBytes, `Payment_Schedule_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
+      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
       console.error(ex);
@@ -604,11 +651,9 @@ window.PayoutSchedule = (function () {
 
   const MARGIN_L = 90, MARGIN_R = 25;
   const TABLE_LEFT = MARGIN_L;
-  const COL_CONTAINER = 110, COL_DATE = 75, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
-  const BORDERED_WIDTH = COL_CONTAINER + COL_DATE + COL_PAYMENT + COL_DEDUCT_AMT;
-  const LABEL_X = TABLE_LEFT + BORDERED_WIDTH + 8;
-  const ROW_H = 16;
-  const YEAR_BAR_H = 16;
+  const COL_CONTAINER = 90, COL_TRIP = 40, COL_DATE = 68, COL_PAYMENT = 90, COL_DEDUCT_AMT = 55;
+  const ROW_H = 13.5;
+  const YEAR_BAR_H = 13.5;
   const TABLE_TOP_FIRST_PAGE_OFFSET = 210; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
@@ -619,7 +664,7 @@ window.PayoutSchedule = (function () {
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  async function buildPDF({ contractRef, rows, blocks, rerouted }) {
+  async function buildPDF({ clientName, rows, blocks, rerouted }) {
     const pdfDoc = await PDFLib.PDFDocument.create();
     const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
@@ -629,6 +674,14 @@ window.PayoutSchedule = (function () {
     const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
     const PAGE_W = letterheadPage.width;
     const PAGE_H = letterheadPage.height;
+
+    // Rerouted schedules get a Trip No. column; non-rerouted match the
+    // original historical contract PDF layout (no Trip No. column).
+    const cols = rerouted
+      ? [['Container numbers', COL_CONTAINER], ['Trip No.', COL_TRIP], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]]
+      : [['Container numbers', COL_CONTAINER], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]];
+    const BORDERED_WIDTH = cols.reduce((s, c) => s + c[1], 0);
+    const LABEL_X = TABLE_LEFT + BORDERED_WIDTH + 8;
     const FULL_BAR_WIDTH = (PAGE_W - MARGIN_R) - TABLE_LEFT;
     const TABLE_TOP_FIRST_PAGE = PAGE_H - TABLE_TOP_FIRST_PAGE_OFFSET;
     const TABLE_TOP_OTHER_PAGE = PAGE_H - TABLE_TOP_OTHER_PAGE_OFFSET;
@@ -641,7 +694,7 @@ window.PayoutSchedule = (function () {
     }
 
     function drawTitle(p) {
-      const title = `Payment Schedule for ${contractRef}`;
+      const title = `Payout Schedule for ${clientName}`;
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
       const tx = (PAGE_W - tw) / 2;
@@ -651,19 +704,14 @@ window.PayoutSchedule = (function () {
     }
 
     function drawTableHeader(p, topY) {
-      p.drawRectangle({ x: TABLE_LEFT, y: topY - ROW_H, width: FULL_BAR_WIDTH, height: ROW_H, color: YELLOW() });
-      const heads = [
-        ['Container numbers', TABLE_LEFT, COL_CONTAINER],
-        ['Payout date', TABLE_LEFT + COL_CONTAINER, COL_DATE],
-        ['Monthly Payment (AED)', TABLE_LEFT + COL_CONTAINER + COL_DATE, COL_PAYMENT],
-        ['Deduction', TABLE_LEFT + COL_CONTAINER + COL_DATE + COL_PAYMENT, COL_DEDUCT_AMT],
-      ];
-      heads.forEach(([label, x, w]) => {
-        p.drawText(label, { x: x + 4, y: topY - ROW_H + 5, size: 8, font: fontBold, color: BLACK() });
-      });
+      // Yellow header only spans the bordered columns — not the unboxed
+      // label float zone — so "Deduction" doesn't look like it's floating
+      // in a mostly-empty bar.
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - ROW_H, width: BORDERED_WIDTH, height: ROW_H, color: YELLOW() });
       let bx = TABLE_LEFT;
-      [COL_CONTAINER, COL_DATE, COL_PAYMENT, COL_DEDUCT_AMT].forEach(w => {
+      cols.forEach(([label, w]) => {
         p.drawRectangle({ x: bx, y: topY - ROW_H, width: w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+        p.drawText(label, { x: bx + 3, y: topY - ROW_H + 4, size: 7, font: fontBold, color: BLACK() });
         bx += w;
       });
       return topY - ROW_H;
@@ -672,28 +720,37 @@ window.PayoutSchedule = (function () {
     function drawYearBar(p, topY, label) {
       p.drawRectangle({ x: TABLE_LEFT, y: topY - YEAR_BAR_H, width: FULL_BAR_WIDTH, height: YEAR_BAR_H, color: YELLOW() });
       const tw = fontBold.widthOfTextAtSize(label, 8);
-      p.drawText(label, { x: TABLE_LEFT + (BORDERED_WIDTH - tw) / 2, y: topY - YEAR_BAR_H + 5, size: 8, font: fontBold, color: BLACK() });
+      p.drawText(label, { x: TABLE_LEFT + (BORDERED_WIDTH - tw) / 2, y: topY - YEAR_BAR_H + 4, size: 8, font: fontBold, color: BLACK() });
       return topY - YEAR_BAR_H;
     }
 
-    function drawDataRow(p, topY, row, rerouted) {
-      const dateText = rerouted ? `${row.tripNumber}. ${fmtDDMMYYYY(row.date)}` : fmtDDMMYYYY(row.date);
-      const cols = [
-        { text: row.container, w: COL_CONTAINER },
-        { text: dateText, w: COL_DATE },
-        { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
-        { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
-      ];
+    function drawDataRow(p, topY, row) {
+      const cells = rerouted
+        ? [
+            { text: row.container, w: COL_CONTAINER },
+            { text: String(row.tripNumber), w: COL_TRIP, align: 'center' },
+            { text: fmtDDMMYYYY(row.date), w: COL_DATE },
+            { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
+            { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
+          ]
+        : [
+            { text: row.container, w: COL_CONTAINER },
+            { text: fmtDDMMYYYY(row.date), w: COL_DATE },
+            { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
+            { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
+          ];
       let bx = TABLE_LEFT;
-      cols.forEach(c => {
+      cells.forEach(c => {
         p.drawRectangle({ x: bx, y: topY - ROW_H, width: c.w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
-        const tw = font.widthOfTextAtSize(c.text, 8);
-        const tx = c.align === 'right' ? bx + c.w - tw - 4 : bx + 4;
-        p.drawText(c.text, { x: tx, y: topY - ROW_H + 5, size: 8, font, color: BLACK() });
+        const tw = font.widthOfTextAtSize(c.text, 7.5);
+        let tx = bx + 3;
+        if (c.align === 'right') tx = bx + c.w - tw - 3;
+        else if (c.align === 'center') tx = bx + (c.w - tw) / 2;
+        p.drawText(c.text, { x: tx, y: topY - ROW_H + 4, size: 7.5, font, color: BLACK() });
         bx += c.w;
       });
       if (row.deductionLabel) {
-        p.drawText(row.deductionLabel, { x: LABEL_X, y: topY - ROW_H + 5, size: 7.5, font, color: BLACK() });
+        p.drawText(row.deductionLabel, { x: LABEL_X, y: topY - ROW_H + 4, size: 7.5, font, color: BLACK() });
       }
       return topY - ROW_H;
     }
@@ -725,7 +782,7 @@ window.PayoutSchedule = (function () {
         drawLetterhead(page);
         y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
       }
-      y = drawDataRow(page, y, row, rerouted);
+      y = drawDataRow(page, y, row);
     }
 
     return pdfDoc.save();
