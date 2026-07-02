@@ -11,8 +11,8 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   // ASSET PATHS — adjust if your repo's image folder differs
   // ───────────────────────────────────────────────────────────
-  const LOGO_URL      = '/assets/img/logo-1.png';
-  const FOOT_LOGO_URL = '/assets/img/foot-logo-1.png';
+  const LOGO_URL      = '/assets/logo-1.png';
+  const FOOT_LOGO_URL = '/assets/foot-logo-1.png';
 
   const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
 
@@ -63,10 +63,9 @@ window.PayoutSchedule = (function () {
       </div>
 
       <div class="card" id="ps-clientCard" style="display:none;">
-        <div class="section-label">Select Client</div>
+        <div class="section-label">Select Client <span class="optional-label">search by name or email</span></div>
         <div class="ps-search-wrap">
-          <input type="text" id="ps-clientSearch" placeholder="Type client name to search..." autocomplete="off" />
-          <div class="ps-dropdown" id="ps-clientDropdown"></div>
+          <input type="text" id="ps-clientSearch" placeholder="Type client name or email to search..." autocomplete="off" />
         </div>
       </div>
 
@@ -129,14 +128,14 @@ window.PayoutSchedule = (function () {
       .ps-search-wrap input[type="text"]:focus { outline: 2px solid #4a7dfc; border-color: #4a7dfc; }
 
       .ps-dropdown {
-        display: none; position: absolute; top: 46px; left: 0; right: 0;
-        max-height: 260px; overflow-y: auto; z-index: 50;
+        display: none; position: fixed; z-index: 9999;
+        max-height: 260px; overflow-y: auto;
         background: #181c24; border: 1px solid #3a3f4b;
         border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       }
       .ps-dropdown.show { display: block; }
       .ps-dropdown-item {
-        padding: 10px 12px; cursor: pointer; font-size: 13px;
+        padding: 8px 12px; cursor: pointer; font-size: 13px;
         color: #f0f0f0; background: #181c24;
       }
       .ps-dropdown-item:hover, .ps-dropdown-item.active { background: #2a3550; color: #ffffff; }
@@ -183,10 +182,13 @@ window.PayoutSchedule = (function () {
     });
 
     const search = document.getElementById('ps-clientSearch');
-    search.addEventListener('input', () => renderDropdown(search.value));
-    search.addEventListener('focus', () => renderDropdown(search.value));
+    ensureDropdownEl();
+    search.addEventListener('input', () => { positionDropdown(); renderDropdown(search.value); });
+    search.addEventListener('focus', () => { positionDropdown(); renderDropdown(search.value); });
+    window.addEventListener('resize', () => { if (isDropdownOpen()) positionDropdown(); });
+    window.addEventListener('scroll', () => { if (isDropdownOpen()) positionDropdown(); }, true);
     document.addEventListener('click', e => {
-      if (!e.target.closest('.ps-search-wrap')) {
+      if (!e.target.closest('.ps-search-wrap') && !e.target.closest('#ps-clientDropdown')) {
         document.getElementById('ps-clientDropdown').classList.remove('show');
       }
     });
@@ -256,18 +258,62 @@ window.PayoutSchedule = (function () {
   }
 
   // ───────────────────────────────────────────────────────────
-  // SEARCHABLE DROPDOWN
+  // SEARCHABLE DROPDOWN (portaled to document.body to escape
+  // any parent .card's overflow:hidden / transform clipping)
   // ───────────────────────────────────────────────────────────
-  function renderDropdown(query) {
+  function ensureDropdownEl() {
+    let dd = document.getElementById('ps-clientDropdown');
+    if (!dd) {
+      dd = document.createElement('div');
+      dd.id = 'ps-clientDropdown';
+      dd.className = 'ps-dropdown';
+      document.body.appendChild(dd);
+    }
+    return dd;
+  }
+
+  function isDropdownOpen() {
     const dd = document.getElementById('ps-clientDropdown');
+    return dd && dd.classList.contains('show');
+  }
+
+  function positionDropdown() {
+    const input = document.getElementById('ps-clientSearch');
+    const dd = document.getElementById('ps-clientDropdown');
+    if (!input || !dd) return;
+    const rect = input.getBoundingClientRect();
+    dd.style.left = rect.left + 'px';
+    dd.style.top = (rect.bottom + 4) + 'px';
+    dd.style.width = rect.width + 'px';
+  }
+
+  function clientMatchesQuery(g, q) {
+    if (g.clientName.toLowerCase().includes(q)) return true;
+    if (emailRecords.length) {
+      const rec = lookupEmailRecord(emailRecords, g.clientName);
+      if (rec) {
+        const [e1, e2] = splitEmails(rec.clientEmailRaw);
+        if ((e1 && e1.toLowerCase().includes(q)) || (e2 && e2.toLowerCase().includes(q))) return true;
+      }
+    }
+    return false;
+  }
+
+  function renderDropdown(query) {
+    const dd = ensureDropdownEl();
     const q = (query || '').trim().toLowerCase();
-    const matches = (q ? clientGroups.filter(g => g.clientName.toLowerCase().includes(q)) : clientGroups).slice(0, 50);
+    const matches = (q ? clientGroups.filter(g => clientMatchesQuery(g, q)) : clientGroups).slice(0, 50);
     if (!matches.length) {
       dd.innerHTML = `<div class="ps-dropdown-empty">No matching clients</div>`;
     } else {
-      dd.innerHTML = matches.map(g =>
-        `<div class="ps-dropdown-item" data-key="${esc(g.key)}">${esc(g.clientName)}${g.contractNo ? ` <span style="color:var(--text-hint)">(${esc(g.contractNo)})</span>` : ''}</div>`
-      ).join('');
+      dd.innerHTML = matches.map(g => {
+        const rec = emailRecords.length ? lookupEmailRecord(emailRecords, g.clientName) : null;
+        const email = rec ? (splitEmails(rec.clientEmailRaw)[0] || '') : '';
+        return `<div class="ps-dropdown-item" data-key="${esc(g.key)}">
+          <div>${esc(g.clientName)}${g.contractNo ? ` <span style="color:#8a8f9c">(${esc(g.contractNo)})</span>` : ''}</div>
+          ${email ? `<div style="font-size:11px;color:#8a8f9c;">${esc(email)}</div>` : ''}
+        </div>`;
+      }).join('');
       dd.querySelectorAll('.ps-dropdown-item').forEach(item => {
         item.addEventListener('click', () => {
           const g = clientGroups.find(c => c.key === item.dataset.key);
@@ -276,6 +322,7 @@ window.PayoutSchedule = (function () {
         });
       });
     }
+    positionDropdown();
     dd.classList.add('show');
   }
 
