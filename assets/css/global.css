@@ -1,5 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+* , *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --bg: #f5f4f0;
   --surface: #ffffff;
@@ -27,7 +26,6 @@
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'SFMono-Regular', 'Consolas', 'Liberation Mono', monospace;
 }
-
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1c1c1a;
@@ -52,9 +50,7 @@
     --blue-text: #90b8f8;
   }
 }
-
 html, body { height: 100%; }
-
 body {
   margin: 0;
   height: 100%;
@@ -63,13 +59,11 @@ body {
   background: var(--bg);
   color: var(--text);
 }
-
 .page-container {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
-
 .content {
   flex: 1;
   width: 100%;
@@ -78,13 +72,13 @@ body {
   align-items: center;
   padding: 1rem 1rem 0.75rem;
 }
-
-header { text-align: center; margin-bottom: 1rem; width: 100%; max-width: 900px; }
+/* Widened from 900px so the tab bar has room to grow as more modes are added
+   (7 tabs at min-width:120px + gaps needs ~886px, leaving almost no margin
+   at 900px — this was the real cause of tabs overlapping/overflowing). */
+header { text-align: center; margin-bottom: 1rem; width: 100%; max-width: 1150px; }
 header h1 { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 6px; }
 header p { font-size: 14px; color: var(--text-muted); }
-
-.container { width: 100%; max-width: 900px; }
-
+.container { width: 100%; max-width: 1150px; }
 .back-link {
   align-self: flex-start;
   font-size: 13px;
@@ -97,7 +91,6 @@ header p { font-size: 14px; color: var(--text-muted); }
   transition: color 0.15s;
 }
 .back-link:hover { color: var(--text-muted); }
-
 .card {
   background: var(--surface);
   border: 0.5px solid var(--border);
@@ -105,7 +98,6 @@ header p { font-size: 14px; color: var(--text-muted); }
   padding: 1.2rem;
   margin-bottom: 0.75rem;
 }
-
 .section-label {
   font-size: 11px;
   font-weight: 500;
@@ -114,7 +106,6 @@ header p { font-size: 14px; color: var(--text-muted); }
   letter-spacing: 0.08em;
   margin-bottom: 0.75rem;
 }
-
 #footer { width: 100%; }
 #footer footer {
   text-align: center;
@@ -123,6 +114,5 @@ header p { font-size: 14px; color: var(--text-muted); }
   line-height: 1.7;
   padding: 0.75rem 1rem 1rem;
 }
-
 @media (max-width: 480px) { header h1 { font-size: 20px; } }
 @media (min-width: 1200px) { header h1 { font-size: 30px; } }
