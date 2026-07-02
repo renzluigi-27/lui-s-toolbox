@@ -30,7 +30,7 @@ window.PayoutSchedule = (function () {
   function buildHTML() {
     return `
       <div class="card">
-        <div class="upload-row" style="margin-bottom:0;">
+        <div class="ps-upload-split" style="margin-bottom:0;">
           <div>
             <div class="section-label">Payment Info Sheet <span class="optional-label">required</span></div>
             <div class="upload-zone upload-zone-sm" id="ps-uploadZone">
@@ -155,6 +155,13 @@ window.PayoutSchedule = (function () {
       .ps-contract-item.active { border-color: #4a7dfc; background: #16223f; }
       .ps-contract-ref { font-size: 13px; font-weight: 600; color: #f0f0f0; }
       .ps-contract-containers { font-size: 11.5px; color: #8a8f9c; margin-top: 3px; }
+
+      .ps-upload-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      @media (max-width: 480px) { .ps-upload-split { grid-template-columns: 1fr; } }
     `;
     document.head.appendChild(style);
   }
