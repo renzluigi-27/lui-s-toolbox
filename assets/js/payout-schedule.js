@@ -656,11 +656,10 @@ window.PayoutSchedule = (function () {
 
   const LETTERHEAD_URL = '/assets/lmc_letterhead.pdf';
 
-  const MARGIN_L = 90, MARGIN_R = 25;
-  const TABLE_LEFT = MARGIN_L;
-  const COL_CONTAINER = 90, COL_TRIP = 40, COL_DATE = 68, COL_PAYMENT = 90, COL_DEDUCT_AMT = 55;
-  const ROW_H = 13.5;
-  const YEAR_BAR_H = 13.5;
+  const MARGIN_L = 60, MARGIN_R = 20;
+  const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
+  const ROW_H = 15;
+  const YEAR_BAR_H = 15;
   const TABLE_TOP_FIRST_PAGE_OFFSET = 210; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
@@ -688,6 +687,14 @@ window.PayoutSchedule = (function () {
       ? [['Container numbers', COL_CONTAINER], ['Trip No.', COL_TRIP], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]]
       : [['Container numbers', COL_CONTAINER], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]];
     const BORDERED_WIDTH = cols.reduce((s, c) => s + c[1], 0);
+    // Center the table (bordered columns + the unboxed deduction-label zone)
+    // within the printable width, instead of left-anchoring it at the margin
+    // and leaving a big blank gap on the right.
+    const longestLabel = rerouted ? 'IP & HC' : 'Insurance Premium & Health Check';
+    const labelReserve = font.widthOfTextAtSize(longestLabel, 7.5) + 16;
+    const availableWidth = PAGE_W - MARGIN_L - MARGIN_R;
+    const blockWidth = BORDERED_WIDTH + 8 + labelReserve;
+    const TABLE_LEFT = MARGIN_L + Math.max(0, (availableWidth - blockWidth) / 2);
     const LABEL_X = TABLE_LEFT + BORDERED_WIDTH + 8;
     const FULL_BAR_WIDTH = (PAGE_W - MARGIN_R) - TABLE_LEFT;
     const TABLE_TOP_FIRST_PAGE = PAGE_H - TABLE_TOP_FIRST_PAGE_OFFSET;
