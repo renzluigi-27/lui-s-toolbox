@@ -17,7 +17,8 @@ window.PayoutSchedule = (function () {
   const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
 
   let scheduleRows  = [];   // parsed payment sheet rows (own copy, independent of Payout Generator)
-  let clientGroups  = [];   // grouped-by-contract client list
+  let clientGroups  = [];   // one entry per contract (a client can have several)
+  let clientsByName = new Map(); // clientName -> [contractGroup, ...]
   let selectedGroup = null;
   let emailRecords  = [];
   let mountEl       = null;
@@ -67,6 +68,11 @@ window.PayoutSchedule = (function () {
         <div class="ps-search-wrap">
           <input type="text" id="ps-clientSearch" placeholder="Type client name or email to search..." autocomplete="off" />
         </div>
+      </div>
+
+      <div class="card" id="ps-contractCard" style="display:none;">
+        <div class="section-label">Select Contract <span class="optional-label" id="ps-contractCount"></span></div>
+        <div id="ps-contractList" class="ps-contract-list"></div>
       </div>
 
       <div class="card" id="ps-formCard" style="display:none;">
@@ -151,6 +157,16 @@ window.PayoutSchedule = (function () {
       #ps-formCard textarea { resize: vertical; }
       .ps-checkbox-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: #f0f0f0; font-size: 13px; }
       .ps-checkbox-label input { width: auto; }
+
+      .ps-contract-list { display: flex; flex-direction: column; gap: 8px; }
+      .ps-contract-item {
+        padding: 10px 14px; border-radius: 8px; border: 1px solid #3a3f4b;
+        background: #0f1218; cursor: pointer;
+      }
+      .ps-contract-item:hover { border-color: #4a7dfc; }
+      .ps-contract-item.active { border-color: #4a7dfc; background: #16223f; }
+      .ps-contract-ref { font-size: 13px; font-weight: 600; color: #f0f0f0; }
+      .ps-contract-containers { font-size: 11.5px; color: #8a8f9c; margin-top: 3px; }
     `;
     document.head.appendChild(style);
   }
@@ -208,9 +224,10 @@ window.PayoutSchedule = (function () {
     readExcel(file, rows => {
       scheduleRows = parsePaymentSheet(rows);
       clientGroups = groupClients(scheduleRows);
+      clientsByName = groupByName(clientGroups);
       document.getElementById('ps-fileLoaded').classList.add('show');
       document.getElementById('ps-loadedName').textContent = file.name;
-      document.getElementById('ps-loadedMeta').textContent = `${clientGroups.length} clients found`;
+      document.getElementById('ps-loadedMeta').textContent = `${clientsByName.size} clients, ${clientGroups.length} contracts found`;
       document.getElementById('ps-clientCard').style.display = 'block';
     }, err => showMsg('ps-fileError', 'Error reading file: ' + err, 'error'));
   }
@@ -247,7 +264,10 @@ window.PayoutSchedule = (function () {
     const map = new Map();
     rows.forEach(r => {
       const noNumber = !r.contractNo || r.contractNo.toLowerCase() === 'no number';
-      const key = noNumber ? r.clientName : r.contractNo;
+      // One group per contract. If there's no contract number, fall back to
+      // clientName + container so unrelated no-number rows for the same
+      // client don't get merged into a single contract by mistake.
+      const key = noNumber ? (r.clientName + '|' + (r.container || r.index)) : r.contractNo;
       if (!map.has(key)) {
         map.set(key, { key, clientName: r.clientName, contractNo: noNumber ? '' : r.contractNo, containers: [], row: r });
       }
@@ -255,6 +275,15 @@ window.PayoutSchedule = (function () {
       if (r.container && !r.pinFilledDown && !g.containers.includes(r.container)) g.containers.push(r.container);
     });
     return Array.from(map.values()).sort((a, b) => a.clientName.localeCompare(b.clientName));
+  }
+
+  function groupByName(contractGroups) {
+    const map = new Map();
+    contractGroups.forEach(g => {
+      if (!map.has(g.clientName)) map.set(g.clientName, []);
+      map.get(g.clientName).push(g);
+    });
+    return map;
   }
 
   // ───────────────────────────────────────────────────────────
@@ -287,10 +316,10 @@ window.PayoutSchedule = (function () {
     dd.style.width = rect.width + 'px';
   }
 
-  function clientMatchesQuery(g, q) {
-    if (g.clientName.toLowerCase().includes(q)) return true;
+  function clientNameMatchesQuery(name, q) {
+    if (name.toLowerCase().includes(q)) return true;
     if (emailRecords.length) {
-      const rec = lookupEmailRecord(emailRecords, g.clientName);
+      const rec = lookupEmailRecord(emailRecords, name);
       if (rec) {
         const [e1, e2] = splitEmails(rec.clientEmailRaw);
         if ((e1 && e1.toLowerCase().includes(q)) || (e2 && e2.toLowerCase().includes(q))) return true;
@@ -302,28 +331,69 @@ window.PayoutSchedule = (function () {
   function renderDropdown(query) {
     const dd = ensureDropdownEl();
     const q = (query || '').trim().toLowerCase();
-    const matches = (q ? clientGroups.filter(g => clientMatchesQuery(g, q)) : clientGroups).slice(0, 50);
+    const names = Array.from(clientsByName.keys());
+    const matches = (q ? names.filter(n => clientNameMatchesQuery(n, q)) : names).slice(0, 50);
     if (!matches.length) {
       dd.innerHTML = `<div class="ps-dropdown-empty">No matching clients</div>`;
     } else {
-      dd.innerHTML = matches.map(g => {
-        const rec = emailRecords.length ? lookupEmailRecord(emailRecords, g.clientName) : null;
+      dd.innerHTML = matches.map(name => {
+        const contracts = clientsByName.get(name);
+        const rec = emailRecords.length ? lookupEmailRecord(emailRecords, name) : null;
         const email = rec ? (splitEmails(rec.clientEmailRaw)[0] || '') : '';
-        return `<div class="ps-dropdown-item" data-key="${esc(g.key)}">
-          <div>${esc(g.clientName)}${g.contractNo ? ` <span style="color:#8a8f9c">(${esc(g.contractNo)})</span>` : ''}</div>
+        const contractTag = contracts.length > 1 ? ` <span style="color:#8a8f9c">(${contracts.length} contracts)</span>` : '';
+        return `<div class="ps-dropdown-item" data-name="${esc(name)}">
+          <div>${esc(name)}${contractTag}</div>
           ${email ? `<div style="font-size:11px;color:#8a8f9c;">${esc(email)}</div>` : ''}
         </div>`;
       }).join('');
       dd.querySelectorAll('.ps-dropdown-item').forEach(item => {
         item.addEventListener('click', () => {
-          const g = clientGroups.find(c => c.key === item.dataset.key);
-          if (g) selectClient(g);
+          onClientNameChosen(item.dataset.name);
           dd.classList.remove('show');
         });
       });
     }
     positionDropdown();
     dd.classList.add('show');
+  }
+
+  function onClientNameChosen(name) {
+    const contracts = clientsByName.get(name) || [];
+    document.getElementById('ps-clientSearch').value = name;
+    if (contracts.length === 1) {
+      hideContractCard();
+      selectClient(contracts[0]);
+    } else if (contracts.length > 1) {
+      showContractCard(name, contracts);
+    }
+  }
+
+  function showContractCard(name, contracts) {
+    document.getElementById('ps-formCard').style.display = 'none';
+    document.getElementById('ps-genCard').style.display = 'none';
+    const card = document.getElementById('ps-contractCard');
+    const list = document.getElementById('ps-contractList');
+    document.getElementById('ps-contractCount').textContent = `${contracts.length} contracts for ${name}`;
+    list.innerHTML = contracts.map(g => `
+      <div class="ps-contract-item" data-key="${esc(g.key)}">
+        <div class="ps-contract-ref">${esc(g.contractNo || '(no contract number)')}</div>
+        <div class="ps-contract-containers">${g.containers.length ? esc(g.containers.join(', ')) : 'No containers listed'}</div>
+      </div>
+    `).join('');
+    list.querySelectorAll('.ps-contract-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const g = contracts.find(c => c.key === item.dataset.key);
+        if (!g) return;
+        list.querySelectorAll('.ps-contract-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        selectClient(g);
+      });
+    });
+    card.style.display = 'block';
+  }
+
+  function hideContractCard() {
+    document.getElementById('ps-contractCard').style.display = 'none';
   }
 
   // ───────────────────────────────────────────────────────────
