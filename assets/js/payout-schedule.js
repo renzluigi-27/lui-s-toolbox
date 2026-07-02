@@ -29,31 +29,33 @@ window.PayoutSchedule = (function () {
 
   function buildHTML() {
     return `
-      <div class="upload-row">
-        <div class="card">
-          <div class="section-label">Payment Info Sheet <span class="optional-label">required</span></div>
-          <div class="upload-zone upload-zone-sm" id="ps-uploadZone">
-            <input type="file" id="ps-fileInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
+      <div class="card">
+        <div class="upload-row" style="margin-bottom:0;">
+          <div>
+            <div class="section-label">Payment Info Sheet <span class="optional-label">required</span></div>
+            <div class="upload-zone upload-zone-sm" id="ps-uploadZone">
+              <input type="file" id="ps-fileInput" accept=".xlsx,.xls" />
+              <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
+            </div>
+            <div class="file-loaded" id="ps-fileLoaded">
+              <span>&#10003;</span>
+              <div><div class="file-loaded-name" id="ps-loadedName">&mdash;</div>
+              <div class="file-loaded-meta" id="ps-loadedMeta">&mdash;</div></div>
+            </div>
+            <div class="msg error" id="ps-fileError"></div>
           </div>
-          <div class="file-loaded" id="ps-fileLoaded">
-            <span>&#10003;</span>
-            <div><div class="file-loaded-name" id="ps-loadedName">&mdash;</div>
-            <div class="file-loaded-meta" id="ps-loadedMeta">&mdash;</div></div>
+          <div>
+            <div class="section-label">Email Sheet <span class="optional-label">optional</span></div>
+            <div class="upload-zone upload-zone-sm" id="ps-emailZone">
+              <input type="file" id="ps-emailInput" accept=".xlsx,.xls" />
+              <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
+            </div>
+            <div class="file-loaded" id="ps-emailLoaded">
+              <span>&#10003;</span>
+              <div><div class="file-loaded-name" id="ps-emailName">&mdash;</div></div>
+            </div>
+            <div class="msg error" id="ps-emailError"></div>
           </div>
-          <div class="msg error" id="ps-fileError"></div>
-        </div>
-        <div class="card">
-          <div class="section-label">Email Sheet <span class="optional-label">optional</span></div>
-          <div class="upload-zone upload-zone-sm" id="ps-emailZone">
-            <input type="file" id="ps-emailInput" accept=".xlsx,.xls" />
-            <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
-          </div>
-          <div class="file-loaded" id="ps-emailLoaded">
-            <span>&#10003;</span>
-            <div><div class="file-loaded-name" id="ps-emailName">&mdash;</div></div>
-          </div>
-          <div class="msg error" id="ps-emailError"></div>
         </div>
       </div>
 
@@ -107,6 +109,21 @@ window.PayoutSchedule = (function () {
     const style = document.createElement('style');
     style.id = 'ps-styles';
     style.textContent = `
+      /* aio-tool.css sets .mode-tab { flex:1; min-width:120px }. That explicit
+         min-width overrides the browser's automatic "never shrink below your
+         own content" floor. "Container Trip Updater" needs more than 120px,
+         so the button stays locked at 120px and the text overflows past its
+         edge into the next tab. Fix: size each tab to its own content instead
+         of a fixed 120px, so this can't happen regardless of label length.
+         .mode-tabs already has overflow-x:auto, so if tabs ever don't fit on
+         one line the bar scrolls horizontally instead of overlapping. */
+      .mode-tab {
+        flex: 0 0 auto !important;
+        min-width: 0 !important;
+        white-space: nowrap !important;
+        padding: 0 14px !important;
+      }
+
       /* Note: tab bar and upload-row spacing are already handled correctly
          by aio-tool.css (flex:1/min-width/overflow-x:auto scrolling for tabs,
          grid gap:14px for upload cards) — no overrides needed here. */
@@ -457,18 +474,6 @@ window.PayoutSchedule = (function () {
     return blocks;
   }
 
-  function buildRangeLabels(blocks) {
-    const labels = [];
-    let cursor = 1;
-    blocks.forEach(len => {
-      const start = cursor;
-      const end = cursor + len - 1;
-      labels.push(start === end ? `${start}` : `${start}-${end}`);
-      cursor = end + 1;
-    });
-    return labels;
-  }
-
   function generateDates(startDate, cycle, totalMonths) {
     const dates = [];
     const baseYear = startDate.getFullYear();
@@ -519,6 +524,7 @@ window.PayoutSchedule = (function () {
         out.push({
           yearIndex: yearIdx,
           isYearStart,
+          tripNumber: monthCursor + 1,
           container,
           date: dates[monthCursor],
           monthlyPayment: rent - deductionAmount,
@@ -592,7 +598,7 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   const YELLOW = () => PDFLib.rgb(1, 0.92, 0.23);
   const BLACK = () => PDFLib.rgb(0, 0, 0);
-  const LIGHT_BORDER = () => PDFLib.rgb(0.8, 0.8, 0.8);
+  const LIGHT_BORDER = () => PDFLib.rgb(0, 0, 0);
 
   const LETTERHEAD_URL = '/assets/lmc_letterhead.pdf';
 
@@ -657,7 +663,7 @@ window.PayoutSchedule = (function () {
       });
       let bx = TABLE_LEFT;
       [COL_CONTAINER, COL_DATE, COL_PAYMENT, COL_DEDUCT_AMT].forEach(w => {
-        p.drawRectangle({ x: bx, y: topY - ROW_H, width: w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5 });
+        p.drawRectangle({ x: bx, y: topY - ROW_H, width: w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
         bx += w;
       });
       return topY - ROW_H;
@@ -670,16 +676,17 @@ window.PayoutSchedule = (function () {
       return topY - YEAR_BAR_H;
     }
 
-    function drawDataRow(p, topY, row) {
+    function drawDataRow(p, topY, row, rerouted) {
+      const dateText = rerouted ? `${row.tripNumber}. ${fmtDDMMYYYY(row.date)}` : fmtDDMMYYYY(row.date);
       const cols = [
         { text: row.container, w: COL_CONTAINER },
-        { text: fmtDDMMYYYY(row.date), w: COL_DATE },
+        { text: dateText, w: COL_DATE },
         { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
         { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
       ];
       let bx = TABLE_LEFT;
       cols.forEach(c => {
-        p.drawRectangle({ x: bx, y: topY - ROW_H, width: c.w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.5 });
+        p.drawRectangle({ x: bx, y: topY - ROW_H, width: c.w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
         const tw = font.widthOfTextAtSize(c.text, 8);
         const tx = c.align === 'right' ? bx + c.w - tw - 4 : bx + 4;
         p.drawText(c.text, { x: tx, y: topY - ROW_H + 5, size: 8, font, color: BLACK() });
@@ -701,10 +708,10 @@ window.PayoutSchedule = (function () {
     y = drawTableHeader(page, TABLE_TOP_FIRST_PAGE);
 
     let currentYearIdx = -1;
-    const yearLabels = rerouted ? buildRangeLabels(blocks) : ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '6th Year', '7th Year', '8th Year'];
+    const yearLabels = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '6th Year', '7th Year', '8th Year'];
 
     for (const row of rows) {
-      if (row.isYearStart) {
+      if (row.isYearStart && !rerouted) {
         currentYearIdx = row.yearIndex;
         if (y - YEAR_BAR_H < BOTTOM_MARGIN) {
           page = pdfDoc.addPage([PAGE_W, PAGE_H]);
@@ -718,7 +725,7 @@ window.PayoutSchedule = (function () {
         drawLetterhead(page);
         y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
       }
-      y = drawDataRow(page, y, row);
+      y = drawDataRow(page, y, row, rerouted);
     }
 
     return pdfDoc.save();
