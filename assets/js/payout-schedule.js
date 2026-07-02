@@ -11,8 +11,8 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   // ASSET PATHS — adjust if your repo's image folder differs
   // ───────────────────────────────────────────────────────────
-  const LOGO_URL      = '/assets/img/logo-1.png';
-  const FOOT_LOGO_URL = '/assets/img/foot-logo-1.png';
+  const LOGO_URL      = '/assets/logo-1.png';
+  const FOOT_LOGO_URL = '/assets/foot-logo-1.png';
 
   const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
 
