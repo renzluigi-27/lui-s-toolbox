@@ -11,8 +11,8 @@ window.PayoutSchedule = (function () {
   // ───────────────────────────────────────────────────────────
   // ASSET PATHS — adjust if your repo's image folder differs
   // ───────────────────────────────────────────────────────────
-  const LOGO_URL      = '/assets/logo-1.png';
-  const FOOT_LOGO_URL = '/assets/foot-logo-1.png';
+  const LOGO_URL      = '/assets/img/logo-1.png';
+  const FOOT_LOGO_URL = '/assets/img/foot-logo-1.png';
 
   const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
 
@@ -108,30 +108,45 @@ window.PayoutSchedule = (function () {
     const style = document.createElement('style');
     style.id = 'ps-styles';
     style.textContent = `
+      /* Tab bar spacing fix — 7 tabs were packed too tight */
+      .mode-tabs { flex-wrap: wrap; gap: 6px; row-gap: 8px; }
+      .mode-tab { margin: 0 !important; }
+
+      /* Upload row card spacing fix */
+      .upload-row { gap: 16px; }
+      .upload-row .card { margin: 0; }
+
       .ps-search-wrap { position: relative; }
       .ps-search-wrap input[type="text"] {
         width: 100%; box-sizing: border-box; height: 42px; padding: 0 12px;
-        border-radius: 8px; border: 1px solid var(--border, #ccc);
-        background: var(--bg, #fff); color: var(--text, #111); font-size: 14px;
+        border-radius: 8px; border: 1px solid #3a3f4b;
+        background: #0f1218; color: #f0f0f0; font-size: 14px;
       }
+      .ps-search-wrap input[type="text"]:focus { outline: 2px solid #4a7dfc; border-color: #4a7dfc; }
+
       .ps-dropdown {
         display: none; position: absolute; top: 46px; left: 0; right: 0;
-        max-height: 260px; overflow-y: auto; z-index: 20;
-        background: var(--bg, #fff); border: 1px solid var(--border, #ccc);
-        border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        max-height: 260px; overflow-y: auto; z-index: 50;
+        background: #181c24; border: 1px solid #3a3f4b;
+        border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       }
       .ps-dropdown.show { display: block; }
-      .ps-dropdown-item { padding: 10px 12px; cursor: pointer; font-size: 13px; color: var(--text, #111); }
-      .ps-dropdown-item:hover, .ps-dropdown-item.active { background: var(--accent, #eee); }
-      .ps-dropdown-empty { padding: 10px 12px; font-size: 13px; color: var(--text-hint, #888); }
+      .ps-dropdown-item {
+        padding: 10px 12px; cursor: pointer; font-size: 13px;
+        color: #f0f0f0; background: #181c24;
+      }
+      .ps-dropdown-item:hover, .ps-dropdown-item.active { background: #2a3550; color: #ffffff; }
+      .ps-dropdown-empty { padding: 10px 12px; font-size: 13px; color: #8a8f9c; background: #181c24; }
+
       #ps-formCard input[type="text"], #ps-formCard input[type="date"],
       #ps-formCard input[type="number"], #ps-formCard textarea {
         width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 6px;
-        border: 1px solid var(--border, #ccc); background: var(--bg, #fff);
-        color: var(--text, #111); font-size: 13px; font-family: inherit;
+        border: 1px solid #3a3f4b; background: #0f1218;
+        color: #f0f0f0; font-size: 13px; font-family: inherit;
       }
+      #ps-formCard input:disabled { opacity: 0.5; }
       #ps-formCard textarea { resize: vertical; }
-      .ps-checkbox-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+      .ps-checkbox-label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: #f0f0f0; font-size: 13px; }
       .ps-checkbox-label input { width: auto; }
     `;
     document.head.appendChild(style);
