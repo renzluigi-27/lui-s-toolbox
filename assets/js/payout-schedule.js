@@ -108,9 +108,13 @@ window.PayoutSchedule = (function () {
     const style = document.createElement('style');
     style.id = 'ps-styles';
     style.textContent = `
-      /* Tab bar spacing fix — 7 tabs were packed too tight */
+      /* Tab bar spacing fix — 7 tabs were packed too tight and truncating labels */
       .mode-tabs { flex-wrap: wrap; gap: 6px; row-gap: 8px; }
-      .mode-tab { margin: 0 !important; }
+      .mode-tab {
+        margin: 0 !important; white-space: nowrap !important;
+        overflow: visible !important; text-overflow: clip !important;
+        max-width: none !important; width: auto !important; flex-shrink: 0 !important;
+      }
 
       /* Upload row card spacing fix */
       .upload-row { gap: 16px; }
