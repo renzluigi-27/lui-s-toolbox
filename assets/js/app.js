@@ -183,6 +183,7 @@ function updateTabUI() {
   const isTrip     = activeMode === 'trip';
   const isEmail    = activeMode === 'email';
   const isClientOrg = activeMode === 'clientOrg';
+  const isSchedule  = activeMode === 'schedule';
 
   const genCards = [
     document.getElementById('mainUploadRow'),
@@ -190,7 +191,7 @@ function updateTabUI() {
     document.getElementById('refUploadZone').closest('.card'),
     document.getElementById('generateBtn').closest('.card'),
   ];
-  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail || isClientOrg) ? 'none' : ''; });
+  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail || isClientOrg || isSchedule) ? 'none' : ''; });
 
   const auditMount = document.getElementById('auditMount');
   if (auditMount) {
@@ -219,6 +220,15 @@ function updateTabUI() {
     if (isClientOrg && window.ClientOrganizer && !clientOrgMount.dataset.inited) {
       ClientOrganizer.init('clientOrgMount');
       clientOrgMount.dataset.inited = '1';
+    }
+  }
+
+  const scheduleMount = document.getElementById('scheduleMount');
+  if (scheduleMount) {
+    scheduleMount.style.display = isSchedule ? 'block' : 'none';
+    if (isSchedule && window.PayoutSchedule && !scheduleMount.dataset.inited) {
+      PayoutSchedule.init('scheduleMount');
+      scheduleMount.dataset.inited = '1';
     }
   }
 
@@ -470,11 +480,13 @@ function readExcel(file, onSuccess, onError) {
 //   25 = Payout Restart Date [LMC]  ← also = Payout date [ACCOUNTS ONLY]
 //   28 = New Payout Cycle [LMC]
 //   32 = New Contract End Date [LMC]
+//   33 = Updated Trips [LMC]
 //   34 = Account no
 //   35 = IBAN
 //   36 = Swift Code
 //   37 = Bank Name
 //   40 = Client types
+//   41 = Numbers of trips
 //   42 = Agent Closing
 // ─────────────────────────────────────────────────────────────────
 function parsePaymentSheet(raw) {
@@ -501,11 +513,13 @@ function parsePaymentSheet(raw) {
     payoutCycle:    col('payout frequency'),  // original cycle (col 30)
     oldContractEnd: 30,   // Old Contract end date
     newContractEnd: 32,   // New Contract End Date [LMC]
+    updatedTrips:   33,   // Updated Trips [LMC] — rerouted clients
     accountNo:      34,   // Account no
     iban:           35,   // IBAN
     swift:          36,   // Swift Code
     bankName:       37,   // Bank Name
     clientType:     40,   // Client types
+    numberOfTrips:  41,   // Numbers of trips — non-rerouted clients
     agent:          42,   // Agent Closing
     contractNo:     col('contract no') !== -1 ? col('contract no') : 0,
     contractClosed: col('contract closed'),
@@ -663,6 +677,8 @@ function parsePaymentSheet(raw) {
       isSharedContainer,
       pinFilledDown,
       agent: rawAgent,
+      updatedTrips:  parseNumber(r[C.updatedTrips]),
+      numberOfTrips: parseNumber(r[C.numberOfTrips]),
     });
   }
   return rows;
