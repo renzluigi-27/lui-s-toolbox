@@ -45,7 +45,7 @@ window.PayoutSchedule = (function () {
             <div class="msg error" id="ps-fileError"></div>
           </div>
           <div>
-            <div class="section-label">Email Sheet <span class="optional-label">optional</span></div>
+            <div class="section-label">Email Sheet <span class="optional-label">required</span></div>
             <div class="upload-zone upload-zone-sm" id="ps-emailZone">
               <input type="file" id="ps-emailInput" accept=".xlsx,.xls" />
               <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
@@ -606,6 +606,7 @@ window.PayoutSchedule = (function () {
       if (!firstPayoutStr) { showMsg('ps-genError', 'First payout date is required.', 'error'); return; }
       if (!totalMonths || totalMonths < 1) { showMsg('ps-genError', 'Total months must be at least 1.', 'error'); return; }
       if (!rent) { showMsg('ps-genError', 'Monthly rent must be greater than 0.', 'error'); return; }
+      if (!emailRecords.length) { showMsg('ps-genError', 'Please upload the email sheet first.', 'error'); return; }
 
       btn.disabled = true;
       btn.textContent = 'Generating...';
