@@ -344,8 +344,6 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
 
     if (r.contractClosedFlag) g.deductionNotes.push(r.contractClosedFlag);
     if (r.groupId === '__MANUAL_CHECK__') g.deductionNotes.push('⚑ No container or contract number — manual check required');
-    if (r.noIban) g.deductionNotes.push('⚑ No IBAN and no account number — verify');
-    
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
@@ -368,13 +366,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     const cleanIban    = r.iban ? r.iban.replace(/\s/g, '') : '';
     const hcPending    = hcPendingMap[cleanIban] || false;
 
-    if (r.container && mismatchContainers.has(r.container)) {
-      const mf = mismatchFlags.find(f => f.container === r.container);
-      g.deductionNotes.push(`⚑ Duplicate container mismatch — container ${r.container} appears under different contracts (${mf.contractNos.join(' / ')}) — manual check`);
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
-      g.totalDeduction += ded.amount;
-      g.deductionItems.push(...ded.items);
-    } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
+    if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
         const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
@@ -420,7 +412,6 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (hcApplied.length > 0) dedNotes.push('HC 1,000 applied — double-check the contract');
 
     const agentArr = [...g.agents];
-    if (agentArr.length > 1) g.deductionNotes.push(`⚑ Multiple agents: ${agentArr.join(' / ')}`);
     g.agent = agentArr.length >= 1 ? agentArr[agentArr.length - 1] : '';
 
     const rerouteDateStr = (g.rerouteDates && g.rerouteDates.length)
