@@ -661,7 +661,7 @@ window.PayoutSchedule = (function () {
   const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
   const ROW_H = 18;
   const YEAR_BAR_H = 18;
-  const TABLE_TOP_FIRST_PAGE_OFFSET = 162; // distance from top of page to first table row
+  const TABLE_TOP_FIRST_PAGE_OFFSET = 126; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
 
