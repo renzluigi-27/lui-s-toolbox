@@ -345,15 +345,13 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (r.contractClosedFlag) g.deductionNotes.push(r.contractClosedFlag);
     if (r.groupId === '__MANUAL_CHECK__') g.deductionNotes.push('⚑ No container or contract number — manual check required');
     if (r.noIban) g.deductionNotes.push('⚑ No IBAN and no account number — verify');
-    if (r.clientTypeBlank) g.deductionNotes.push('⚑ Blank client type');
+    
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
       // Use newContractEnd [LMC] for rerouted clients, fallback to original contractEnd
       const effectiveContractEnd = (r.isRerouted && r.newContractEnd) ? r.newContractEnd : r.contractEnd;
-      if (!effectiveContractEnd) {
-        g.deductionNotes.push('⚑ No contract end date');
-      } else if (effectiveContractEnd < new Date()) {
+      if (effectiveContractEnd && effectiveContractEnd < new Date()) {
         g.deductionNotes.push('⚑ Contract end date has passed — verify');
       }
     }
