@@ -40,9 +40,7 @@ function runPayout(yr, mo, cycle) {
 
     if (r.returnInUSD) groups[key].deductionNotes.push('⚑ Rental amount is in USD — verify AED conversion');
 
-    if (r.clientName === 'Abbas Zaigham' || r.clientName === 'Zaigham Abbas') {
-      groups[key].deductionNotes.push('⚑ For contract review — verify if same person as Abbas Zaigham / Zaigham Abbas');
-    }
+    
 
     if (r.balanceNote) {
       const fp = r.firstPayout;
