@@ -651,6 +651,7 @@ window.PayoutSchedule = (function () {
   // PDF GENERATION — pdf-lib, matches LMC letterhead layout
   // ───────────────────────────────────────────────────────────
   const YELLOW = () => PDFLib.rgb(1, 0.92, 0.23);
+  const WHITE = () => PDFLib.rgb(1, 1, 1);
   const BLACK = () => PDFLib.rgb(0, 0, 0);
   const LIGHT_BORDER = () => PDFLib.rgb(0, 0, 0);
 
@@ -658,8 +659,8 @@ window.PayoutSchedule = (function () {
 
   const MARGIN_L = 60, MARGIN_R = 20;
   const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
-  const ROW_H = 15;
-  const YEAR_BAR_H = 15;
+  const ROW_H = 18;
+  const YEAR_BAR_H = 18;
   const TABLE_TOP_FIRST_PAGE_OFFSET = 162; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
@@ -718,6 +719,10 @@ window.PayoutSchedule = (function () {
     }
 
     function drawTableHeader(p, topY) {
+      // Opaque white first so the letterhead's faint watermark logo
+      // doesn't show through the table — full width including the
+      // unboxed label float zone.
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - ROW_H, width: FULL_BAR_WIDTH, height: ROW_H, color: WHITE() });
       // Yellow header only spans the bordered columns — not the unboxed
       // label float zone — so "Deduction" doesn't look like it's floating
       // in a mostly-empty bar.
@@ -738,7 +743,35 @@ window.PayoutSchedule = (function () {
       return topY - YEAR_BAR_H;
     }
 
+    const LABEL_MAX_WIDTH = (PAGE_W - MARGIN_R) - LABEL_X - 4;
+    const LABEL_LINE_H = 9;
+
+    function wrapText(text, maxWidth, fnt, size) {
+      const words = text.split(' ');
+      const lines = [];
+      let current = '';
+      words.forEach(w => {
+        const test = current ? current + ' ' + w : w;
+        if (fnt.widthOfTextAtSize(test, size) > maxWidth && current) {
+          lines.push(current);
+          current = w;
+        } else {
+          current = test;
+        }
+      });
+      if (current) lines.push(current);
+      return lines;
+    }
+
+    function rowHeightFor(row) {
+      if (!row.deductionLabel) return ROW_H;
+      const lines = wrapText(row.deductionLabel, LABEL_MAX_WIDTH, font, 7.5);
+      return Math.max(ROW_H, lines.length * LABEL_LINE_H + 8);
+    }
+
     function drawDataRow(p, topY, row) {
+      const rh = rowHeightFor(row);
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - rh, width: FULL_BAR_WIDTH, height: rh, color: WHITE() });
       const cells = rerouted
         ? [
             { text: row.container, w: COL_CONTAINER },
@@ -753,20 +786,27 @@ window.PayoutSchedule = (function () {
             { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
             { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
           ];
+      const textY = topY - rh / 2 - 2.6; // vertically center single-line cell text
       let bx = TABLE_LEFT;
       cells.forEach(c => {
-        p.drawRectangle({ x: bx, y: topY - ROW_H, width: c.w, height: ROW_H, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+        p.drawRectangle({ x: bx, y: topY - rh, width: c.w, height: rh, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
         const tw = font.widthOfTextAtSize(c.text, 7.5);
         let tx = bx + 3;
         if (c.align === 'right') tx = bx + c.w - tw - 3;
         else if (c.align === 'center') tx = bx + (c.w - tw) / 2;
-        p.drawText(c.text, { x: tx, y: topY - ROW_H + 4, size: 7.5, font, color: BLACK() });
+        p.drawText(c.text, { x: tx, y: textY, size: 7.5, font, color: BLACK() });
         bx += c.w;
       });
       if (row.deductionLabel) {
-        p.drawText(row.deductionLabel, { x: LABEL_X, y: topY - ROW_H + 4, size: 7.5, font, color: BLACK() });
+        const lines = wrapText(row.deductionLabel, LABEL_MAX_WIDTH, font, 7.5);
+        const blockH = lines.length * LABEL_LINE_H;
+        let ly = topY - (rh - blockH) / 2 - LABEL_LINE_H + 2.6;
+        lines.forEach(line => {
+          p.drawText(line, { x: LABEL_X, y: ly, size: 7.5, font, color: BLACK() });
+          ly -= LABEL_LINE_H;
+        });
       }
-      return topY - ROW_H;
+      return topY - rh;
     }
 
     function fmt2(n) { return Math.round(n).toLocaleString(); }
@@ -791,7 +831,8 @@ window.PayoutSchedule = (function () {
         }
         y = drawYearBar(page, y, yearLabels[currentYearIdx] || `Year ${currentYearIdx + 1}`);
       }
-      if (y - ROW_H < BOTTOM_MARGIN) {
+      const rh = rowHeightFor(row);
+      if (y - rh < BOTTOM_MARGIN) {
         page = pdfDoc.addPage([PAGE_W, PAGE_H]);
         drawLetterhead(page);
         y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
