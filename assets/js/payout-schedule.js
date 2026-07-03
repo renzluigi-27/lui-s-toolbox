@@ -431,7 +431,8 @@ window.PayoutSchedule = (function () {
     document.getElementById('ps-firstPayout').value = effStart ? toDateInputValue(effStart) : '';
     document.getElementById('ps-cycle').value = effStart ? (effStart.getDate() <= 15 ? '15th' : 'End of Month') : '';
     document.getElementById('ps-totalMonths').value = totalMonths || 36;
-    document.getElementById('ps-rent').value = effRent || 0;
+    const containerCount = g.containers.length || 1;
+    document.getElementById('ps-rent').value = (effRent || 0) * containerCount;
     document.getElementById('ps-insurance').value = insurance;
     document.getElementById('ps-hcToggle').checked = false;
     document.getElementById('ps-hcAmount').value = '';
