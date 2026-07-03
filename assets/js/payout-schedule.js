@@ -628,7 +628,7 @@ window.PayoutSchedule = (function () {
       });
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
-      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
       console.error(ex);
