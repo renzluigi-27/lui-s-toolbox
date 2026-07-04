@@ -211,6 +211,11 @@ window.PayoutSchedule = (function () {
     document.getElementById('ps-generateBtn').addEventListener('click', onGenerate);
   }
 
+  function updateClientCardVisibility() {
+    const ready = scheduleRows.length > 0 && emailRecords.length > 0;
+    document.getElementById('ps-clientCard').style.display = ready ? 'block' : 'none';
+  }
+
   function handleSheetFile(file) {
     showMsg('ps-fileError', '');
     if (!file.name.match(/\.(xlsx|xls)$/i)) {
@@ -223,7 +228,7 @@ window.PayoutSchedule = (function () {
       document.getElementById('ps-fileLoaded').classList.add('show');
       document.getElementById('ps-loadedName').textContent = file.name;
       document.getElementById('ps-loadedMeta').textContent = `${clientsByName.size} clients, ${clientGroups.length} contracts found`;
-      document.getElementById('ps-clientCard').style.display = 'block';
+      updateClientCardVisibility();
     }, err => showMsg('ps-fileError', 'Error reading file: ' + err, 'error'));
   }
 
@@ -242,6 +247,7 @@ window.PayoutSchedule = (function () {
         const rec = lookupEmailRecord(emailRecords, selectedGroup.clientName);
         if (rec) document.getElementById('ps-clientEmail').value = splitEmails(rec.clientEmailRaw)[0] || '';
       }
+      updateClientCardVisibility();
     }, err => showMsg('ps-emailError', 'Error reading email file: ' + err, 'error'));
   }
 
