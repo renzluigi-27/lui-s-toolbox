@@ -45,7 +45,7 @@ window.PayoutSchedule = (function () {
             <div class="msg error" id="ps-fileError"></div>
           </div>
           <div>
-            <div class="section-label">Email Sheet <span class="optional-label">required</span></div>
+            <div class="section-label">Email Sheet <span class="optional-label">optional</span></div>
             <div class="upload-zone upload-zone-sm" id="ps-emailZone">
               <input type="file" id="ps-emailInput" accept=".xlsx,.xls" />
               <div class="upload-zone-text"><strong>Click to upload</strong>.xlsx or .xls</div>
@@ -431,8 +431,7 @@ window.PayoutSchedule = (function () {
     document.getElementById('ps-firstPayout').value = effStart ? toDateInputValue(effStart) : '';
     document.getElementById('ps-cycle').value = effStart ? (effStart.getDate() <= 15 ? '15th' : 'End of Month') : '';
     document.getElementById('ps-totalMonths').value = totalMonths || 36;
-    const containerCount = g.containers.length || 1;
-    document.getElementById('ps-rent').value = (effRent || 0) * containerCount;
+    document.getElementById('ps-rent').value = effRent || 0;
     document.getElementById('ps-insurance').value = insurance;
     document.getElementById('ps-hcToggle').checked = false;
     document.getElementById('ps-hcAmount').value = '';
@@ -559,6 +558,33 @@ window.PayoutSchedule = (function () {
       if (containerCursor < containers.length) { r.container = containers[containerCursor]; containerCursor++; }
     });
 
+    function applyDeduction(startIdx, amount, label) {
+      if (amount <= 0) return;
+      const n = Math.max(1, Math.ceil(amount / rent));
+      const share = amount / n;
+      for (let k = 0; k < n && (startIdx + k) < out.length; k++) {
+        out[startIdx + k].deductionAmount += share;
+        out[startIdx + k].monthlyPayment = rent - out[startIdx + k].deductionAmount;
+        out[startIdx + k].deductionLabel = out[startIdx + k].deductionLabel
+          ? out[startIdx + k].deductionLabel + ' + ' + label
+          : label;
+      }
+    }
+
+    // Catch-up: if a Y1/Y2/Y3 anniversary already passed BEFORE the schedule
+    // start (missed during a payout gap — e.g. client wasn't running while
+    // rerouting was in progress), charge the most recent missed one at
+    // Trip 1, since that's the first real payout after the gap.
+    const missed = [
+      { date: y1, amount: insurance, label: 'IP' },
+      { date: y2, amount: hcEnabled ? insurance + hcAmount : insurance, label: hcEnabled ? 'IP & HC' : 'IP' },
+      { date: y3, amount: hcEnabled ? insurance + hcAmount : insurance, label: hcEnabled ? 'IP & HC' : 'IP' },
+    ].filter(a => a.date < startDate);
+    if (missed.length) {
+      const catchUp = missed.reduce((latest, a) => (a.date > latest.date ? a : latest));
+      applyDeduction(0, catchUp.amount, catchUp.label + ' (catch-up)');
+    }
+
     out.forEach((row, i) => {
       let amount = 0, label = '';
       if (sameMonth(row.date, y1)) { amount = insurance; label = 'IP'; }
@@ -566,14 +592,7 @@ window.PayoutSchedule = (function () {
         if (hcEnabled) { amount = insurance + hcAmount; label = 'IP & HC'; }
         else { amount = insurance; label = 'IP'; }
       }
-      if (amount <= 0) return;
-      const n = Math.max(1, Math.ceil(amount / rent));
-      const share = amount / n;
-      for (let k = 0; k < n && (i + k) < out.length; k++) {
-        out[i + k].deductionAmount += share;
-        out[i + k].monthlyPayment = rent - out[i + k].deductionAmount;
-        out[i + k].deductionLabel = label;
-      }
+      applyDeduction(i, amount, label);
     });
 
     return { rows: out, blocks: null };
@@ -606,7 +625,6 @@ window.PayoutSchedule = (function () {
       if (!firstPayoutStr) { showMsg('ps-genError', 'First payout date is required.', 'error'); return; }
       if (!totalMonths || totalMonths < 1) { showMsg('ps-genError', 'Total months must be at least 1.', 'error'); return; }
       if (!rent) { showMsg('ps-genError', 'Monthly rent must be greater than 0.', 'error'); return; }
-      if (!emailRecords.length) { showMsg('ps-genError', 'Please upload the email sheet first.', 'error'); return; }
 
       btn.disabled = true;
       btn.textContent = 'Generating...';
@@ -630,7 +648,7 @@ window.PayoutSchedule = (function () {
       });
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
-      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
       console.error(ex);
@@ -663,7 +681,7 @@ window.PayoutSchedule = (function () {
   const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
   const ROW_H = 18;
   const YEAR_BAR_H = 18;
-  const TABLE_TOP_FIRST_PAGE_OFFSET = 126; // distance from top of page to first table row
+  const TABLE_TOP_FIRST_PAGE_OFFSET = 162; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
 
@@ -715,7 +733,7 @@ window.PayoutSchedule = (function () {
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
       const tx = (PAGE_W - tw) / 2;
-      const ty = PAGE_H - 106;
+      const ty = PAGE_H - 142;
       p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
       p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
     }
