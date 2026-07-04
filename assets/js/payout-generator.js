@@ -6,6 +6,106 @@ let refPayoutData = [];   // parsed rows from previous payout (optional)
 let results       = [];   // final processed rows
 
 // ─────────────────────────────────────────────────────────────────
+// SHARED CONTAINERS — reference map (used for #2: skip fill-down unless shared)
+// ─────────────────────────────────────────────────────────────────
+const SHARED_CONTAINERS = {
+  'LGMU2023199': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023202': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023218': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2023223': ['Mohamed Rafi Hakeem', 'Sundarrajan Dharmarajan Dhayalakumaran'],
+  'LGMU2024596': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024600': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024615': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2024620': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LGMU2240358': ['Hafiz Muhammad Umair Abbas Chaudhry', 'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar'],
+  'LGMU2241626': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2241755': ['Barayil Porakandy Roshan Valiyakath Aboobacker', 'Nuzhat Mursaleen Faisal Fakir Mohammed'],
+  'LGMU2241884': ['Nawaid Ahmed Muhammed Aziz', 'Zahid Khan'],
+  'LGMU2242812': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2243676': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2243681': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2245200': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2245220': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2246280': ['Kunnal Kishore Makhija Kishore Jethanand Makhija', 'Sunny Jaikishan Dadlani Jaikishan Nenumal Dadlani'],
+  'LGMU2251624': ['Ahmed Mohamed Elarabi Mohamed Ibrahim Halima', 'Mohamed Yousri Ebrahim Elsherbiny'],
+  'LGMU2251650': ['Abhai Kumar Srivastava Satgur Saran Srivastava', 'Saji Krishnankutty Krishnan Kutty Keshavan'],
+  'LGMU2252338': ['Irish Pizana Alsola', 'Ranjith Mohanan Nair'],
+  'LGMU2252894': ['Charan Tej Pavan Kumar Vuyyuru', 'Shilpa Kansal Deepak Kansal'],
+  'LGMU2253925': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2253930': ['Charlotte Fallows', 'Simone Landoni'],
+  'LGMU2255110': ['Abbas Waseem Mazher Islam', 'Muhammad Jawad Tahir', 'Muhammad Rameez Tahir Muhammad Naeem'],
+  'LGMU2257176': ['Kunnal Kishore Makhija Kishore Jethanand Makhija', 'Sunny Jaikishan Dadlani Jaikishan Nenumal Dadlani'],
+  'LGMU2258172': ['Mozard Daraius Antia', 'Zahir Asgher'],
+  'LGMU2258280': ['Muhammad Jawad Tahir', 'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar', 'Muhammad Rameez Tahir Muhammad Naeem'],
+  'LGMU2263440': ['Ahmed Mohamed Elarabi Mohamed Ibrahim Halima', 'Mohamed Yousri Ebrahim Elsherbiny'],
+  'LGMU2264940': ['Ghulam Sabir Muhammad Ashraf', 'Syed Rafaqat Rasul Syed Shoukat Rasul'],
+  'LGMU2265103': ['Manzoor Hussain Rashid Ahmad', 'Saad Mahmood Khalid Mahmood'],
+  'LGMU2265192': ['Hassam Mumtaz Muhammad Mumtaz', 'Murtaza Hussain Zar Wali Khan', 'Usman Afreen Muhammad Afreen'],
+  'LGMU2265335': ['Mohamed Sameer Abdul Razak Kazi', 'Zubair Zakir Isane'],
+  'LGMU2267153': ['Nimesha Rushan Thajudeen', 'Vishwa Dasantha Mohoppu'],
+  'LGMU2267620': ['Manzoor Hussain Rashid Ahmad', 'Saad Mahmood Khalid Mahmood'],
+  'LGMU2272777': ['Jamshed Ahmed Khan Jamil', 'Naeem Banu Baksh'],
+  'LGMU2274949': ['Ahmed Hassan Mohamed Elhobi', 'Mohamed Elmitwalli Issa Mohamed'],
+  'LGMU2275420': ['Dinesh Narwani Bhagwan Das Narwani', 'Kedar Shyamkant Desai Shyamkant Shridhar Desai'],
+  'LGMU2276290': ['Muhammad Maaz Khan Abid Khan', 'Zahid Khan (Kamran Naeem)'],
+  'LGMU2276915': ['Hafiz Muhammad Umair Abbas Chaudhry', 'Rafi Akram Mohammed'],
+  'LGMU2279658': ['Abdul Rahman Mohamed Eliyas', 'Rashed Mohammad Hassan Mohammed Almulla'],
+  'LGMU2280860': ['Jamshed Husain Haseen Mian', 'Muzaffar Hakim Khan'],
+  'LGMU2281085': ['Abeer Abdulkarem Ali Haider', 'Mohamad Mazen Mostafa Mossli'],
+  'LGMU2281090': ['Aamir Ali Ahmed Ali', 'Manzoor Hussain Rashid Ahmad'],
+  'LMCU2013799': ['Nishoy Pavithran Kandarassery', 'Roshan Barayil Porakandy'],
+  'LMCU2016877': ['Allen Jose Naippallichiryil Chandy Joseph', 'Ranjith Mohanan Nair'],
+  'LMCU20203219': ['Deepak Kansal', 'Praveen Kumar Kandakurtikanddakurti Laxmi'],
+  'LMCU2022119': ['Roshan Barayil Porakandy/Nosh', 'Sujith Surendran'],
+  'LMCU2022424': ['Balakrishnan Mohan Gopal', 'Narasimhan Varada Vishnu Kidambi'],
+  'LMCU2023259': ['Hizqeel Ahmad Malik', 'Sajeel Ahmad Malik'],
+  'LMCU2023567': ['Kamran Naeem', 'Zahid Khan'],
+  'LMCU2023679': ['Balakrishnan Mohan Gopal', 'Narasimhan Varada Vishnu Kidambi'],
+  'LMCU2023717': ['Adnan Amin Ziaul Amin', 'Rashedur Rahman Chowdhury Mohd Ramzan', 'Reshad Abd Alim'],
+  'LMCU2024099': ['Nawaid Ahmed Muhammed Aziz', 'Zahid Khan'],
+  'LMCU2024439': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Mohideen Masthan Thakkadi Mohamed Rafi'],
+  'LMCU2024607': ['Peter Werner Tutschek', 'Simone Landoni'],
+  'LMCU20246789': ['Jerastine Mozard Antia Dinshah Jamshed Jilla', 'Nishoy Pavithran Kandarassery'],
+  'LMCU2024747': ['Abdul Jasim Abdullah Yousuf', 'Abdul Sattar Abdullah Yousef'],
+  'LMCU2024887': ['Douglas Robertson Wylie', 'Skerdi Strazimiri'],
+  'LMCU2024927': ['Allen Jose Naippallichiryil Chandy Joseph', 'Ranjith Mohanan Nair'],
+  'LMCU2024949': ['Nimesha Rushan Thajudeen', 'Vishwa Dasantha Mohoppu'],
+  'LMCU2024977': ['Karuna Mansukhani', 'Sapna Mansukhani'],
+  'LMCU2069509': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Sunju John Mavely Thomas John'],
+  'LMCU20242249': ['Deepika Jeevan Jeppu', 'Imdad Ali Abdul Shaikh'],
+  'LGMU2284675': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284680': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284696': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284700': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284715': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284720': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284736': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284741': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284757': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284762': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284778': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284783': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284799': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284802': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284818': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284823': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284839': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284844': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284850': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284865': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284870': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284886': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284891': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284905': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284910': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284926': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284931': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284947': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284952': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+  'LGMU2284968': ['Yury Shevchuk', 'Romuald Jankovskij', 'Igor Shved'],
+};
+
+// ─────────────────────────────────────────────────────────────────
 // INIT — populate year selector, default to current month
 // ─────────────────────────────────────────────────────────────────
 (function init() {
@@ -72,7 +172,6 @@ function readExcel(file, onSuccess, onError) {
       const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
 
-      // Force text format for all cells
       const rows = XLSX.utils.sheet_to_json(ws, {
         header: 1,
         defval: null,
@@ -104,6 +203,7 @@ function parsePaymentSheet(raw) {
     healthCheck:     col('health check'),
     payReceived:     col('payment received date'),
     container:       col('product identification number'),
+    containerType:   col('container type'),
     returnAmt:       col('return amount'),
     firstPayout:     col('first payout date'),
     payoutCycle:     col('payout cycle'),
@@ -122,11 +222,10 @@ function parsePaymentSheet(raw) {
   const today = new Date(); today.setHours(0,0,0,0);
 
   // ── Fill-down: propagate non-blank values downward for key columns ──
-  // Handles both merged cells (which arrive as null after the first row)
-  // and genuinely blank cells that should inherit the value above.
-  let lastContractNo  = '';
-  let lastContainer   = '';
-  let lastClientName  = '';
+  let lastContractNo   = '';
+  let lastContainer    = '';
+  let lastClientName   = '';
+  let lastContainerType = '';
 
   const rows = [];
 
@@ -149,11 +248,18 @@ function parsePaymentSheet(raw) {
         if (rawContractNo && !(isNoNumber && NO_FILLDOWN_CLIENTS.has(clientNameRaw))) lastContractNo = rawContractNo;
         const contractNo = lastContractNo;
 
-    // Fill-down Container Number
+    // Fill-down Container Number — track whether this row's cell was actually filled (#2)
     let rawContainer = (C.container !== -1 && r[C.container]) ? String(r[C.container]).trim() : '';
+    const pinFilledDown = !rawContainer;
     if (rawContainer) lastContainer = rawContainer;
     else rawContainer = lastContainer;
     const container = rawContainer;
+
+    // Fill-down Container Type (#1 needs this for size-based insurance)
+    let rawContainerType = (C.containerType !== -1 && r[C.containerType]) ? String(r[C.containerType]).trim() : '';
+    if (rawContainerType) lastContainerType = rawContainerType;
+    else rawContainerType = lastContainerType;
+    const containerType = rawContainerType;
 
     // Fill-down Client Name
     let rawClientName = r[C.clientName] ? String(r[C.clientName]).trim() : '';
@@ -164,8 +270,6 @@ function parsePaymentSheet(raw) {
     if (!clientName) continue;
 
     // ── Contract Closed check ──
-    // Skip: duplicate entry / closed / yes / contract closed
-    // Flag: any other non-blank value
     const closedRaw = (C.contractClosed !== -1 && r[C.contractClosed])
       ? String(r[C.contractClosed]).toLowerCase().trim() : '';
     const SKIP_CLOSED = ['duplicate entry', 'closed', 'yes', 'contract closed'];
@@ -173,15 +277,13 @@ function parsePaymentSheet(raw) {
     const contractClosedFlag = closedRaw && !SKIP_CLOSED.some(s => closedRaw.includes(s))
       ? `⚑ Contract Closed field: "${r[C.contractClosed]}" — review` : '';
 
-    // Skip expired contracts
+    // ── Contract end date: no longer skipped here (#4/#5 handled as a flag in runGenerate) ──
     const contractEnd = parseDate(r[C.contractEnd]);
-    if (contractEnd && contractEnd < today) continue;
 
     // Skip rows with no IBAN and no account number (incomplete data)
     let iban = r[C.iban] ? String(r[C.iban]).trim() : '';
     let accountNo = r[C.accountNo] ? String(r[C.accountNo]).trim() : '';
 
-    // Fix scientific notation
     if (accountNo && accountNo.includes('E+')) {
       accountNo = Number(accountNo).toLocaleString('fullwide', {useGrouping:false});
     }
@@ -192,10 +294,16 @@ function parsePaymentSheet(raw) {
 
     const firstPayout  = parseDate(r[C.firstPayout]);
     const payReceived  = parseDate(r[C.payReceived]);
-    const returnAmt    = parseNumber(r[C.returnAmt]);
     const payoutCycle  = r[C.payoutCycle] ? String(r[C.payoutCycle]).trim() : '';
     const insuranceRaw = r[C.insurance];
     const insuranceYearsCovered = parseInsuranceYears(insuranceRaw);
+
+    // Flexible/percentage rent detection (#3)
+    const returnRaw  = r[C.returnAmt] ? String(r[C.returnAmt]).trim() : '';
+    const returnBase = returnRaw.split('(')[0].trim();
+    const returnNum  = parseFloat(returnBase.replace(/[^0-9.\-]/g, ''));
+    const isFlexible = /\d+%/.test(returnRaw) || (!isNaN(returnNum) && returnNum > 0 && returnNum < 1);
+    const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
 
     // ── Group ID priority: Container → Contract No → Manual Check ──
     const noNumber = (s) => !s || s.toLowerCase() === 'no number' || s === '';
@@ -211,6 +319,10 @@ function parsePaymentSheet(raw) {
     }
     const rawAgent = r[37] ? String(r[37]).trim() : '';
 
+    // Shared container check (#2)
+    const isSharedContainer = (container && SHARED_CONTAINERS[container] !== undefined)
+      || Object.values(SHARED_CONTAINERS).some(names => names.includes(clientName));
+
     rows.push({
       index: i,
       clientName,
@@ -219,7 +331,10 @@ function parsePaymentSheet(raw) {
       insuranceYearsCovered,
       payReceived,
       container,
+      containerType,
       returnAmt,
+      returnRaw,
+      isFlexible,
       firstPayout,
       payoutCycle,
       contractEnd,
@@ -231,6 +346,8 @@ function parsePaymentSheet(raw) {
       contractClosedFlag,
       balanceNote: (C.balance !== -1 && r[C.balance]) ? String(r[C.balance]).trim() : '',
       agent: rawAgent,
+      isSharedContainer,
+      pinFilledDown,
     });
   }
   return rows;
@@ -238,7 +355,6 @@ function parsePaymentSheet(raw) {
 
 // ─────────────────────────────────────────────────────────────────
 // PARSE REFERENCE PAYOUT (previous export)
-// Look for IBAN column + Notes column, extract pending HC flags
 // ─────────────────────────────────────────────────────────────────
 function parseRefPayout(raw) {
   let hi = 0;
@@ -265,21 +381,14 @@ function parseRefPayout(raw) {
 
 // ─────────────────────────────────────────────────────────────────
 // INSURANCE YEARS COVERED
-// 0/blank/None → 0 years covered (full deduction schedule applies)
-// ~1500        → 1 year covered
-// ~3000        → 2 years covered
-// ~4500        → 3 years covered (no deduction ever)
-// "paid"/"paid (1500)" → treat as 1 year
 // ─────────────────────────────────────────────────────────────────
 function parseInsuranceYears(val) {
   if (val === null || val === undefined || val === '') return 0;
   const s = String(val).toLowerCase().replace(/\s/g, '');
   if (s === '0' || s === '') return 0;
-  // Extract number
   const numStr = s.replace(/[^0-9.]/g, '');
   const n = parseFloat(numStr);
   if (isNaN(n) || n === 0) {
-    // text like "paid" without a number — assume 1 year
     if (s.includes('paid')) return 1;
     return 0;
   }
@@ -290,11 +399,28 @@ function parseInsuranceYears(val) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// DEDUCTION SCHEDULE
-// Returns { amount, items[] } where each item is { type, amount, firstPayout, note? }
-// type: 'Y1 Insurance' | 'Y2 Insurance' | 'Y3 Insurance' | 'HC' | 'HC Pending'
+// INSURANCE SIZE-BASED PRICING (#1)
+// Flat 1,500 before 30 Jun 2026. After that: 20ft=1,500, 40ft=1,800, specialty=2,600
 // ─────────────────────────────────────────────────────────────────
-function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef) {
+const NEW_INSURANCE_FROM = new Date(2026, 5, 30); // 30 Jun 2026
+
+function isSpecialtyContainer(t) {
+  const s = String(t || '').toUpperCase();
+  return ['SPECIAL', 'OPEN', 'THERMAL', 'SIDE'].some(k => s.includes(k));
+}
+
+function insuranceAmount(containerType, firstPayout) {
+  if (!firstPayout || firstPayout < NEW_INSURANCE_FROM) return 1500;
+  if (isSpecialtyContainer(containerType)) return 2600;
+  const s = String(containerType || '').toUpperCase();
+  const is20 = s.includes('20') && !s.includes('40');
+  return is20 ? 1500 : 1800;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DEDUCTION SCHEDULE
+// ─────────────────────────────────────────────────────────────────
+function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, containerType) {
   if (!firstPayout) return { amount: 0, items: [] };
 
   const yr = parseInt(document.getElementById('selYear').value);
@@ -309,17 +435,18 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   const y2Date = subtractOneMonth(addYears(firstPayout, 1)); // 1 month before 2nd anniversary
   const y3Date = addYears(firstPayout, 2);                   // on 3rd year anniversary
 
-  const items = []; // { type, amount, firstPayout, note? }
+  const items = [];
+  const insAmt = insuranceAmount(containerType, firstPayout);
 
-  // Insurance — each item carries the firstPayout date that triggered it
+  // Insurance
   if (insuranceYearsCovered < 1 && samePayoutMonth(y1Date)) {
-    items.push({ type: 'Y1 Insurance', amount: 1500, firstPayout });
+    items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
   }
   if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) {
-    items.push({ type: 'Y2 Insurance', amount: 1500, firstPayout });
+    items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
   }
   if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) {
-    items.push({ type: 'Y3 Insurance', amount: 1500, firstPayout });
+    items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
   }
 
   const insuranceTotal = items.reduce((s, it) => s + it.amount, 0);
@@ -354,29 +481,20 @@ function subtractOneMonth(date) {
   const d = new Date(date);
   const day = d.getDate();
   d.setMonth(d.getMonth() - 1);
-  // Handle month-end edge cases (e.g. March 31 - 1 month = Feb 28)
   if (d.getDate() !== day) d.setDate(0);
   return d;
 }
 
 // ─────────────────────────────────────────────────────────────────
 // GROUP ID ANALYSIS
-// Returns:
-//   sharedGroups  — map of groupId → { clients: Set, contractNos: Set, rows: [] }
-//   mismatchFlags — array of { container, contractNos[], clientNames[] } for error cases
-// Rule:
-//   Same groupId appears multiple times → Shared → split deduction
-//   Same container + different contractNo → ⚑ Mismatch error (not shared)
 // ─────────────────────────────────────────────────────────────────
 function analyzeGroups(rows) {
-  // Step 1: build groupId → metadata map
-const groupMap = {};
+  const groupMap = {};
   rows.forEach(r => {
     if (r.groupId === '__MANUAL_CHECK__') return;
     if (!groupMap[r.groupId]) {
       groupMap[r.groupId] = { clients: new Set(), contractNos: new Set(), rows: [] };
     }
-    // Use same key logic as grouping: cleaned IBAN if valid, else account number, else name
     const ibanValid  = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
     const clientKey  = ibanValid ? r.iban.replace(/\s/g, '') : (r.accountNo || r.clientName);
     groupMap[r.groupId].clients.add(clientKey);
@@ -384,30 +502,21 @@ const groupMap = {};
     groupMap[r.groupId].rows.push(r);
   });
 
-  // Step 2: separate valid shared groups from mismatches
-  // A container-based groupId is a mismatch if:
-  //   - the groupId came from a container number (not a contract number)
-  //   - AND more than one distinct contractNo exists under it
   const sharedGroups  = {};
   const mismatchFlags = [];
 
   Object.entries(groupMap).forEach(([gid, meta]) => {
-    // Determine if this groupId is container-based by checking rows
     const isContainerBased = meta.rows.some(r => r.container && r.container === gid);
 
     if (isContainerBased && meta.contractNos.size > 1 && !new Set(['LGMU2266157', 'LGMU2279473', 'LGMU2272308', 'LGMU2271894', 'LGMU2276920', 'HKAU2024746']).has(gid)) {
-      // Same container, different contracts → mismatch error
       mismatchFlags.push({
         container:    gid,
         contractNos:  [...meta.contractNos].filter(c => c !== '__NONE__'),
         clientNames:  [...meta.clients],
       });
-      // Do NOT add to sharedGroups — each row treated individually with flag
     } else if (meta.clients.size > 1) {
-      // Valid shared: same groupId, same contract (or contract-based groupId)
       sharedGroups[gid] = meta;
     }
-    // Single client → not shared, no entry needed
   });
 
   return { sharedGroups, mismatchFlags };
@@ -424,22 +533,22 @@ function runGenerate() {
   const mo    = parseInt(document.getElementById('selMonth').value);
   const cycle = document.getElementById('selCycle').value;
 
-  // Payout date (15th or last day of month)
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
-  // Health check cutoff: payment received <= June 30, 2025
   const hcCutoff = new Date(2025, 5, 30);
 
-  // Build IBAN → pending HC map from reference payout
   const hcPendingMap = {};
   refPayoutData.forEach(r => { 
     const k = r.iban ? r.iban.replace(/\s/g, '') : '';
     if (k) hcPendingMap[k] = true;
   });
 
-  // Filter by cycle
+  // Filter by cycle + skip flexible rent (#3) + skip fill-down unless shared (#2)
   const filtered = paymentData.filter(r => {
+    if (r.isFlexible) return false;
+    if (r.pinFilledDown && !r.isSharedContainer) return false;
+
     const c = String(r.payoutCycle).replace(/\s/g, '');
     const cycleMatch = cycle === '15'
       ? c === '15'
@@ -448,13 +557,9 @@ function runGenerate() {
     return cycleMatch && alreadyStarted;
   });
 
-  // Analyse groups: shared (valid) vs mismatch (error)
   const { sharedGroups, mismatchFlags } = analyzeGroups(filtered);
-
-  // Build mismatch set for quick lookup (by container)
   const mismatchContainers = new Set(mismatchFlags.map(f => f.container));
 
-  // Group by clientName + IBAN for output rows
   const groups = {};
   filtered.forEach(r => {
     const ibanValid = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
@@ -472,8 +577,8 @@ function runGenerate() {
         containers:      [],
         totalReturn:     0,
         totalDeduction:  0,
-        deductionItems:  [], // accumulated structured items across all containers
-        structuralNotes: [], // flags: shared, mismatch, manual check, contract closed
+        deductionItems:  [],
+        structuralNotes: [],
 		balanceNotes:    new Set(),
         agents:          new Set(),
       };
@@ -485,7 +590,12 @@ function runGenerate() {
 
     if (r.contractClosedFlag) groups[key].structuralNotes.push(r.contractClosedFlag);
 
-	    // Collect balance note only if this row's first payout falls on the current cycle
+    // Contract end flag (#4/#5) — flag, don't skip; skip the check for commission rows
+    const isCommission = r.container && r.container.toLowerCase() === 'commission';
+    if (!isCommission && r.contractEnd && r.contractEnd < new Date()) {
+      groups[key].structuralNotes.push('⚑ Contract end date has passed — verify');
+    }
+
     if (r.balanceNote) {
       const fp = r.firstPayout;
       const isThisCycle = fp && fp.getFullYear() === yr && fp.getMonth() + 1 === mo
@@ -506,19 +616,18 @@ function runGenerate() {
       groups[key].structuralNotes.push(
         `⚑ Duplicate container mismatch — container ${r.container} appears under different contracts (${mf.contractNos.join(' / ')}) — manual check`
       );
-      const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending);
+      const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending, r.containerType);
       groups[key].totalDeduction += ded.amount;
       groups[key].deductionItems.push(...ded.items);
 
     } else if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending);
+        const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending, r.containerType);
         sg.deductionAmount = ded.amount;
         sg.deductionItems  = ded.items;
         sg.deductionCalculated = true;
       }
-      // Weighted split overrides: contractNo → { clientName → share (0–1) }
       const WEIGHTED_SPLITS = {
         'CONMO0379': {
           'Mohamed Rafi Hakeem':                    0.75,
@@ -553,13 +662,12 @@ function runGenerate() {
       }
 
     } else {
-      const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending);
+      const ded = calcDeduction(payoutDate, r.firstPayout, r.insuranceYearsCovered, isHcEligible, hcPending, r.containerType);
       groups[key].totalDeduction += ded.amount;
       groups[key].deductionItems.push(...ded.items);
     }
   });
 
-  // Helper: format a date as DD/MM/YY
   function fmtDate(d) {
     if (!d) return '?';
     return String(d.getDate()).padStart(2,'0') + '/' +
@@ -567,20 +675,16 @@ function runGenerate() {
            String(d.getFullYear()).slice(-2);
   }
 
-  // Build deduction note and firstPayoutDisplay per group
   results = Object.values(groups).map(g => {
     const roundedDeduction = Math.round(g.totalDeduction);
 
-    // Y1 is deducted silently — never shown in notes
     const y1Items   = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
     const ipItems   = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
     const hcApplied = g.deductionItems.filter(it => it.type === 'HC');
     const hcPending = g.deductionItems.filter(it => it.type === 'HC Pending');
 
-    // Y1 is visible in notes only when alongside Y2 or Y3
     const y1WithOthers = y1Items.length > 0 && ipItems.length > 0;
 
-    // First payout date column: Y2/Y3 always shown, Y1 only if alongside Y2/Y3, HC applied always
     const visibleItems       = [...y1Items, ...ipItems, ...hcApplied];
     const activeDates        = [...new Set(visibleItems.map(it => fmtDate(it.firstPayout)))];
     const firstPayoutDisplay = activeDates.join(' & ') || '';
@@ -588,7 +692,6 @@ function runGenerate() {
     const deductionNotes = [];
 
     if (ipItems.length > 0) {
-      // Collect labels — Y1 included only when alongside Y2/Y3
       const hasY1    = y1WithOthers;
       const hasY2    = ipItems.some(it => it.type === 'Y2 Insurance');
       const hasY3    = ipItems.some(it => it.type === 'Y3 Insurance');
@@ -603,11 +706,9 @@ function runGenerate() {
       deductionNotes.push(ipNote);
 
     } else if (hcPending.length > 0) {
-      // HC only, no Y2/Y3 insurance this cycle
       deductionNotes.push('HC pending next cycle');
     }
 
-    // HC applied from previous payout reference — always show with amount
     if (hcApplied.length > 0) {
       deductionNotes.push('HC 1,000 applied');
     }
@@ -652,7 +753,6 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
   document.getElementById('resultsTitle').textContent =
     `${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${results.length} payees`;
 
-  // Stats
   const totalReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totalDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totalDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
@@ -668,7 +768,6 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
     <div class="stat-box"><span class="stat-val">${withNotes}</span><span class="stat-lbl">With Notes</span></div>
   `;
 
-  // Flags box — shared groups + mismatch errors
   const sharedCount   = Object.keys(sharedGroups).length;
   const mismatchCount = mismatchFlags.length;
   const flagLines     = [];
@@ -691,7 +790,6 @@ function renderResults(yr, mo, cycle, payoutDate, sharedGroups, mismatchFlags) {
     document.getElementById('sharedFlagsBox').style.display = 'none';
   }
 
-  // Table
   const previewCount = 10;
   const preview = results.slice(0, previewCount);
   document.getElementById('previewBody').innerHTML = preview.map((r, i) => `
@@ -769,7 +867,6 @@ function exportExcel() {
     r.note || '',
   ]);
 
-  // Totals row
   const totReturn = results.reduce((s,r) => s + r.totalReturn, 0);
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue    = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
@@ -780,20 +877,20 @@ function exportExcel() {
   const ws   = XLSX.utils.aoa_to_sheet(data);
 
   ws['!cols'] = [
-    { wch: 14 }, // Client Type
-    { wch: 45 }, // Name
-    { wch: 8 },  // Units
-    { wch: 14 }, // First payout
-    { wch: 14 }, // Monthly
-    { wch: 12 }, // Deduction
-    { wch: 12 }, // Addition
-    { wch: 14 }, // Rental due
-    { wch: 22 }, // Account
-    { wch: 30 }, // IBAN
-    { wch: 18 }, // SWIFT
-    { wch: 28 }, // Bank
-    { wch: 20 }, // Agent Name
-    { wch: 50 }, // Notes
+    { wch: 14 },
+    { wch: 45 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 30 },
+    { wch: 18 },
+    { wch: 28 },
+    { wch: 20 },
+    { wch: 50 },
   ];
 
   const sheetName = `${MONTHS[mo-1]} ${yr} - ${cycleLabel}`.substring(0, 31);
@@ -810,7 +907,6 @@ function exportExcel() {
 function parseDate(val) {
   if (!val) return null;
 
-  // Excel serial number
   if (typeof val === 'number') {
     const excelEpoch = new Date(1899, 11, 30);
     return new Date(excelEpoch.getTime() + val * 86400000);
@@ -820,7 +916,6 @@ function parseDate(val) {
 
   const s = String(val).trim();
 
-  // DD/MM/YYYY or MM/DD/YYYY auto-detect
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     let a = parseInt(m[1]);
@@ -830,10 +925,9 @@ function parseDate(val) {
     if (a > 12) return new Date(y, b - 1, a);
     if (b > 12) return new Date(y, a - 1, b);
 
-    return new Date(y, b - 1, a); // default DD/MM
+    return new Date(y, b - 1, a);
   }
 
-  // YYYY-MM-DD
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
 
@@ -859,7 +953,6 @@ function showMsg(id, text, type) {
   el.className = 'msg' + (text ? ` show ${type||'error'}` : '');
 }
 
-// Disable generate button until file is loaded
 document.getElementById('generateBtn').disabled = true;
 
 if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
@@ -888,4 +981,3 @@ if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
     .then(data => {
       document.getElementById('footer').innerHTML = data;
     });
-  
