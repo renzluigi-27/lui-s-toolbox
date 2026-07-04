@@ -205,7 +205,6 @@ function updateTabUI() {
   document.getElementById('emailSheetCard').style.display =
     (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
 
-  // Reroute sheet card — now optional, only shown for payout/ip
   const rerouteCard = document.getElementById('rerouteSheetCard');
   if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
 
@@ -280,7 +279,6 @@ function resetRefUpload() {
 }
 
 function updateGenerateBtn() {
-  // Reroute sheet is now optional — only payment info sheet is required
   const ready = paymentData.length > 0;
   document.getElementById('generateBtn').disabled = !ready;
   document.getElementById('generateHint').textContent = ready
@@ -331,7 +329,6 @@ function handleMainFile(file) {
 
 // ─────────────────────────────────────────────────────────────────
 // FILE UPLOAD — updated payment info sheet (optional backup reference)
-// Kept for compatibility but no longer required to generate.
 // ─────────────────────────────────────────────────────────────────
 const rerouteZone = document.getElementById('rerouteUploadZone');
 rerouteZone.addEventListener('dragover',  e => { e.preventDefault(); rerouteZone.classList.add('dragover'); });
@@ -439,7 +436,6 @@ function readExcel(file, onSuccess, onError) {
 
 // ─────────────────────────────────────────────────────────────────
 // PARSE PAYMENT INFO SHEET
-// Now reads reroute data directly from the unified sheet [LMC] columns.
 // Column positions (0-based):
 //   15 = Total cost
 //   16 = Container type
@@ -448,7 +444,9 @@ function readExcel(file, onSuccess, onError) {
 //   23 = Revised Rental Income [LMC]
 //   24 = First payout date
 //   25 = Payout Restart Date [LMC]  ← also = Payout date [ACCOUNTS ONLY]
+//   27 = Old payout cycle (15 / 30/31)
 //   28 = New Payout Cycle [LMC]
+//   29 = Payout frequency (Monthly / Quarterly / yearly / Flexible)
 //   32 = New Contract End Date [LMC]
 //   33 = Updated Trips [LMC]
 //   34 = Account no
@@ -480,7 +478,8 @@ function parsePaymentSheet(raw) {
     firstPayout:    24,   // First payout date
     restartDate:    25,   // Payout Restart Date [LMC]
     newPayoutCycle: 28,   // New Payout Cycle [LMC]
-    payoutCycle:    col('payout frequency'),  // original cycle (col 30)
+    payoutCycle:    27,   // Old payout cycle (15 / 30/31)
+    frequency:      29,   // Payout frequency (Monthly / Quarterly / yearly / Flexible)
     oldContractEnd: 30,   // Old Contract end date
     newContractEnd: 32,   // New Contract End Date [LMC]
     updatedTrips:   33,   // Updated Trips [LMC] — rerouted clients
@@ -503,6 +502,7 @@ function parsePaymentSheet(raw) {
   let lastContainer     = '';
   let lastClientName    = '';
   let lastPayoutCycle   = '';
+  let lastFrequency     = '';
   let lastClientType    = '';
   let lastContainerType = '';
 
@@ -539,6 +539,10 @@ function parsePaymentSheet(raw) {
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
     const payoutCycle = rawCycleDirect || lastPayoutCycle;
 
+    const rawFrequencyDirect = r[C.frequency] ? String(r[C.frequency]).trim() : '';
+    if (rawFrequencyDirect) lastFrequency = rawFrequencyDirect;
+    const frequency = rawFrequencyDirect || lastFrequency;
+
     const rawClientType = r[C.clientType] ? String(r[C.clientType]).trim() : '';
     const clientTypeBlank = !rawClientType;
     if (rawClientType) lastClientType = rawClientType;
@@ -560,18 +564,15 @@ function parsePaymentSheet(raw) {
     const payReceived    = parseDate(r[C.payReceived]);
     const payCalcStart   = (C.payCalcStart !== -1 && r[C.payCalcStart]) ? parseDate(r[C.payCalcStart]) : null;
 
-    // Reroute fields from [LMC] columns
     const restartDate    = parseDate(r[C.restartDate]);
     const newContractEnd = parseDate(r[C.newContractEnd]);
     const oldContractEnd = parseDate(r[C.oldContractEnd]);
 
-    // A client is rerouted if restartDate exists AND differs from firstPayout
     const isRerouted = !!(restartDate && firstPayout &&
       !(restartDate.getFullYear() === firstPayout.getFullYear() &&
         restartDate.getMonth()    === firstPayout.getMonth()    &&
         restartDate.getDate()     === firstPayout.getDate()));
 
-    // Contract end: use [LMC] for rerouted, old for non-rerouted, fallback to derived
     const contractEnd = isRerouted
       ? (newContractEnd || oldContractEnd || (payReceived ? addYears(payReceived, 3) : null))
       : (oldContractEnd || (payReceived ? addYears(payReceived, 3) : null));
@@ -589,12 +590,10 @@ function parsePaymentSheet(raw) {
     const returnAmt  = isFlexible ? 0 : parseNumber(r[C.returnAmt]);
     const returnInUSD = /usd/i.test(returnRaw);
 
-    // Revised rental from [LMC] column — use for rerouted clients
     const revisedRentalRaw = r[C.revisedRental] ? String(r[C.revisedRental]).trim() : '';
     const revisedRental = (revisedRentalRaw && !/[#N\/A]/i.test(revisedRentalRaw))
       ? parseNumber(r[C.revisedRental]) : 0;
 
-    // Total cost (col 15) — summed per client in payout.js
     const totalCost = parseNumber(r[C.totalCost]);
 
     const insuranceRaw          = r[C.insurance];
@@ -634,6 +633,7 @@ function parsePaymentSheet(raw) {
       isRerouted,
       newContractEnd,
       payoutCycle,
+      frequency,
       contractEnd,
       accountNo,
       iban,
