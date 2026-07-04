@@ -216,8 +216,10 @@ function parsePaymentSheet(raw) {
     contractNo:      col('contract no'),
     contractClosed:  col('contract closed'),
 	balance:         col('balance amount pending'),
-    agent:           37,
   };
+
+  // Agent column — matched by header name ("Agent Closing"), looked up once
+  const agentIdx = headers.findIndex(h => h.includes('agent closing'));
 
   const today = new Date(); today.setHours(0,0,0,0);
 
@@ -317,7 +319,7 @@ function parsePaymentSheet(raw) {
     } else {
       groupId = '__MANUAL_CHECK__';
     }
-    const rawAgent = r[37] ? String(r[37]).trim() : '';
+    const rawAgent = (agentIdx !== -1 && r[agentIdx]) ? String(r[agentIdx]).trim() : '';
 
     // Shared container check (#2)
     const isSharedContainer = (container && SHARED_CONTAINERS[container] !== undefined)
