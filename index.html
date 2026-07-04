@@ -260,6 +260,37 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.7</strong> — Payout Schedule tool added<br>
+              <div style="padding-left:1rem;">
+                • New "Payout Schedule" tab — generates a full multi-year payout schedule PDF for one client/contract at a time<br>
+                • Searchable client dropdown (by name or email); clients with multiple contracts show a contract picker before the schedule form<br>
+                • Rerouted vs non-rerouted detection: Payout Restart Date + Revised Rental Income [LMC] vs First Payout Date + Return amount<br>
+                • Non-rerouted schedules use Year 1/2/3 blocks (trip-count based); rerouted schedules use a straight Trip No. column with deduction timing tied to the original contract's calendar anniversary — same logic as the main IP Deduction tool<br>
+                • Insurance Premium auto-fills from container size/date rules (editable); Health Check is manual entry, Year 2 &amp; 3 only<br>
+                • Deductions that would push Monthly Payment negative auto-split across consecutive months<br>
+                • Monthly rent auto-multiplies by container count per contract<br>
+                • PDF output uses the real LMC letterhead file as its background template<br>
+                • Email Sheet upload required before generating<br>
+                • Output filename includes both client name and contract number<br>
+              </div><br>
+
+              <strong>Version 2.0.6</strong> — Client Organizer added<br>
+              <div style="padding-left:1rem;">
+                • New "Client Organizer" tab — upload a ZIP of unsorted client PDFs, tool reads and classifies them (contract, lease form, LMC invoice, Liberty invoice), groups by client, outputs a sorted ZIP with one folder per client<br>
+                • Contract is the anchor: extracts client name, container type, and contract number (e.g. CONAY2227) to match invoices<br>
+                • Lease form auto-split from the contract PDF into its own file<br>
+                • Unmatched/unreadable files go to an _UNMATCHED/ folder with a note explaining why<br>
+              </div><br>
+
+              <strong>Version 2.0.5</strong> — Container Trip Updater added<br>
+              <div style="padding-left:1rem;">
+                • New "Container Trip Updater" tab — finds which containers need updating in CRM by date<br>
+                • Own upload cards (Container Trips + Trips Sheet), separate from the shared Payment Info Sheet used by other tabs<br>
+                • Calendar-based date selection to find containers due on a given day<br>
+                • Results shown as individual cards, one per container, each with a dismissible ✕ button<br>
+                • Header count updates live as cards are dismissed; results section auto-hides once all cards are cleared<br>
+              </div><br>
+              
               <strong>Version 2.0.4</strong> — Email Matcher rewrite + AIO Tool layout overhaul<br>
               <div style="padding-left:1rem;">
                 • Email Matcher rebuilt as a standalone, generic tool — works with any Excel file as long as it has a CLIENT NAME column, no longer tied to a specific cycle or sheet structure<br>
