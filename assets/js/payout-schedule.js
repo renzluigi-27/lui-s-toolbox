@@ -648,7 +648,7 @@ window.PayoutSchedule = (function () {
       });
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
-      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
       console.error(ex);
@@ -681,7 +681,7 @@ window.PayoutSchedule = (function () {
   const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
   const ROW_H = 18;
   const YEAR_BAR_H = 18;
-  const TABLE_TOP_FIRST_PAGE_OFFSET = 162; // distance from top of page to first table row
+  const TABLE_TOP_FIRST_PAGE_OFFSET = 126; // distance from top of page to first table row
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
 
@@ -733,7 +733,7 @@ window.PayoutSchedule = (function () {
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
       const tx = (PAGE_W - tw) / 2;
-      const ty = PAGE_H - 142;
+      const ty = PAGE_H - 124;
       p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
       p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
     }
