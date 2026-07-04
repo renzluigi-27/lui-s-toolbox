@@ -2,25 +2,21 @@
 // PAYOUT GENERATOR MODE — payout.js
 // Depends on: shared.js, app.js
 // Deduction logic (cycle filter, reroute, WEIGHTED_SPLITS, HC pending,
-// contract-closed/no-IBAN flags) lives in shared.js — calcPayeeDeductions().
+// contract-closed/no-IBAN flags, frequency due-check) lives in shared.js.
 // This file adds rental/rentalDue, totalCost, balance-pending notes,
-// and payout-specific extra notes/flags on top.
+// frequency rental multiplier, and payout-specific extra notes/flags.
 // ─────────────────────────────────────────────────────────────────
 
 function runPayout(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
-  // Build email records (optional — blank fields if no email sheet uploaded)
   const emailRecords = emailData.length ? buildEmailRecords() : [];
 
-  // Filter by cycle + reroute validity
   const filtered = filterRowsForCycle(paymentData, cycle, payoutDate);
 
-  // Shared deduction engine
   const { groups, sharedGroups, mismatchFlags } = calcPayeeDeductions(filtered, yr, mo, payoutDate);
 
-  // ── Payout-specific layer: rental totals, total cost, balance notes, extra flags ──
   const rentalByKey    = {};
   const totalCostByKey = {};
   const balanceNotesByKey = {};
@@ -28,19 +24,18 @@ function runPayout(yr, mo, cycle) {
   filtered.forEach(r => {
     const ibanValid = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
     const key = (ibanValid ? r.iban.replace(/\s/g, '') : r.accountNo) || r.clientName;
-    if (!groups[key]) return; // safety
+    if (!groups[key]) return;
 
-    // Rental: use revisedRental [LMC] for rerouted clients, returnAmt for others
+    const baseRental = (r.isRerouted && r.revisedRental) ? r.revisedRental : r.returnAmt;
+    const multiplier = frequencyMultiplier(normalizeFrequency(r.frequency));
+
     if (!rentalByKey[key]) rentalByKey[key] = 0;
-    rentalByKey[key] += (r.isRerouted && r.revisedRental) ? r.revisedRental : r.returnAmt;
+    rentalByKey[key] += baseRental * multiplier;
 
-    // Total cost: sum col 15 across all containers per client
     if (!totalCostByKey[key]) totalCostByKey[key] = 0;
     totalCostByKey[key] += r.totalCost || 0;
 
     if (r.returnInUSD) groups[key].deductionNotes.push('⚑ Rental amount is in USD — verify AED conversion');
-
-    
 
     if (r.balanceNote) {
       const fp = r.firstPayout;
@@ -65,7 +60,6 @@ function runPayout(yr, mo, cycle) {
 
     const allNotes = [g.note, ...balanceNoteArr].filter(Boolean).join(' | ');
 
-    // Email match
     const em = lookupEmailRecord(emailRecords, g.clientName);
     const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
 
