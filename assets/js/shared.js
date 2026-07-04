@@ -349,7 +349,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (!isCommission) {
       // Use newContractEnd [LMC] for rerouted clients, fallback to original contractEnd
       const effectiveContractEnd = (r.isRerouted && r.newContractEnd) ? r.newContractEnd : r.contractEnd;
-      if (effectiveContractEnd && effectiveContractEnd < new Date()) {
+      if (effectiveContractEnd && effectiveContractEnd < payoutDate) {
         g.deductionNotes.push('⚑ Contract end date has passed — verify');
       }
     }
