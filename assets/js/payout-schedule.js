@@ -733,7 +733,7 @@ window.PayoutSchedule = (function () {
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
       const tx = (PAGE_W - tw) / 2;
-      const ty = PAGE_H - 124;
+      const ty = PAGE_H - 106;
       p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
       p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
     }
