@@ -14,18 +14,16 @@ function parseDate(val) {
   }
   if (val instanceof Date) {
     if (isNaN(val)) return null;
-    // cellDates:true returns MM/DD — swap to DD/MM
     return new Date(val.getFullYear(), val.getDate() - 1, val.getMonth() + 1);
   }
   const s = String(val).trim();
-  // Enforce DD/MM/YYYY — first part is always day when ambiguous
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
     let a = parseInt(m[1]), b = parseInt(m[2]);
     let y = m[3].length === 2 ? 2000 + parseInt(m[3]) : parseInt(m[3]);
-    if (a > 12) return new Date(y, b - 1, a);       // DD/MM
-    if (b > 12) return new Date(y, a - 1, b);       // MM/DD
-    return new Date(y, a - 1, b);                   // ambiguous, assume MM/DD
+    if (a > 12) return new Date(y, b - 1, a);
+    if (b > 12) return new Date(y, a - 1, b);
+    return new Date(y, a - 1, b);
   }
   m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (m) return new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
@@ -52,6 +50,38 @@ function subtractOneMonth(date) {
   d.setMonth(d.getMonth() - 1);
   if (d.getDate() !== day) d.setDate(0);
   return d;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// PAYOUT FREQUENCY — Monthly / Quarterly / Yearly / Flexible
+// ─────────────────────────────────────────────────────────────────
+function normalizeFrequency(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (s.includes('flexible')) return 'flexible';
+  if (s.includes('quart'))    return 'quarterly';
+  if (s.includes('yearly'))   return 'yearly';
+  return 'monthly';
+}
+
+function monthsBetween(basisDate, targetDate) {
+  if (!basisDate || !targetDate) return null;
+  return (targetDate.getFullYear() - basisDate.getFullYear()) * 12
+       + (targetDate.getMonth() - basisDate.getMonth());
+}
+
+function isDueThisCycle(frequency, basisDate, payoutDate) {
+  if (frequency === 'monthly') return true;
+  const diff = monthsBetween(basisDate, payoutDate);
+  if (diff === null || diff < 0) return false;
+  if (frequency === 'quarterly') return diff % 3 === 0;
+  if (frequency === 'yearly')    return diff % 12 === 0;
+  return true;
+}
+
+function frequencyMultiplier(frequency) {
+  if (frequency === 'quarterly') return 3;
+  if (frequency === 'yearly')    return 12;
+  return 1;
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -123,12 +153,7 @@ function deductionBasis(firstPayout, restartDate) {
   return firstPayout;
 }
 
-// Y1 is unchanged — still the original contract's first-year anniversary
-// from the original First Payout Date. For rerouted clients, Y2/Y3 anchor
-// to the Payout Restart Date instead — the payout gap (e.g. the war) shifted
-// when insurance/HC actually falls due, but didn't create any extra charge.
-// Health Check only ever applies at Y2/Y3, never Y1.
-function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted, restartDate) {
+function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted) {
   if (!firstPayout) return { amount: 0, items: [] };
 
   function samePayoutMonth(d) {
@@ -137,23 +162,23 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   }
 
   const y1Date = new Date(firstPayout);
-  const y2Basis = (isRerouted && restartDate) ? restartDate : firstPayout;
-  const y2Date  = (isRerouted && restartDate) ? new Date(restartDate) : subtractOneMonth(addYears(firstPayout, 1));
-  const y3Date  = (isRerouted && restartDate) ? addYears(restartDate, 1) : addYears(firstPayout, 2);
+  const y2Date = subtractOneMonth(addYears(firstPayout, 1));
+  const y3Date = addYears(firstPayout, 2);
 
   const items = [];
 
-  // Rerouted clients always flat 1,500; new clients use size-based if first payout >= 30 Jun 2026
   const insAmt = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
   if (insuranceYearsCovered < 1 && samePayoutMonth(y1Date)) items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
-  if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout: y2Basis });
-  if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout: y2Basis });
+  if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
+  if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
 
   const insuranceTotal = items.reduce((s, it) => s + it.amount, 0);
 
   if (isHealthCheckEligible) {
-    // HC only ever applies at Y2/Y3 — never Y1.
-    const hcDueThisCycle = samePayoutMonth(y2Date) || samePayoutMonth(y3Date);
+    const hc1 = new Date(firstPayout);
+    const hc2 = subtractOneMonth(addYears(firstPayout, 1));
+    const hc3 = addYears(firstPayout, 2);
+    const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
     if (hcPendingFromRef)                          items.push({ type: 'HC',         amount: 1000, firstPayout, note: 'applied from previous payout' });
     else if (hcDueThisCycle && insuranceTotal > 0) items.push({ type: 'HC Pending', amount: 0,    firstPayout, note: 'pending — deduct next cycle' });
     else if (hcDueThisCycle)                       items.push({ type: 'HC',         amount: 1000, firstPayout });
@@ -250,14 +275,10 @@ function lookupEmailRecord(emailRecords, name) {
 
 // ─────────────────────────────────────────────────────────────────
 // REROUTE HELPERS
-// Reroute data now comes directly from row fields parsed in app.js.
-// A row is rerouted if: restartDate is set AND restartDate != firstPayout.
-// Special never-paid batch: original firstPayout is Mar 15, Mar 30, or Apr 15
-// — for these, deduction basis uses restartDate instead of firstPayout.
 // ─────────────────────────────────────────────────────────────────
 function isNeverPaidDate(d) {
   if (!d) return false;
-  const mo = d.getMonth() + 1; // 1-based
+  const mo = d.getMonth() + 1;
   const dy = d.getDate();
   return (mo === 3 && (dy === 15 || dy === 30)) || (mo === 4 && dy === 15);
 }
@@ -266,6 +287,8 @@ function isNeverPaidDate(d) {
 // SHARED DEDUCTION ENGINE — used by payout.js (full) & ip-deduction.js
 // Rerouted clients: cycle derived from restartDate [LMC] day-of-month.
 // Non-rerouted: original payout cycle field from payment info sheet.
+// Frequency due-check applies to both (basis date = restartDate if
+// rerouted, else firstPayout).
 // ─────────────────────────────────────────────────────────────────
 const WEIGHTED_SPLITS = {
   'CONMO0379':   { 'Mohamed Rafi Hakeem': 0.75, 'Sundarrajan Dharmarajan Dhayalakumaran': 0.25 },
@@ -296,14 +319,8 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
   return rows.filter(r => {
     if (r.pinFilledDown && !r.isSharedContainer) return false;
     if (r.isFlexible) return false;
-    // Rerouted: must have a valid restartDate
     if (r.isRerouted && !r.restartDate) return false;
 
-    // Cycle determination:
-    // - Rerouted clients: use restartDate [LMC] day-of-month
-    //   (same as old logic using payout date from reroute sheet col H,
-    //    since Payout Restart Date [LMC] == Payout date [ACCOUNTS ONLY])
-    // - Non-rerouted: always use original payoutCycle field
     let c;
     if (r.isRerouted) {
       c = r.restartDate.getDate() <= 15 ? '15' : '30';
@@ -314,7 +331,15 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
     const cycleMatch = cycle === '15' ? c === '15' : (c === '30/31' || c === '30' || c === '31');
     const effStart   = r.isRerouted ? r.restartDate : r.firstPayout;
     const started    = !effStart || effStart <= payoutDate;
-    return cycleMatch && started;
+
+    // Frequency due-check: monthly always due; quarterly/yearly only on their
+    // due month, measured from the same basis date used for cycle above.
+    const freq      = normalizeFrequency(r.frequency);
+    if (freq === 'flexible') return false;
+    const basisDate = r.isRerouted ? r.restartDate : r.firstPayout;
+    const due        = isDueThisCycle(freq, basisDate, payoutDate);
+
+    return cycleMatch && started && due;
   });
 }
 
@@ -343,7 +368,6 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     g.containers.push(r.container);
     if (r.agent) g.agents.add(r.agent);
 
-    // Reroute display date — restartDate [LMC] acts as the payout date for display
     if (r.isRerouted && r.restartDate) g.rerouteDates.push(fmtDate(r.restartDate));
 
     if (r.contractClosedFlag) g.deductionNotes.push(r.contractClosedFlag);
@@ -351,17 +375,17 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
-      // Use newContractEnd [LMC] for rerouted clients, fallback to original contractEnd
       const effectiveContractEnd = (r.isRerouted && r.newContractEnd) ? r.newContractEnd : r.contractEnd;
-      if (effectiveContractEnd && effectiveContractEnd < payoutDate) {
+      if (effectiveContractEnd && effectiveContractEnd < new Date()) {
         g.deductionNotes.push('⚑ Contract end date has passed — verify');
       }
     }
 
-    // Deduction basis:
-    // - Never-paid batch (Mar 15 / Mar 30 / Apr 15 original first payout) → use restartDate
-    // - Other rerouted (old clients) → use original firstPayout
-    // - New clients (firstPayout == restartDate) → use that same date
+    const freq = normalizeFrequency(r.frequency);
+    if (freq === 'quarterly' || freq === 'yearly') {
+      g.deductionNotes.push(`⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`);
+    }
+
     const dedBasis = (r.isRerouted && isNeverPaidDate(r.firstPayout))
       ? r.restartDate
       : r.firstPayout;
@@ -373,7 +397,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted, r.restartDate);
+        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -385,13 +409,12 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       g.deductionItems.push(...splitItems);
       if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted, r.restartDate);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
   });
 
-  // Finalize: build the deduction-only note string per group
   Object.values(groups).forEach(g => {
     const roundedDeduction = Math.round(g.totalDeduction);
     const y1Items        = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
