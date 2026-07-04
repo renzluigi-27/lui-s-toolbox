@@ -123,7 +123,12 @@ function deductionBasis(firstPayout, restartDate) {
   return firstPayout;
 }
 
-function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted) {
+// Y1 is unchanged — still the original contract's first-year anniversary
+// from the original First Payout Date. For rerouted clients, Y2/Y3 anchor
+// to the Payout Restart Date instead — the payout gap (e.g. the war) shifted
+// when insurance/HC actually falls due, but didn't create any extra charge.
+// Health Check only ever applies at Y2/Y3, never Y1.
+function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted, restartDate) {
   if (!firstPayout) return { amount: 0, items: [] };
 
   function samePayoutMonth(d) {
@@ -132,24 +137,23 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   }
 
   const y1Date = new Date(firstPayout);
-  const y2Date = subtractOneMonth(addYears(firstPayout, 1));
-  const y3Date = addYears(firstPayout, 2);
+  const y2Basis = (isRerouted && restartDate) ? restartDate : firstPayout;
+  const y2Date  = (isRerouted && restartDate) ? new Date(restartDate) : subtractOneMonth(addYears(firstPayout, 1));
+  const y3Date  = (isRerouted && restartDate) ? addYears(restartDate, 1) : addYears(firstPayout, 2);
 
   const items = [];
 
   // Rerouted clients always flat 1,500; new clients use size-based if first payout >= 30 Jun 2026
   const insAmt = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
   if (insuranceYearsCovered < 1 && samePayoutMonth(y1Date)) items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
-  if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
-  if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
+  if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout: y2Basis });
+  if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout: y2Basis });
 
   const insuranceTotal = items.reduce((s, it) => s + it.amount, 0);
 
   if (isHealthCheckEligible) {
-    const hc1 = new Date(firstPayout);
-    const hc2 = subtractOneMonth(addYears(firstPayout, 1));
-    const hc3 = addYears(firstPayout, 2);
-    const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
+    // HC only ever applies at Y2/Y3 — never Y1.
+    const hcDueThisCycle = samePayoutMonth(y2Date) || samePayoutMonth(y3Date);
     if (hcPendingFromRef)                          items.push({ type: 'HC',         amount: 1000, firstPayout, note: 'applied from previous payout' });
     else if (hcDueThisCycle && insuranceTotal > 0) items.push({ type: 'HC Pending', amount: 0,    firstPayout, note: 'pending — deduct next cycle' });
     else if (hcDueThisCycle)                       items.push({ type: 'HC',         amount: 1000, firstPayout });
@@ -369,7 +373,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
+        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted, r.restartDate);
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -381,7 +385,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       g.deductionItems.push(...splitItems);
       if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted, r.restartDate);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
