@@ -76,6 +76,40 @@ const SHARED_CONTAINERS = {
 };
 
 // ─────────────────────────────────────────────────────────────────
+// PAYOUT FREQUENCY — Monthly / Quarterly / Yearly / Flexible
+// Basis date for the old standalone tool is always First Payout Date
+// (no reroute awareness in this file).
+// ─────────────────────────────────────────────────────────────────
+function normalizeFrequency(raw) {
+  const s = String(raw || '').toLowerCase();
+  if (s.includes('flexible')) return 'flexible';
+  if (s.includes('quart'))    return 'quarterly';
+  if (s.includes('yearly'))   return 'yearly';
+  return 'monthly';
+}
+
+function monthsBetween(basisDate, targetDate) {
+  if (!basisDate || !targetDate) return null;
+  return (targetDate.getFullYear() - basisDate.getFullYear()) * 12
+       + (targetDate.getMonth() - basisDate.getMonth());
+}
+
+function isDueThisCycle(frequency, basisDate, payoutDate) {
+  if (frequency === 'monthly') return true;
+  const diff = monthsBetween(basisDate, payoutDate);
+  if (diff === null || diff < 0) return false;
+  if (frequency === 'quarterly') return diff % 3 === 0;
+  if (frequency === 'yearly')    return diff % 12 === 0;
+  return true;
+}
+
+function frequencyMultiplier(frequency) {
+  if (frequency === 'quarterly') return 3;
+  if (frequency === 'yearly')    return 12;
+  return 1;
+}
+
+// ─────────────────────────────────────────────────────────────────
 // INIT — populate year selector, default to current month
 // ─────────────────────────────────────────────────────────────────
 (function init() {
@@ -177,6 +211,7 @@ function parsePaymentSheet(raw) {
     returnAmt:       col('return amount'),
     firstPayout:     col('first payout date'),
     payoutCycle:     col('payout cycle'),
+    frequency:       col('payout frequency'),
     contractEnd:     col('contract end date'),
     accountNo:       col('account no'),
     iban:            col('iban'),
@@ -198,6 +233,7 @@ function parsePaymentSheet(raw) {
   let lastContainer    = '';
   let lastClientName   = '';
   let lastContainerType = '';
+  let lastFrequency    = '';
 
   const rows = [];
 
@@ -240,6 +276,12 @@ function parsePaymentSheet(raw) {
     const clientName = rawClientName;
 
     if (!clientName) continue;
+
+    // Fill-down Payout Frequency (Monthly / Quarterly / yearly / Flexible)
+    let rawFrequency = (C.frequency !== -1 && r[C.frequency]) ? String(r[C.frequency]).trim() : '';
+    if (rawFrequency) lastFrequency = rawFrequency;
+    else rawFrequency = lastFrequency;
+    const frequency = rawFrequency;
 
     // ── Contract Closed check ──
     const closedRaw = (C.contractClosed !== -1 && r[C.contractClosed])
@@ -309,6 +351,7 @@ function parsePaymentSheet(raw) {
       isFlexible,
       firstPayout,
       payoutCycle,
+      frequency,
       contractEnd,
       accountNo,
       iban,
@@ -517,6 +560,7 @@ function runGenerate() {
   });
 
   // Filter by cycle + skip flexible rent (#3) + skip fill-down unless shared (#2)
+  // + frequency due-check (monthly always due; quarterly/yearly only on their due month)
   const filtered = paymentData.filter(r => {
     if (r.isFlexible) return false;
     if (r.pinFilledDown && !r.isSharedContainer) return false;
@@ -526,7 +570,12 @@ function runGenerate() {
       ? c === '15'
       : (c === '30/31' || c === '30' || c === '31');
     const alreadyStarted = !r.firstPayout || r.firstPayout <= payoutDate;
-    return cycleMatch && alreadyStarted;
+
+    const freq = normalizeFrequency(r.frequency);
+    if (freq === 'flexible') return false;
+    const due = isDueThisCycle(freq, r.firstPayout, payoutDate);
+
+    return cycleMatch && alreadyStarted && due;
   });
 
   const { sharedGroups, mismatchFlags } = analyzeGroups(filtered);
@@ -558,7 +607,14 @@ function runGenerate() {
 
     groups[key].containers.push(r.container);
     if (r.agent) groups[key].agents.add(r.agent);
-    groups[key].totalReturn += r.returnAmt;
+
+    // Rental multiplier (#quarterly/yearly): monthly x1, quarterly x3, yearly x12
+    const freq = normalizeFrequency(r.frequency);
+    const multiplier = frequencyMultiplier(freq);
+    groups[key].totalReturn += r.returnAmt * multiplier;
+    if (multiplier > 1) {
+      groups[key].structuralNotes.push(`⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`);
+    }
 
     if (r.contractClosedFlag) groups[key].structuralNotes.push(r.contractClosedFlag);
 
