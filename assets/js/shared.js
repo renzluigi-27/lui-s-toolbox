@@ -287,8 +287,9 @@ function isNeverPaidDate(d) {
 // SHARED DEDUCTION ENGINE — used by payout.js (full) & ip-deduction.js
 // Rerouted clients: cycle derived from restartDate [LMC] day-of-month.
 // Non-rerouted: original payout cycle field from payment info sheet.
-// Frequency due-check applies to both (basis date = restartDate if
-// rerouted, else firstPayout).
+// Frequency (quarterly/yearly) no longer gates whether a client appears
+// this cycle — every client shows every cycle; a note flags the frequency
+// so accounts can verify the rental amount manually (see calcPayeeDeductions).
 // ─────────────────────────────────────────────────────────────────
 const WEIGHTED_SPLITS = {
   'CONMO0379':   { 'Mohamed Rafi Hakeem': 0.75, 'Sundarrajan Dharmarajan Dhayalakumaran': 0.25 },
@@ -332,14 +333,10 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
     const effStart   = r.isRerouted ? r.restartDate : r.firstPayout;
     const started    = !effStart || effStart <= payoutDate;
 
-    // Frequency due-check: monthly always due; quarterly/yearly only on their
-    // due month, measured from the same basis date used for cycle above.
-    const freq      = normalizeFrequency(r.frequency);
+    const freq = normalizeFrequency(r.frequency);
     if (freq === 'flexible') return false;
-    const basisDate = r.isRerouted ? r.restartDate : r.firstPayout;
-    const due        = isDueThisCycle(freq, basisDate, payoutDate);
 
-    return cycleMatch && started && due;
+    return cycleMatch && started;
   });
 }
 
