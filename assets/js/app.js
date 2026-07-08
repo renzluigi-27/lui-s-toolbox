@@ -535,6 +535,9 @@ function parsePaymentSheet(raw) {
 
     if (!clientName) continue;
 
+    const SKIP_CONTAINERS_HARD = new Set(['LGMU2276807', 'LGMU2287313']);
+    if (SKIP_CONTAINERS_HARD.has(container)) continue;
+
     const rawCycleDirect = r[C.payoutCycle] ? String(r[C.payoutCycle]).trim() : '';
     if (rawCycleDirect) lastPayoutCycle = rawCycleDirect;
     const payoutCycle = rawCycleDirect || lastPayoutCycle;
