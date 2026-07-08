@@ -2,9 +2,11 @@
 // PAYOUT GENERATOR MODE — payout.js
 // Depends on: shared.js, app.js
 // Deduction logic (cycle filter, reroute, WEIGHTED_SPLITS, HC pending,
-// contract-closed/no-IBAN flags, frequency due-check) lives in shared.js.
+// contract-closed/no-IBAN flags) lives in shared.js.
 // This file adds rental/rentalDue, totalCost, balance-pending notes,
-// frequency rental multiplier, and payout-specific extra notes/flags.
+// and payout-specific extra notes/flags. Quarterly/yearly clients keep
+// their monthly rental figure — no ×3/×12 multiplier — a note in
+// shared.js flags the frequency for manual verification with accounts.
 // ─────────────────────────────────────────────────────────────────
 
 function runPayout(yr, mo, cycle) {
@@ -27,10 +29,9 @@ function runPayout(yr, mo, cycle) {
     if (!groups[key]) return;
 
     const baseRental = (r.isRerouted && r.revisedRental) ? r.revisedRental : r.returnAmt;
-    const multiplier = frequencyMultiplier(normalizeFrequency(r.frequency));
 
     if (!rentalByKey[key]) rentalByKey[key] = 0;
-    rentalByKey[key] += baseRental * multiplier;
+    rentalByKey[key] += baseRental;
 
     if (!totalCostByKey[key]) totalCostByKey[key] = 0;
     totalCostByKey[key] += r.totalCost || 0;
