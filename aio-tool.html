@@ -48,62 +48,46 @@
         <div id="clientOrgMount" style="display:none;"></div>
         <div id="scheduleMount" style="display:none;"></div>
 
-        <!-- Condensed upload row: Payment Info / Updated Payment Info / Email Sheet -->
-        <div class="upload-row" id="mainUploadRow">
-          <div class="card">
-            <div class="section-label">Payment Info Sheet <span class="optional-label">required · main database</span></div>
-            <div class="upload-zone upload-zone-sm" id="uploadZone">
-              <input type="file" id="fileInput" accept=".xlsx,.xls" />
-              <div class="upload-zone-text">
-                <strong>Click to upload</strong>
-                .xlsx or .xls
+        <!-- Upload Files: Payment Info / Email Sheet -->
+        <div class="card" id="mainUploadRow">
+          <div class="section-label">Upload Files</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="section-label">Payment Info Sheet <span class="optional-label">required · main database</span></div>
+              <div class="upload-zone upload-zone-sm" id="uploadZone">
+                <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                <div class="upload-zone-text">
+                  <strong>Click to upload</strong>
+                  .xlsx or .xls
+                </div>
               </div>
-            </div>
-            <div class="file-loaded" id="fileLoaded">
-              <span>&#10003;</span>
-              <div>
-                <div class="file-loaded-name" id="loadedName">&mdash;</div>
-                <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+              <div class="file-loaded" id="fileLoaded">
+                <span>&#10003;</span>
+                <div>
+                  <div class="file-loaded-name" id="loadedName">&mdash;</div>
+                  <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+                </div>
               </div>
+              <div class="msg error" id="fileError"></div>
             </div>
-            <div class="msg error" id="fileError"></div>
-          </div>
 
-          <div class="card" id="rerouteSheetCard" style="display:none;">
-            <div class="section-label">Updated Payment Info Sheet <span class="optional-label">optional · rerouted clients</span></div>
-            <div class="upload-zone upload-zone-sm" id="rerouteUploadZone">
-              <input type="file" id="rerouteFileInput" accept=".xlsx,.xls" />
-              <div class="upload-zone-text">
-                <strong>Click to upload</strong>
-                .xlsx or .xls
+            <div id="emailSheetCard" style="display:none;">
+              <div class="section-label">Email Sheet <span class="optional-label">optional · client information</span></div>
+              <div class="upload-zone upload-zone-sm" id="emailUploadZone">
+                <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
+                <div class="upload-zone-text">
+                  <strong>Click to upload</strong>
+                  .xlsx or .xls
+                </div>
               </div>
-            </div>
-            <div class="file-loaded" id="rerouteFileLoaded">
-              <span>&#10003;</span>
-              <div>
-                <div class="file-loaded-name" id="rerouteLoadedName">&mdash;</div>
-                <div class="file-loaded-meta" id="rerouteLoadedMeta">&mdash;</div>
+              <div class="file-loaded" id="emailFileLoaded">
+                <span>&#10003;</span>
+                <div>
+                  <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
+                </div>
               </div>
+              <div class="msg error" id="emailError"></div>
             </div>
-            <div class="msg error" id="rerouteError"></div>
-          </div>
-
-          <div class="card" id="emailSheetCard" style="display:none;">
-            <div class="section-label">Email Sheet <span class="optional-label">optional · client information</span></div>
-            <div class="upload-zone upload-zone-sm" id="emailUploadZone">
-              <input type="file" id="emailFileInput" accept=".xlsx,.xls" />
-              <div class="upload-zone-text">
-                <strong>Click to upload</strong>
-                .xlsx or .xls
-              </div>
-            </div>
-            <div class="file-loaded" id="emailFileLoaded">
-              <span>&#10003;</span>
-              <div>
-                <div class="file-loaded-name" id="emailLoadedName">&mdash;</div>
-              </div>
-            </div>
-            <div class="msg error" id="emailError"></div>
           </div>
         </div>
 
