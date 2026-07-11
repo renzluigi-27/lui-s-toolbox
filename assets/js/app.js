@@ -466,7 +466,7 @@ function parsePaymentSheet(raw) {
   const col = name => headers.findIndex(h => h.includes(name));
 
   const C = {
-    clientName:     col('client name'),
+    clientName:     col('client name') !== -1 ? col('client name') : 1,
     insurance:      col('insurance paid'),
     healthCheck:    col('health check'),
     payReceived:    col('payment received date'),
