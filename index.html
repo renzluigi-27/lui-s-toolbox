@@ -260,6 +260,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.8</strong> — Payout &amp; IP Deduction logic fixes<br>
+              <div style="padding-left:1rem;">
+                • Quarterly/Yearly frequency clients now appear every cycle at the base monthly rental — no more due-month filtering, no ×3/×12 multiplier — flagged with a "verify rental amount with accounts" note instead<br>
+                • Fixed a bug where a blank/missing "Client Name" header in the payment info sheet could silently zero out the entire sheet (0 rows loaded) — column now falls back to its known position if the header text isn't found<br>
+                • HC deduction now applied in the same cycle as IP, matching how accounts now processes it — removed the "HC pending next cycle" deferral and note entirely (affects both Payout Generator and IP Deduction tool, which share the same deduction engine)<br>
+              </div><br>
+
               <strong>Version 2.0.7</strong> — Payout Schedule tool added<br>
               <div style="padding-left:1rem;">
                 • New "Payout Schedule" tab — generates a full multi-year payout schedule PDF for one client/contract at a time<br>
