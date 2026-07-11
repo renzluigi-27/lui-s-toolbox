@@ -153,7 +153,11 @@ function deductionBasis(firstPayout, restartDate) {
   return firstPayout;
 }
 
-function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, hcPendingFromRef, yr, mo, containerType, isRerouted) {
+// ─────────────────────────────────────────────────────────────────
+// IP + HC deduction. HC is deducted in the same cycle as IP when due —
+// accounts no longer staggers them, so there is no "pending" state.
+// ─────────────────────────────────────────────────────────────────
+function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthCheckEligible, yr, mo, containerType, isRerouted) {
   if (!firstPayout) return { amount: 0, items: [] };
 
   function samePayoutMonth(d) {
@@ -172,16 +176,12 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
   if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
 
-  const insuranceTotal = items.reduce((s, it) => s + it.amount, 0);
-
   if (isHealthCheckEligible) {
     const hc1 = new Date(firstPayout);
     const hc2 = subtractOneMonth(addYears(firstPayout, 1));
     const hc3 = addYears(firstPayout, 2);
     const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
-    if (hcPendingFromRef)                          items.push({ type: 'HC',         amount: 1000, firstPayout, note: 'applied from previous payout' });
-    else if (hcDueThisCycle && insuranceTotal > 0) items.push({ type: 'HC Pending', amount: 0,    firstPayout, note: 'pending — deduct next cycle' });
-    else if (hcDueThisCycle)                       items.push({ type: 'HC',         amount: 1000, firstPayout });
+    if (hcDueThisCycle) items.push({ type: 'HC', amount: 1000, firstPayout });
   }
 
   return { amount: items.reduce((s, it) => s + it.amount, 0), items };
@@ -298,24 +298,6 @@ const WEIGHTED_SPLITS = {
   'CONNU0415':   { 'Nuzhat Mursaleen Faisal Fakir Mohammed': 0.61, 'Barayil Porakandy Roshan Valiyakath Aboobacker': 0.39 },
 };
 
-function buildHcPendingMap() {
-  const hcPendingMap = {};
-  if (refData.length > 1) {
-    const rh = refData[0].map(h => h ? String(h).toLowerCase().trim() : '');
-    const ibanIdx = rh.findIndex(h => h.includes('iban'));
-    const noteIdx = rh.findIndex(h => h.includes('note'));
-    if (ibanIdx !== -1 && noteIdx !== -1) {
-      refData.slice(1).forEach(r => {
-        if (!r || !r[ibanIdx]) return;
-        const iban = String(r[ibanIdx]).replace(/\s/g, '');
-        const note = r[noteIdx] ? String(r[noteIdx]).toLowerCase() : '';
-        if (iban && note.includes('hc')) hcPendingMap[iban] = true;
-      });
-    }
-  }
-  return hcPendingMap;
-}
-
 function filterRowsForCycle(rows, cycle, payoutDate) {
   return rows.filter(r => {
     if (r.pinFilledDown && !r.isSharedContainer) return false;
@@ -341,8 +323,7 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
 }
 
 function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
-  const hcCutoff    = new Date(2025, 5, 30);
-  const hcPendingMap = buildHcPendingMap();
+  const hcCutoff = new Date(2025, 5, 30);
 
   const { sharedGroups, mismatchFlags } = analyzeGroups(filteredRows);
   const mismatchContainers = new Set(mismatchFlags.map(f => f.container));
@@ -388,13 +369,11 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       : r.firstPayout;
 
     const isHcEligible = r.payReceived && r.payReceived <= hcCutoff;
-    const cleanIban    = r.iban ? r.iban.replace(/\s/g, '') : '';
-    const hcPending    = hcPendingMap[cleanIban] || false;
 
     if (r.groupId !== '__MANUAL_CHECK__' && sharedGroups[r.groupId]) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
-        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
+        const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, yr, mo, r.containerType, r.isRerouted);
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -406,7 +385,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       g.deductionItems.push(...splitItems);
       if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
-      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, hcPending, yr, mo, r.containerType, r.isRerouted);
+      const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, yr, mo, r.containerType, r.isRerouted);
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
@@ -417,7 +396,6 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     const y1Items        = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
     const ipItems        = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
     const hcApplied      = g.deductionItems.filter(it => it.type === 'HC');
-    const hcPendingItems = g.deductionItems.filter(it => it.type === 'HC Pending');
     const y1WithOthers   = y1Items.length > 0 && ipItems.length > 0;
 
     const dedNotes = [];
@@ -427,11 +405,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       const allItems = [...(y1WithOthers ? y1Items : []), ...ipItems];
       const totalAmt = Math.round(allItems.reduce((s, it) => s + it.amount, 0));
       const dates    = [...new Set(allItems.map(it => fmtDate(it.firstPayout)))];
-      let ipNote = `${typeStr} IP ${totalAmt.toLocaleString()} from ${dates.join(' & ')}`;
-      if (hcPendingItems.length > 0) ipNote += ' — HC pending next cycle';
-      dedNotes.push(ipNote);
-    } else if (hcPendingItems.length > 0) {
-      dedNotes.push('HC pending next cycle');
+      dedNotes.push(`${typeStr} IP ${totalAmt.toLocaleString()} from ${dates.join(' & ')}`);
     }
     if (hcApplied.length > 0) dedNotes.push('HC 1,000 applied — double-check the contract');
 
