@@ -205,9 +205,6 @@ function updateTabUI() {
   document.getElementById('emailSheetCard').style.display =
     (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
 
-  const rerouteCard = document.getElementById('rerouteSheetCard');
-  if (rerouteCard) rerouteCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
-
   updateRefHint();
   updateGenerateBtn();
 }
@@ -325,32 +322,6 @@ function handleMainFile(file) {
     updateGenerateBtn();
     clearResults();
   }, err => showMsg('fileError', 'Error reading file: ' + err, 'error'));
-}
-
-// ─────────────────────────────────────────────────────────────────
-// FILE UPLOAD — updated payment info sheet (optional backup reference)
-// ─────────────────────────────────────────────────────────────────
-const rerouteZone = document.getElementById('rerouteUploadZone');
-rerouteZone.addEventListener('dragover',  e => { e.preventDefault(); rerouteZone.classList.add('dragover'); });
-rerouteZone.addEventListener('dragleave', () => rerouteZone.classList.remove('dragover'));
-rerouteZone.addEventListener('drop', e => {
-  e.preventDefault(); rerouteZone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) handleRerouteFile(e.dataTransfer.files[0]);
-});
-document.getElementById('rerouteFileInput').addEventListener('change', e => {
-  if (e.target.files[0]) handleRerouteFile(e.target.files[0]);
-});
-
-function handleRerouteFile(file) {
-  showMsg('rerouteError', '');
-  if (!file.name.match(/\.(xlsx|xls)$/i)) {
-    showMsg('rerouteError', 'Please upload an Excel file (.xlsx or .xls)', 'error'); return;
-  }
-  readExcel(file, rows => {
-    document.getElementById('rerouteFileLoaded').classList.add('show');
-    document.getElementById('rerouteLoadedName').textContent = file.name;
-    document.getElementById('rerouteLoadedMeta').textContent = `${rows.length - 1} row(s) loaded (backup reference only)`;
-  }, err => showMsg('rerouteError', 'Error reading file: ' + err, 'error'));
 }
 
 // ─────────────────────────────────────────────────────────────────
