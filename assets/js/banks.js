@@ -136,7 +136,7 @@ const UAE_BANKS = {
       address: "Baniyas Road, Deira, P.O. Box 777, Dubai, UAE" 
   },
   "027": { 
-      name: "First Gulf Bank / First Abu Dhabi Bank (FAB)", 
+      name: "First Abu Dhabi Bank (FAB)", 
       swift: "NBADAEAAXXX", 
       swiftLegacy: "FGBMAEAAXXX",
       address: "One NBAD Tower, Sheikh Khalifa Street, P.O. Box 4, Abu Dhabi, UAE" 
@@ -177,7 +177,7 @@ const UAE_BANKS = {
       address: "Emirates Islamic Building, Al Qusais, Dubai, UAE" 
   },
   "035": { 
-      name: "National Bank of Abu Dhabi / First Abu Dhabi Bank (FAB)", 
+      name: "First Abu Dhabi Bank (FAB)", 
       swift: "NBADAEAAXXX", 
       address: "One NBAD Tower, Sheikh Khalifa Street, P.O. Box 4, Abu Dhabi, UAE" 
   },
@@ -222,7 +222,7 @@ const UAE_BANKS = {
       address: "Standard Chartered Tower, Downtown Dubai, UAE" 
   },
   "045": { 
-      name: "Union National Bank / First Abu Dhabi Bank (FAB)", 
+      name: "First Abu Dhabi Bank (FAB)", 
       swift: "UNBEAEAAXXX", 
       address: "UNB Tower, Khalifa Street, Abu Dhabi, UAE" 
   },
