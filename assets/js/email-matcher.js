@@ -30,6 +30,10 @@ window.EmailMatcherStandalone = (function () {
 
   function q(sel) { return document.getElementById(mountId).querySelector(sel); }
 
+  function stripTitlePrefix(name) {
+    return String(name || '').replace(/^(mr|mrs|ms|miss|dr|mx|eng|prof)\.?\s+/i, '').trim();
+  }
+
   function findHeaderCols(rows) {
     for (let i = 0; i < Math.min(5, rows.length); i++) {
       const row = rows[i];
@@ -80,7 +84,7 @@ window.EmailMatcherStandalone = (function () {
       const emailRaw   = String(row[15] || '').trim();
 
       const record = {
-        emailSheetClientName: rawName, normName, normParen,
+        emailSheetClientName: stripTitlePrefix(rawName), normName, normParen,
         clientEmailRaw: emailRaw,
         nationality: row[17] != null ? String(row[17]).trim() : '',
       };
