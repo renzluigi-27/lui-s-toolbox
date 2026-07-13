@@ -462,6 +462,12 @@ document.getElementById('ibanInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') checkIBAN();
 });
 
+let ibanDebounce;
+document.getElementById('ibanInput').addEventListener('input', () => {
+  clearTimeout(ibanDebounce);
+  ibanDebounce = setTimeout(checkIBAN, 400);
+});
+
 (function(){
   const IN_DB = ['AE','SA','QA','KW','BH','OM','JO','TR','PK','EG','GB','BG','BE','LT','ES','MT','CY','NL'];
   Object.entries(COUNTRY_IBAN).forEach(([code, c]) => {
