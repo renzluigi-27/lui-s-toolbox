@@ -20,6 +20,7 @@ window.EmailMatcherStandalone = (function () {
     'CLIENT TYPE',
     'CLIENT NAME',
     'CLIENT NAME (EMAIL SHEET)',
+    'CLIENT NAME (EID/PASSPORT)',
     'NATIONALITY',
     'DEDUCTION',
     'EMAIL 1',
@@ -84,7 +85,8 @@ window.EmailMatcherStandalone = (function () {
       const emailRaw   = String(row[15] || '').trim();
 
       const record = {
-        emailSheetClientName: stripTitlePrefix(rawName), normName, normParen,
+        emailSheetClientName: rawName, normName, normParen,
+        emailSheetClientNameNoPrefix: stripTitlePrefix(rawName),
         clientEmailRaw: emailRaw,
         nationality: row[17] != null ? String(row[17]).trim() : '',
       };
@@ -234,6 +236,7 @@ window.EmailMatcherStandalone = (function () {
           clientType,
           clientName: rawClientName,
           emailSheetClientName: matched ? matched.emailSheetClientName : '',
+          eidPassportName: matched ? matched.emailSheetClientNameNoPrefix : '',
           nationality: matched ? matched.nationality : '',
           deduction,
           email1, email2,
@@ -261,7 +264,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT TYPE', 'CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'NATIONALITY'];
+    const PREVIEW_COLUMNS = ['CLIENT TYPE', 'CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -272,6 +275,7 @@ window.EmailMatcherStandalone = (function () {
           <td>${esc(r.clientType || '')}</td>
           <td class="td-name">${esc(r.clientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
           <td>${esc(r.nationality || '')}</td>
         </tr>`;
       }).join('');
@@ -307,6 +311,7 @@ window.EmailMatcherStandalone = (function () {
         'CLIENT TYPE':                  r.clientType,
         'CLIENT NAME':                  r.clientName,
         'CLIENT NAME (EMAIL SHEET)':    r.emailSheetClientName,
+        'CLIENT NAME (EID/PASSPORT)':   r.eidPassportName,
         'NATIONALITY':                  r.nationality,
         'DEDUCTION':                    r.deduction,
         'EMAIL 1':                      r.email1,
