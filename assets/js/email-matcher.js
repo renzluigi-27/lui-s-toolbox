@@ -17,12 +17,10 @@ window.EmailMatcherStandalone = (function () {
   let outputBySheet = {};       // { sheetName: { results: [...] } }
 
   const OUTPUT_COLUMNS = [
-    'CLIENT TYPE',
     'CLIENT NAME',
     'CLIENT NAME (EMAIL SHEET)',
     'CLIENT NAME (EID/PASSPORT)',
     'NATIONALITY',
-    'DEDUCTION',
     'EMAIL 1',
     'EMAIL 2',
   ];
@@ -264,7 +262,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT TYPE', 'CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY'];
+    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -272,7 +270,6 @@ window.EmailMatcherStandalone = (function () {
     document.getElementById(mountId).querySelector('#em-table-body').innerHTML =
       data.results.slice(0, PREVIEW_COUNT).map(r => {
         return `<tr>
-          <td>${esc(r.clientType || '')}</td>
           <td class="td-name">${esc(r.clientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
@@ -308,12 +305,10 @@ window.EmailMatcherStandalone = (function () {
       if (!data) return;
 
       const exportRows = data.results.map(r => ({
-        'CLIENT TYPE':                  r.clientType,
         'CLIENT NAME':                  r.clientName,
         'CLIENT NAME (EMAIL SHEET)':    r.emailSheetClientName,
         'CLIENT NAME (EID/PASSPORT)':   r.eidPassportName,
         'NATIONALITY':                  r.nationality,
-        'DEDUCTION':                    r.deduction,
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
       }));
