@@ -465,7 +465,7 @@ document.getElementById('ibanInput').addEventListener('keydown', e => {
 let ibanDebounce;
 document.getElementById('ibanInput').addEventListener('input', () => {
   clearTimeout(ibanDebounce);
-  ibanDebounce = setTimeout(checkIBAN, 400);
+  ibanDebounce = setTimeout(checkIBAN, 1000);
 });
 
 (function(){
