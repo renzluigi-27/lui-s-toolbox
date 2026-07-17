@@ -83,7 +83,9 @@
   function numsEqual(a, b) { return Math.abs(toNum(a) - toNum(b)) < 0.005; }
   function isPaid(rowVals) {
     return rowVals.some(function (c) {
-      return c != null && /\bpaid\b/i.test(String(c));
+      if (c == null) return false;
+      var s = String(c).trim();
+      return /^paid\b/i.test(s);
     });
   }
 
