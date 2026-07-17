@@ -183,7 +183,7 @@ function rerouteAnniversaryBasis(firstPayout, restartDate, payoutCycle) {
   const cycleStr  = String(payoutCycle || '').replace(/\s/g, '');
   const cutoff    = cycleStr.startsWith('15') ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
   const monthsPaid = Math.max(0, monthsBetween(firstPayout, cutoff) + 1); // inclusive of first-payout month
-  const monthsRemaining = 12 - (monthsPaid % 12);
+  const monthsRemaining = (12 - (monthsPaid % 12)) % 12;
   return addMonths(restartDate, monthsRemaining);
 }
 
