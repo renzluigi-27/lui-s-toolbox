@@ -537,6 +537,7 @@ window.PayoutSchedule = (function () {
         monthlyPayment: isPaid ? origRent : null,
         deductionAmount: 0,
         deductionLabel: (!isPaid && i === payoutsMade) ? gapNote : '',
+        noteOnly: !isPaid && i === payoutsMade,
       };
     });
   }
@@ -755,7 +756,7 @@ window.PayoutSchedule = (function () {
   const LETTERHEAD_URL = '/assets/lmc_letterhead.pdf';
 
   const MARGIN_L = 60, MARGIN_R = 20;
-  const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55;
+  const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55, COL_NOTES = 90;
   const ROW_H = 18;
   const YEAR_BAR_H = 18;
   const TABLE_TOP_FIRST_PAGE_OFFSET = 144; // distance from top of page to first table row
@@ -779,17 +780,17 @@ window.PayoutSchedule = (function () {
     const PAGE_W = letterheadPage.width;
     const PAGE_H = letterheadPage.height;
 
-    // Rerouted schedules get a Trip No. column; non-rerouted match the
-    // original historical contract PDF layout (no Trip No. column).
+    // Rerouted schedules get a Trip No. column plus a bordered Notes column
+    // (deduction label lives inside the table, not floating beside it);
+    // non-rerouted match the original historical contract PDF layout.
     const cols = rerouted
-      ? [['Container numbers', COL_CONTAINER], ['Trip No.', COL_TRIP], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]]
+      ? [['Container numbers', COL_CONTAINER], ['Trip No.', COL_TRIP], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT], ['Notes', COL_NOTES]]
       : [['Container numbers', COL_CONTAINER], ['Payout date', COL_DATE], ['Monthly Payment (AED)', COL_PAYMENT], ['Deduction', COL_DEDUCT_AMT]];
     const BORDERED_WIDTH = cols.reduce((s, c) => s + c[1], 0);
-    // Center the table (bordered columns + the unboxed deduction-label zone)
-    // within the printable width, instead of left-anchoring it at the margin
-    // and leaving a big blank gap on the right.
-    const longestLabel = rerouted ? 'IP & HC' : 'Insurance Premium & Health Check';
-    const labelReserve = font.widthOfTextAtSize(longestLabel, 7.5) + 16;
+    // Center the table (bordered columns + the unboxed deduction-label zone,
+    // non-rerouted only) within the printable width.
+    const longestLabel = 'Insurance Premium & Health Check';
+    const labelReserve = rerouted ? 0 : font.widthOfTextAtSize(longestLabel, 7.5) + 16;
     const availableWidth = PAGE_W - MARGIN_L - MARGIN_R;
     const blockWidth = BORDERED_WIDTH + 8 + labelReserve;
     const TABLE_LEFT = MARGIN_L + Math.max(0, (availableWidth - blockWidth) / 2);
@@ -861,14 +862,54 @@ window.PayoutSchedule = (function () {
     }
 
     function rowHeightFor(row) {
+      if (rerouted && row.noteOnly) {
+        const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES - 6;
+        const lines = wrapText(row.deductionLabel, mergedW, font, 7.5);
+        return Math.max(ROW_H, lines.length * LABEL_LINE_H + 8);
+      }
+      if (rerouted) {
+        if (!row.deductionLabel) return ROW_H;
+        const lines = wrapText(row.deductionLabel, COL_NOTES - 6, font, 7.5);
+        return Math.max(ROW_H, lines.length * LABEL_LINE_H + 8);
+      }
       if (!row.deductionLabel) return ROW_H;
       const lines = wrapText(row.deductionLabel, LABEL_MAX_WIDTH, font, 7.5);
       return Math.max(ROW_H, lines.length * LABEL_LINE_H + 8);
     }
 
+    function drawCell(p, x, topY, w, rh, text, align) {
+      p.drawRectangle({ x, y: topY - rh, width: w, height: rh, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+      const tw = font.widthOfTextAtSize(text, 7.5);
+      let tx = x + 3;
+      if (align === 'right') tx = x + w - tw - 3;
+      else if (align === 'center') tx = x + (w - tw) / 2;
+      p.drawText(text, { x: tx, y: topY - rh / 2 - 2.6, size: 7.5, font, color: BLACK() });
+    }
+
     function drawDataRow(p, topY, row) {
       const rh = rowHeightFor(row);
       p.drawRectangle({ x: TABLE_LEFT, y: topY - rh, width: FULL_BAR_WIDTH, height: rh, color: WHITE() });
+
+      // Gap / no-payout rows (rerouted only): merge Monthly Payment +
+      // Deduction + Notes into one cell and print the note there, matching
+      // the manual schedule format.
+      if (rerouted && row.noteOnly) {
+        let bx = TABLE_LEFT;
+        drawCell(p, bx, topY, COL_CONTAINER, rh, row.container, undefined); bx += COL_CONTAINER;
+        drawCell(p, bx, topY, COL_TRIP, rh, '', 'center'); bx += COL_TRIP;
+        drawCell(p, bx, topY, COL_DATE, rh, fmtDDMMYYYY(row.date), undefined); bx += COL_DATE;
+        const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES;
+        p.drawRectangle({ x: bx, y: topY - rh, width: mergedW, height: rh, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+        const lines = wrapText(row.deductionLabel, mergedW - 6, font, 7.5);
+        const blockH = lines.length * LABEL_LINE_H;
+        let ly = topY - (rh - blockH) / 2 - LABEL_LINE_H + 2.6;
+        lines.forEach(line => {
+          p.drawText(line, { x: bx + 3, y: ly, size: 7.5, font, color: BLACK() });
+          ly -= LABEL_LINE_H;
+        });
+        return topY - rh;
+      }
+
       const cells = rerouted
         ? [
             { text: row.container, w: COL_CONTAINER },
@@ -894,7 +935,21 @@ window.PayoutSchedule = (function () {
         p.drawText(c.text, { x: tx, y: textY, size: 7.5, font, color: BLACK() });
         bx += c.w;
       });
-      if (row.deductionLabel) {
+
+      if (rerouted) {
+        // Notes column: draw inside its own bordered cell.
+        const lines = row.deductionLabel ? wrapText(row.deductionLabel, COL_NOTES - 6, font, 7.5) : [];
+        p.drawRectangle({ x: bx, y: topY - rh, width: COL_NOTES, height: rh, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+        if (lines.length) {
+          const blockH = lines.length * LABEL_LINE_H;
+          let ly = topY - (rh - blockH) / 2 - LABEL_LINE_H + 2.6;
+          lines.forEach(line => {
+            p.drawText(line, { x: bx + 3, y: ly, size: 7.5, font, color: BLACK() });
+            ly -= LABEL_LINE_H;
+          });
+        }
+      } else if (row.deductionLabel) {
+        // Non-rerouted: unchanged floating label to the right of the table.
         const lines = wrapText(row.deductionLabel, LABEL_MAX_WIDTH, font, 7.5);
         const blockH = lines.length * LABEL_LINE_H;
         let ly = topY - (rh - blockH) / 2 - LABEL_LINE_H + 2.6;
