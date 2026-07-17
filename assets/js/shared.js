@@ -44,6 +44,16 @@ function addYears(date, n) {
   return d;
 }
 
+function addMonths(date, n) {
+  const d   = new Date(date);
+  const day = d.getDate();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + n);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDay));
+  return d;
+}
+
 function subtractOneMonth(date) {
   const d   = new Date(date);
   const day = d.getDate();
@@ -151,6 +161,30 @@ function deductionBasis(firstPayout, restartDate) {
     && firstPayout.getDate() === restartDate.getDate();
   if (sameDay || firstPayout >= NEVER_PAID_FROM) return restartDate;
   return firstPayout;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REROUTED CLIENT ANNIVERSARY BASIS — war-related payout stoppage.
+// Payouts stopped for rerouted clients; last payout actually received
+// was 15 Feb 2026 (15th-cycle clients) or 28 Feb 2026 (EOM-cycle
+// clients). IP/HC anniversaries must reflect months actually paid,
+// not raw calendar time — the pause itself doesn't count toward the
+// 12-month clock. Anchor: months actually paid (First Payout Date up
+// to the last-received cutoff, inclusive) mod 12 gives progress into
+// the in-flight year; the remainder is added to the Restart Date to
+// get the true next anniversary.
+// ─────────────────────────────────────────────────────────────────
+const LAST_PAYOUT_15TH = new Date(2026, 1, 15);   // 15 Feb 2026
+const LAST_PAYOUT_EOM  = new Date(2026, 1, 28);   // 28 Feb 2026
+
+function rerouteAnniversaryBasis(firstPayout, restartDate, payoutCycle) {
+  if (!restartDate) return firstPayout;
+  if (!firstPayout) return restartDate;
+  const cycleStr  = String(payoutCycle || '').replace(/\s/g, '');
+  const cutoff    = cycleStr.startsWith('15') ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
+  const monthsPaid = Math.max(0, monthsBetween(firstPayout, cutoff) + 1); // inclusive of first-payout month
+  const monthsRemaining = 12 - (monthsPaid % 12);
+  return addMonths(restartDate, monthsRemaining);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -364,8 +398,8 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       g.deductionNotes.push(`⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`);
     }
 
-    const dedBasis = (r.isRerouted && isNeverPaidDate(r.firstPayout))
-      ? r.restartDate
+    const dedBasis = r.isRerouted
+      ? rerouteAnniversaryBasis(r.firstPayout, r.restartDate, r.payoutCycle)
       : r.firstPayout;
 
     const isHcEligible = r.payReceived && r.payReceived <= hcCutoff;
