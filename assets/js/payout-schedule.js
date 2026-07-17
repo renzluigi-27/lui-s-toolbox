@@ -461,10 +461,18 @@ window.PayoutSchedule = (function () {
 
     document.getElementById('ps-preRerouteCard').style.display = rerouted ? 'block' : 'none';
     document.getElementById('ps-preRerouteToggle').checked = false;
-    document.getElementById('ps-payoutsMade').value = '';
-    document.getElementById('ps-payoutsMade').disabled = true;
     document.getElementById('ps-gapNote').value = 'No payout made because of the rerouting';
     document.getElementById('ps-gapNote').disabled = true;
+    if (rerouted && r.firstPayout && r.restartDate) {
+      const oldCycleIs15 = r.firstPayout.getDate() <= 15;
+      const cutoff = oldCycleIs15 ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
+      const totalMonths = monthsBetween(r.firstPayout, r.restartDate);
+      const autoPaid = Math.max(0, Math.min(totalMonths, monthsBetween(r.firstPayout, cutoff) + 1));
+      document.getElementById('ps-payoutsMade').value = autoPaid;
+    } else {
+      document.getElementById('ps-payoutsMade').value = '';
+    }
+    document.getElementById('ps-payoutsMade').disabled = true;
 
     document.getElementById('ps-formCard').style.display = 'block';
     document.getElementById('ps-genCard').style.display = 'block';
@@ -507,12 +515,7 @@ window.PayoutSchedule = (function () {
     return dates;
   }
 
-  // Months between two dates counting whole calendar months from start's
-  // month to end's month (exclusive of end's month). Mar 2025 -> Jul 2026
-  // = 16 (12 paid + 4 gap, for example).
-  function monthsBetween(start, end) {
-    return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-  }
+  // monthsBetween() comes from shared.js (used by rerouteAnniversaryBasis).
 
   // Pre-Reroute History: the old-cycle payouts made before the reroute gap,
   // plus the unpaid gap months, ending right before the Restart Date.
