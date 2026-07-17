@@ -537,7 +537,7 @@ window.PayoutSchedule = (function () {
         monthlyPayment: isPaid ? origRent : null,
         deductionAmount: 0,
         deductionLabel: (!isPaid && i === payoutsMade) ? gapNote : '',
-        noteOnly: !isPaid && i === payoutsMade,
+        isGap: !isPaid,
       };
     });
   }
@@ -862,11 +862,6 @@ window.PayoutSchedule = (function () {
     }
 
     function rowHeightFor(row) {
-      if (rerouted && row.noteOnly) {
-        const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES - 6;
-        const lines = wrapText(row.deductionLabel, mergedW, font, 7.5);
-        return Math.max(ROW_H, lines.length * LABEL_LINE_H + 8);
-      }
       if (rerouted) {
         if (!row.deductionLabel) return ROW_H;
         const lines = wrapText(row.deductionLabel, COL_NOTES - 6, font, 7.5);
@@ -889,26 +884,6 @@ window.PayoutSchedule = (function () {
     function drawDataRow(p, topY, row) {
       const rh = rowHeightFor(row);
       p.drawRectangle({ x: TABLE_LEFT, y: topY - rh, width: FULL_BAR_WIDTH, height: rh, color: WHITE() });
-
-      // Gap / no-payout rows (rerouted only): merge Monthly Payment +
-      // Deduction + Notes into one cell and print the note there, matching
-      // the manual schedule format.
-      if (rerouted && row.noteOnly) {
-        let bx = TABLE_LEFT;
-        drawCell(p, bx, topY, COL_CONTAINER, rh, row.container, undefined); bx += COL_CONTAINER;
-        drawCell(p, bx, topY, COL_TRIP, rh, '', 'center'); bx += COL_TRIP;
-        drawCell(p, bx, topY, COL_DATE, rh, fmtDDMMYYYY(row.date), undefined); bx += COL_DATE;
-        const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES;
-        p.drawRectangle({ x: bx, y: topY - rh, width: mergedW, height: rh, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
-        const lines = wrapText(row.deductionLabel, mergedW - 6, font, 7.5);
-        const blockH = lines.length * LABEL_LINE_H;
-        let ly = topY - (rh - blockH) / 2 - LABEL_LINE_H + 2.6;
-        lines.forEach(line => {
-          p.drawText(line, { x: bx + 3, y: ly, size: 7.5, font, color: BLACK() });
-          ly -= LABEL_LINE_H;
-        });
-        return topY - rh;
-      }
 
       const cells = rerouted
         ? [
@@ -966,6 +941,42 @@ window.PayoutSchedule = (function () {
       return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
     }
 
+    // Consecutive no-payout (gap) rows: Container/Trip/Date stay per-row,
+    // but Monthly Payment + Deduction + Notes merge into ONE cell spanning
+    // the whole block height, with the note vertically centered — matching
+    // the manual schedule format.
+    function drawGapBlock(p, topY, blockRows, note) {
+      const n = blockRows.length;
+      const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES;
+      const lines = note ? wrapText(note, mergedW - 6, font, 7.5) : [];
+      const noteH = lines.length ? lines.length * LABEL_LINE_H + 8 : 0;
+      const blockH = Math.max(n * ROW_H, noteH);
+      const perRowH = blockH / n;
+
+      p.drawRectangle({ x: TABLE_LEFT, y: topY - blockH, width: FULL_BAR_WIDTH, height: blockH, color: WHITE() });
+
+      let ry = topY;
+      blockRows.forEach(row => {
+        let bx = TABLE_LEFT;
+        drawCell(p, bx, ry, COL_CONTAINER, perRowH, row.container, undefined); bx += COL_CONTAINER;
+        drawCell(p, bx, ry, COL_TRIP, perRowH, '', 'center'); bx += COL_TRIP;
+        drawCell(p, bx, ry, COL_DATE, perRowH, fmtDDMMYYYY(row.date), undefined);
+        ry -= perRowH;
+      });
+
+      const mergedX = TABLE_LEFT + COL_CONTAINER + COL_TRIP + COL_DATE;
+      p.drawRectangle({ x: mergedX, y: topY - blockH, width: mergedW, height: blockH, borderColor: LIGHT_BORDER(), borderWidth: 0.75 });
+      if (lines.length) {
+        const textBlockH = lines.length * LABEL_LINE_H;
+        let ly = topY - (blockH - textBlockH) / 2 - LABEL_LINE_H + 2.6;
+        lines.forEach(line => {
+          p.drawText(line, { x: mergedX + 3, y: ly, size: 7.5, font, color: BLACK() });
+          ly -= LABEL_LINE_H;
+        });
+      }
+      return topY - blockH;
+    }
+
     drawLetterhead(page);
     drawTitle(page);
     y = drawTableHeader(page, TABLE_TOP_FIRST_PAGE);
@@ -973,7 +984,34 @@ window.PayoutSchedule = (function () {
     let currentYearIdx = -1;
     const yearLabels = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year', '6th Year', '7th Year', '8th Year'];
 
-    for (const row of rows) {
+    // Group consecutive rerouted "gap" rows into single merge-block units;
+    // everything else stays a normal single-row unit.
+    const renderUnits = [];
+    rows.forEach(row => {
+      if (rerouted && row.isGap) {
+        const last = renderUnits[renderUnits.length - 1];
+        if (last && last.type === 'gapBlock') { last.rows.push(row); return; }
+        renderUnits.push({ type: 'gapBlock', rows: [row], note: row.deductionLabel || '' });
+      } else {
+        renderUnits.push({ type: 'row', row });
+      }
+    });
+
+    for (const unit of renderUnits) {
+      if (unit.type === 'gapBlock') {
+        const mergedW = COL_PAYMENT + COL_DEDUCT_AMT + COL_NOTES;
+        const lines = unit.note ? wrapText(unit.note, mergedW - 6, font, 7.5) : [];
+        const noteH = lines.length ? lines.length * LABEL_LINE_H + 8 : 0;
+        const blockH = Math.max(unit.rows.length * ROW_H, noteH);
+        if (y - blockH < BOTTOM_MARGIN) {
+          page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+          drawLetterhead(page);
+          y = drawTableHeader(page, TABLE_TOP_OTHER_PAGE);
+        }
+        y = drawGapBlock(page, y, unit.rows, unit.note);
+        continue;
+      }
+      const row = unit.row;
       if (row.isYearStart && !rerouted) {
         currentYearIdx = row.yearIndex;
         if (y - YEAR_BAR_H < BOTTOM_MARGIN) {
