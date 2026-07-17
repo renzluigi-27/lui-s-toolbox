@@ -97,6 +97,15 @@ window.PayoutSchedule = (function () {
         </div>
       </div>
 
+      <div class="card" id="ps-preRerouteCard" style="display:none;">
+        <div class="section-label">Pre-Reroute History <span class="optional-label">optional &middot; rerouted clients only</span></div>
+        <label class="ps-checkbox-label"><input type="checkbox" id="ps-preRerouteToggle" /> Include Pre-Reroute Payout History</label>
+        <div class="selector-row" style="margin-top:0.75rem;">
+          <div class="selector-group"><label>Payouts Made Before Reroute</label><input type="number" id="ps-payoutsMade" min="0" disabled /></div>
+          <div class="selector-group"><label>Gap Note <span class="optional-label">shown on first unpaid month</span></label><input type="text" id="ps-gapNote" disabled /></div>
+        </div>
+      </div>
+
       <div class="card action-card" id="ps-genCard" style="display:none;">
         <button class="btn-primary" id="ps-generateBtn">Generate PDF</button>
         <div class="msg" id="ps-genError"></div>
@@ -206,6 +215,11 @@ window.PayoutSchedule = (function () {
 
     document.getElementById('ps-hcToggle').addEventListener('change', e => {
       document.getElementById('ps-hcAmount').disabled = !e.target.checked;
+    });
+
+    document.getElementById('ps-preRerouteToggle').addEventListener('change', e => {
+      document.getElementById('ps-payoutsMade').disabled = !e.target.checked;
+      document.getElementById('ps-gapNote').disabled = !e.target.checked;
     });
 
     document.getElementById('ps-generateBtn').addEventListener('click', onGenerate);
@@ -445,6 +459,13 @@ window.PayoutSchedule = (function () {
     document.getElementById('ps-hcAmount').disabled = true;
     document.getElementById('ps-containers').value = g.containers.join('\n');
 
+    document.getElementById('ps-preRerouteCard').style.display = rerouted ? 'block' : 'none';
+    document.getElementById('ps-preRerouteToggle').checked = false;
+    document.getElementById('ps-payoutsMade').value = '';
+    document.getElementById('ps-payoutsMade').disabled = true;
+    document.getElementById('ps-gapNote').value = 'No payout made because of the rerouting';
+    document.getElementById('ps-gapNote').disabled = true;
+
     document.getElementById('ps-formCard').style.display = 'block';
     document.getElementById('ps-genCard').style.display = 'block';
   }
@@ -484,6 +505,40 @@ window.PayoutSchedule = (function () {
       }
     }
     return dates;
+  }
+
+  // Months between two dates counting whole calendar months from start's
+  // month to end's month (exclusive of end's month). Mar 2025 -> Jul 2026
+  // = 16 (12 paid + 4 gap, for example).
+  function monthsBetween(start, end) {
+    return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+  }
+
+  // Pre-Reroute History: the old-cycle payouts made before the reroute gap,
+  // plus the unpaid gap months, ending right before the Restart Date.
+  // Trip numbers 1..payoutsMade on the paid rows; gap rows get no trip
+  // number and no amount. The gap note appears once, on the first unpaid
+  // row. Container name shown once, on the very first row only.
+  function buildPreRerouteRows(opts) {
+    const { origStart, origRent, restartDate, payoutsMade, gapNote, containers } = opts;
+    const origCycle = origStart.getDate() <= 15 ? '15' : 'eom';
+    const totalMonths = monthsBetween(origStart, restartDate);
+    if (totalMonths <= 0) return [];
+    const dates = generateDates(origStart, origCycle, totalMonths);
+
+    let containerCursor = 0;
+    return dates.map((date, i) => {
+      const isPaid = i < payoutsMade;
+      const container = containerCursor < containers.length ? containers[containerCursor++] : '';
+      return {
+        tripNumber: isPaid ? i + 1 : null,
+        container,
+        date,
+        monthlyPayment: isPaid ? origRent : null,
+        deductionAmount: 0,
+        deductionLabel: (!isPaid && i === payoutsMade) ? gapNote : '',
+      };
+    });
   }
 
   function isNeverPaidDate(d) {
@@ -649,9 +704,25 @@ window.PayoutSchedule = (function () {
         dedBasis = (origFirstPayout && isNeverPaidDate(origFirstPayout)) ? (restart || startDate) : (origFirstPayout || startDate);
       }
 
-      const { rows, blocks } = buildScheduleRows({
+      let { rows, blocks } = buildScheduleRows({
         startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted, dedBasis,
       });
+
+      const includePreReroute = rerouted && document.getElementById('ps-preRerouteToggle').checked;
+      if (includePreReroute && selectedGroup) {
+        const origStart = selectedGroup.row.firstPayout;
+        const payoutsMade = parseInt(document.getElementById('ps-payoutsMade').value) || 0;
+        const gapNote = document.getElementById('ps-gapNote').value.trim();
+        if (!origStart) { showMsg('ps-genError', 'Original First Payout Date not found for this client.', 'error'); return; }
+        if (!payoutsMade) { showMsg('ps-genError', 'Payouts Made Before Reroute is required.', 'error'); return; }
+        const containerCount = containers.length || 1;
+        const origRent = (selectedGroup.row.returnAmt || 0) * containerCount;
+        const preRows = buildPreRerouteRows({
+          origStart, origRent, restartDate: startDate, payoutsMade, gapNote, containers,
+        });
+        if (preRows.length && rows.length) rows[0].container = ''; // avoid repeating the container name
+        rows = preRows.concat(rows);
+      }
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
       downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
@@ -801,9 +872,9 @@ window.PayoutSchedule = (function () {
       const cells = rerouted
         ? [
             { text: row.container, w: COL_CONTAINER },
-            { text: String(row.tripNumber), w: COL_TRIP, align: 'center' },
+            { text: row.tripNumber != null ? String(row.tripNumber) : '', w: COL_TRIP, align: 'center' },
             { text: fmtDDMMYYYY(row.date), w: COL_DATE },
-            { text: fmt2(row.monthlyPayment), w: COL_PAYMENT, align: 'right' },
+            { text: row.monthlyPayment != null ? fmt2(row.monthlyPayment) : '', w: COL_PAYMENT, align: 'right' },
             { text: row.deductionAmount ? fmt2(row.deductionAmount) : '', w: COL_DEDUCT_AMT, align: 'right' },
           ]
         : [
