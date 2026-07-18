@@ -612,12 +612,21 @@ window.PayoutSchedule = (function () {
   // If a deduction would make Monthly Payment negative, it's auto-split
   // across however many consecutive months keeps each payment >= 0.
   function buildReroutedRows(opts) {
-    const { startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, dedBasis } = opts;
+    const { startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, dedBasis, tiersRemaining } = opts;
     const dates = generateDates(startDate, cycle, totalMonths);
 
-    const y1 = new Date(dedBasis);
-    const y2 = new Date(startDate);
-    const y3 = addYears(startDate, 1);
+    // dedBasis is the next tier actually due (see onGenerate: it already
+    // accounts for insurance years covered before the reroute gap). The
+    // remaining tiers are spaced a year apart from there. tiersRemaining
+    // tells us the real tier number of the first one (e.g. if 1 year was
+    // already covered pre-gap, dedBasis IS Y2, so HC applies from tier 1
+    // here — not tier "Y1").
+    const tiers = [];
+    const n = tiersRemaining == null ? 3 : tiersRemaining;
+    const firstTierNumber = 3 - n + 1; // 1 = Y1, 2 = Y2, 3 = Y3
+    for (let k = 0; k < n; k++) {
+      tiers.push({ date: addYears(dedBasis, k), tierNumber: firstTierNumber + k });
+    }
     const sameMonth = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 
     const out = dates.map((date, i) => ({
@@ -648,12 +657,12 @@ window.PayoutSchedule = (function () {
     }
 
     out.forEach((row, i) => {
-      let amount = 0, label = '';
-      if (sameMonth(row.date, y1)) { amount = insurance; label = 'IP'; }
-      else if (sameMonth(row.date, y2) || sameMonth(row.date, y3)) {
-        if (hcEnabled) { amount = insurance + hcAmount; label = 'IP & HC'; }
-        else { amount = insurance; label = 'IP'; }
-      }
+      const tier = tiers.find(t => sameMonth(row.date, t.date));
+      if (!tier) return;
+      let amount, label;
+      if (tier.tierNumber === 1) { amount = insurance; label = 'IP'; }
+      else if (hcEnabled) { amount = insurance + hcAmount; label = 'IP & HC'; }
+      else { amount = insurance; label = 'IP'; }
       applyDeduction(i, amount, label);
     });
 
@@ -697,19 +706,34 @@ window.PayoutSchedule = (function () {
       const cycle = startDate.getDate() <= 15 ? '15' : 'eom';
       const rerouted = selectedGroup ? !isNonReroutedClient(selectedGroup.row) : false;
 
-      // Y1 anniversary basis: original First Payout Date, except the
-      // never-paid-batch exception which uses Payout Restart Date instead.
-      // (Y2/Y3 for rerouted clients no longer use this — they're anchored
-      // to the Restart Date directly inside buildReroutedRows.)
+      // Y1/Y2/Y3 anniversary basis for rerouted clients: same engine
+      // shared.js uses for the live Payout Generator / IP Deduction
+      // (rerouteAnniversaryBasis + LAST_PAYOUT cutoff), so this PDF always
+      // matches what actually gets deducted. tiersRemaining accounts for
+      // insurance years already covered before the reroute gap (e.g. 12
+      // months paid = Y1 already covered = only Y2/Y3 remain).
       let dedBasis = startDate;
+      let tiersRemaining = 3;
       if (rerouted && selectedGroup) {
         const origFirstPayout = selectedGroup.row.firstPayout;
         const restart = selectedGroup.row.restartDate;
-        dedBasis = (origFirstPayout && isNeverPaidDate(origFirstPayout)) ? (restart || startDate) : (origFirstPayout || startDate);
+        const oldCycle = selectedGroup.row.payoutCycle;
+        if (origFirstPayout && isNeverPaidDate(origFirstPayout)) {
+          dedBasis = restart || startDate;
+          tiersRemaining = 3;
+        } else if (origFirstPayout && restart) {
+          const cutoff = String(oldCycle || '').replace(/\s/g, '').startsWith('15') ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
+          const monthsPaid = Math.max(0, monthsBetween(origFirstPayout, cutoff) + 1);
+          const yearsCovered = Math.min(3, Math.floor(monthsPaid / 12));
+          tiersRemaining = 3 - yearsCovered;
+          dedBasis = rerouteAnniversaryBasis(origFirstPayout, restart, oldCycle);
+        } else {
+          dedBasis = origFirstPayout || startDate;
+        }
       }
 
       let { rows, blocks } = buildScheduleRows({
-        startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted, dedBasis,
+        startDate, cycle, totalMonths, rent, insurance, hcEnabled, hcAmount, containers, rerouted, dedBasis, tiersRemaining,
       });
 
       const includePreReroute = rerouted && document.getElementById('ps-preRerouteToggle').checked;
