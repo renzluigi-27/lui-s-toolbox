@@ -125,6 +125,18 @@
     return true;
   }
 
+  /* ── grouping key: IBAN first, then account no., then name — matches how
+     the Payout Generator itself groups payees, so clients sharing one bank
+     account (2-3 people on the same IBAN) aggregate together correctly
+     instead of showing as separate false-diff rows. ── */
+  function groupKey(iban, account, nameKey) {
+    var ib = normIBAN(iban);
+    if (ib) return 'IBAN:' + ib;
+    var acc = normAccount(account);
+    if (acc) return 'ACC:' + acc;
+    return 'NAME:' + nameKey;
+  }
+
   /* ── fuzzy: token_sort_ratio (Indel/LCS based, ~rapidfuzz) ── */
   function lcsLen(a, b) {
     var m = a.length, n = b.length;
@@ -275,17 +287,26 @@
       if (isPaid(r._raw)) return;
       var disp = String(r.name == null ? '' : r.name).trim();
       if (!disp || /^total$/i.test(disp)) return;
-      var key = normName(r.name);
-      if (!key) return;
+      var nameKey = normName(r.name);
+      if (!nameKey) return;
+      var key = groupKey(r.iban, r.account, nameKey);
       if (!map[key]) {
         map[key] = {
           name: disp, rent: 0, deduction: 0, addition: 0, rentalDue: 0,
           account: null, iban: null, swift: null,
-          _keys: nameKeys(r.name), _norm: key
+          _keys: nameKeys(r.name), _norm: nameKey, _names: {}
         };
         order.push(key);
       }
       var g = map[key];
+      if (!g._names[nameKey]) {
+        g._names[nameKey] = disp;
+        var distinctNames = Object.keys(g._names).map(function (k) { return g._names[k]; });
+        if (distinctNames.length > 1) {
+          g.name = distinctNames.join(' / ');
+          g._keys = g._keys.concat(nameKeys(r.name)).filter(function (v, i, a) { return a.indexOf(v) === i; });
+        }
+      }
       g.rent += toNum(r.rent);
       g.deduction += toNum(r.deduction);
       g.addition += toNum(r.addition);
@@ -309,16 +330,25 @@
     allRows.forEach(function (r) {
       var disp = r.clientName;
       if (!disp) return;
-      var key = normName(disp);
-      if (!key) return;
+      var nameKey = normName(disp);
+      if (!nameKey) return;
+      var key = groupKey(r.iban, r.accountNo, nameKey);
       if (!map[key]) {
         map[key] = {
           name: disp, rental: 0, account: null, iban: null, swift: null,
-          _keys: nameKeys(disp), _norm: key
+          _keys: nameKeys(disp), _norm: nameKey, _names: {}
         };
         order.push(key);
       }
       var g = map[key];
+      if (!g._names[nameKey]) {
+        g._names[nameKey] = disp;
+        var distinctNames = Object.keys(g._names).map(function (k) { return g._names[k]; });
+        if (distinctNames.length > 1) {
+          g.name = distinctNames.join(' / ');
+          g._keys = g._keys.concat(nameKeys(disp)).filter(function (v, i, a) { return a.indexOf(v) === i; });
+        }
+      }
       if (filteredKeys[r.index]) {
         var val = r.isRerouted ? r.revisedRental : r.returnAmt;
         g.rental += toNum(val);
@@ -492,12 +522,20 @@
      BUILD XLSX (ExcelJS — supports fill colors)
      ════════════════════════════════════════════ */
 
+  var THIN_BORDER = {
+    top: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+    left: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+    bottom: { style: 'thin', color: { argb: 'FFB7B7B7' } },
+    right: { style: 'thin', color: { argb: 'FFB7B7B7' } }
+  };
+
   function headerCell(ws, addr, text, color) {
     var cell = ws.getCell(addr);
     cell.value = text;
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
     cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.border = THIN_BORDER;
     return cell;
   }
 
@@ -506,6 +544,12 @@
       var cell = ws.getCell(rowNum, c);
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_DIFF } };
     });
+  }
+
+  function borderRow(ws, rowNum, colCount) {
+    for (var c = 1; c <= colCount; c++) {
+      ws.getCell(rowNum, c).border = THIN_BORDER;
+    }
   }
 
   function buildWorkbook(values, mineNotInAcc, accNotInMine, summary, period) {
@@ -541,6 +585,7 @@
         v.genDue, v.acctDue, v.piIban, v.genIban, v.acctIban,
         v.diffFields
       ];
+      borderRow(ws, rowNum, 14);
       if (v.diff.rental) highlightCells(ws, rowNum, [2, 3, 4]);
       if (v.diff.ded)    highlightCells(ws, rowNum, [5, 6]);
       if (v.diff.add)    highlightCells(ws, rowNum, [7, 8]);
@@ -559,6 +604,7 @@
     var maxLen = Math.max(mineNotInAcc.length, accNotInMine.length);
     for (var i = 0; i < maxLen; i++) {
       ws2.getRow(i + 2).values = [mineNotInAcc[i] || '', accNotInMine[i] || ''];
+      borderRow(ws2, i + 2, 2);
     }
 
     return Promise.resolve(wb);
