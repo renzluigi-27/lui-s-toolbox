@@ -206,10 +206,10 @@
 
   var SYN = {
     name:       ['client name', 'name'],
-    rent:       ['monthly rent', 'monthly rental', 'rent', 'rental'],
+    rent:       ['monthly rent', 'monthly rental', 'rent', 'rental', 'new rental'],
     deduction:  ['deduction'],
     addition:   ['addition'],
-    rentalDue:  ['rental due', 'due'],
+    rentalDue:  ['rental due', 'due', 'rental amount'],
     account:    ['account no', 'account number', 'account', 'acc no'],
     iban:       ['iban no', 'iban', 'iban number'],
     swift:      ['swift code', 'swift']
