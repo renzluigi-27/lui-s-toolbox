@@ -171,8 +171,10 @@ function deductionBasis(firstPayout, restartDate) {
 // not raw calendar time — the pause itself doesn't count toward the
 // 12-month clock. Anchor: months actually paid (First Payout Date up
 // to the last-received cutoff, inclusive) mod 12 gives progress into
-// the in-flight year; the remainder is added to the Restart Date to
-// get the true next anniversary.
+// the in-flight year. The Restart Date payout is itself a real
+// disbursement — same as First Payout Date counting as month 1 — so
+// it fulfills one of the remaining months; only (remaining - 1) more
+// months are needed after the restart to complete the cycle.
 // ─────────────────────────────────────────────────────────────────
 const LAST_PAYOUT_15TH = new Date(2026, 1, 15);   // 15 Feb 2026
 const LAST_PAYOUT_EOM  = new Date(2026, 1, 28);   // 28 Feb 2026
@@ -183,8 +185,10 @@ function rerouteAnniversaryBasis(firstPayout, restartDate, payoutCycle) {
   const cycleStr  = String(payoutCycle || '').replace(/\s/g, '');
   const cutoff    = cycleStr.startsWith('15') ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
   const monthsPaid = Math.max(0, monthsBetween(firstPayout, cutoff) + 1); // inclusive of first-payout month
-  const monthsRemaining = (12 - (monthsPaid % 12)) % 12;
-  return addMonths(restartDate, monthsRemaining);
+  // Restart Date payout covers the first of the remaining months, so only
+  // (remaining - 1) more are needed after it. Always 0-11, no wrap needed.
+  const monthsAfterRestart = 11 - (monthsPaid % 12);
+  return addMonths(restartDate, monthsAfterRestart);
 }
 
 // ─────────────────────────────────────────────────────────────────
