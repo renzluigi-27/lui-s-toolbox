@@ -412,6 +412,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       const sg = sharedGroups[r.groupId];
       if (!sg.deductionCalculated) {
         const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, yr, mo, r.containerType, r.isRerouted);
+        ded.items.forEach(it => { it.container = r.container; });
         sg.deductionAmount = ded.amount; sg.deductionItems = ded.items; sg.deductionCalculated = true;
       }
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
@@ -424,6 +425,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
     } else {
       const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, yr, mo, r.containerType, r.isRerouted);
+      ded.items.forEach(it => { it.container = r.container; });
       g.totalDeduction += ded.amount;
       g.deductionItems.push(...ded.items);
     }
@@ -434,18 +436,24 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     const y1Items        = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
     const ipItems        = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
     const hcApplied      = g.deductionItems.filter(it => it.type === 'HC');
-    const y1WithOthers   = y1Items.length > 0 && ipItems.length > 0;
 
-    const dedNotes = [];
-    if (ipItems.length > 0) {
-      const hasY1 = y1WithOthers, hasY2 = ipItems.some(it => it.type === 'Y2 Insurance'), hasY3 = ipItems.some(it => it.type === 'Y3 Insurance');
-      const typeStr  = [hasY1 ? 'Y1' : null, hasY2 ? 'Y2' : null, hasY3 ? 'Y3' : null].filter(Boolean).join(' & ');
-      const allItems = [...(y1WithOthers ? y1Items : []), ...ipItems];
-      const totalAmt = Math.round(allItems.reduce((s, it) => s + it.amount, 0));
-      const dates    = [...new Set(allItems.map(it => fmtDate(it.firstPayout)))];
-      dedNotes.push(`${typeStr} IP ${totalAmt.toLocaleString()} from ${dates.join(' & ')}`);
-    }
-    if (hcApplied.length > 0) dedNotes.push('HC 1,000 applied — double-check the contract');
+    // Accounts-style note: "{amount}AED deducted for IP & HC -{container}",
+    // one line per container that actually has a deduction this cycle.
+    const byContainer = {};
+    g.deductionItems.forEach(it => {
+      const c = it.container || '—';
+      if (!byContainer[c]) byContainer[c] = { ip: 0, hc: 0 };
+      if (it.type === 'HC') byContainer[c].hc += it.amount;
+      else byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
+    });
+
+    const dedNotes = Object.entries(byContainer)
+      .filter(([, amt]) => amt.ip > 0 || amt.hc > 0)
+      .map(([container, amt]) => {
+        const total = Math.round(amt.ip + amt.hc);
+        const label = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
+        return `${total.toLocaleString()}AED deducted for ${label} -${container}`;
+      });
 
     const agentArr = [...g.agents];
     g.agent = agentArr.length >= 1 ? agentArr[agentArr.length - 1] : '';
