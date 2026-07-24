@@ -89,6 +89,27 @@ const SHARED_CONTAINERS = {
 };
 
 // ─────────────────────────────────────────────────────────────────
+// QUARTERLY / YEARLY OVERRIDES — hardcoded
+// Sheet's "Payout Restart Date [LMC]" cell holds text ("Quarterly" /
+// "Quaterly") instead of a date for these 19 — downstream formula
+// columns (New Payout Cycle, New Contract End) break to #VALUE!.
+// Basis = Oct 2026 per Accounts. PENDING CONFIRMATION.
+// ─────────────────────────────────────────────────────────────────
+const QUARTERLY_CONTAINERS = new Set([
+  'LGMU2024317','LGMU2024322','LGMU2024338','LGMU2244420','LGMU2244435',
+  'LGMU2245180','LGMU2248493','LGMU2248507','LGMU2248512','LGMU2253859',
+  'LGMU2258151','LGMU2254963','LGMU2254979','LGMU2254984','LGMU2254990',
+  'LGMU2265680','LGMU2266877','LGMU2267256','LGMU2273650',
+]);
+const QUARTERLY_BASIS = new Date(2026, 9, 1); // Oct 2026 — PENDING CONFIRMATION
+
+// Sheet already has frequency = "yearly" and a real restart date for
+// these — but no confirmed start date yet, so note only, no gating.
+const YEARLY_CONTAINERS_PENDING = new Set([
+  'LMCU2024424','LMCU2023687','LMCU2023689','LMCU2023119',
+]);
+
+// ─────────────────────────────────────────────────────────────────
 // INIT
 // ─────────────────────────────────────────────────────────────────
 (function init() {
@@ -585,6 +606,9 @@ function parsePaymentSheet(raw) {
     const isSharedContainer = (container && SHARED_CONTAINERS[container] !== undefined)
       || Object.values(SHARED_CONTAINERS).some(names => names.includes(clientName));
 
+    const isHardcodedQuarterly = QUARTERLY_CONTAINERS.has(container);
+    const isYearlyPending      = YEARLY_CONTAINERS_PENDING.has(container);
+
     rows.push({
       index: i,
       clientName,
@@ -620,6 +644,9 @@ function parsePaymentSheet(raw) {
       noIban,
       isSharedContainer,
       pinFilledDown,
+      isHardcodedQuarterly,
+      quarterlyBasis: isHardcodedQuarterly ? QUARTERLY_BASIS : null,
+      isYearlyPending,
       agent: rawAgent,
       updatedTrips:  parseNumber(r[C.updatedTrips]),
       numberOfTrips: parseNumber(r[C.numberOfTrips]),
