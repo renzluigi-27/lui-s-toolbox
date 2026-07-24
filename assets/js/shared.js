@@ -342,6 +342,10 @@ function filterRowsForCycle(rows, cycle, payoutDate) {
     if (r.isFlexible) return false;
     if (r.isRerouted && !r.restartDate) return false;
 
+    // Hardcoded quarterly override — only include the cycle this container
+    // is actually due (quarterly from its basis date, e.g. Oct 2026).
+    if (r.isHardcodedQuarterly && !isDueThisCycle('quarterly', r.quarterlyBasis, payoutDate)) return false;
+
     let c;
     if (r.isRerouted) {
       c = r.restartDate.getDate() <= 15 ? '15' : '30';
@@ -401,6 +405,9 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (freq === 'quarterly' || freq === 'yearly') {
       g.deductionNotes.push(`⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`);
     }
+    if (r.isYearlyPending) {
+      g.deductionNotes.push('⚑ Yearly payout — start date not yet confirmed, verify with accounts');
+    }
 
     const dedBasis = r.isRerouted
       ? rerouteAnniversaryBasis(r.firstPayout, r.restartDate, r.payoutCycle)
@@ -437,8 +444,9 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     const ipItems        = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
     const hcApplied      = g.deductionItems.filter(it => it.type === 'HC');
 
-    // Accounts-style note: "{amount}AED deducted for IP & HC -{container}",
-    // one line per container that actually has a deduction this cycle.
+    // Accounts-style note, grouped by label (IP / HC / IP & HC) with a
+    // single running total and the list of containers it covers — avoids
+    // one line per container when several containers deduct this cycle.
     const byContainer = {};
     g.deductionItems.forEach(it => {
       const c = it.container || '—';
@@ -447,13 +455,18 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       else byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
     });
 
-    const dedNotes = Object.entries(byContainer)
-      .filter(([, amt]) => amt.ip > 0 || amt.hc > 0)
-      .map(([container, amt]) => {
-        const total = Math.round(amt.ip + amt.hc);
-        const label = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
-        return `${total.toLocaleString()}AED deducted for ${label} -${container}`;
-      });
+    const labelGroups = {};
+    Object.entries(byContainer).forEach(([container, amt]) => {
+      if (amt.ip <= 0 && amt.hc <= 0) return;
+      const label = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
+      if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
+      labelGroups[label].total += Math.round(amt.ip + amt.hc);
+      labelGroups[label].containers.push(container);
+    });
+
+    const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
+      `${lg.total.toLocaleString()}AED total deduction for ${label} | ${lg.containers.join(', ')}`
+    );
 
     const agentArr = [...g.agents];
     g.agent = agentArr.length >= 1 ? agentArr[agentArr.length - 1] : '';
