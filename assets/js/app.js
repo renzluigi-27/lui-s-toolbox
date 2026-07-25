@@ -250,7 +250,7 @@ function updateRefHint() {
   const expected = getExpectedRefFilename();
   document.getElementById('refExpected').textContent = expected ? `e.g. ${expected}` : '—';
   const hints = {
-    payout:    'Upload the previous cycle\'s payout export to auto-detect pending HC deductions.',
+    payout:    'Upload the previous cycle\'s payout export to continue collecting any deduction that was capped at rent last cycle.',
     ip:        'Upload the previous cycle\'s IP Deduction export for reference.',
     container: 'Upload the previous cycle\'s Container Info export for reference.',
   };
@@ -653,6 +653,52 @@ function parsePaymentSheet(raw) {
     });
   }
   return rows;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// DEDUCTION CARRYOVER — reads the "DEDUCTION REMAINING" column from a
+// previously-exported payout file (uploaded via the reference upload)
+// so a deduction that was capped at rent last cycle continues being
+// collected this cycle. Format per cell: "container:amount:n/total"
+// segments joined with " | ". Keyed by IBAN, falling back to account no.
+// ─────────────────────────────────────────────────────────────────
+function parseDeductionCarryover(rows) {
+  const map = {};
+  if (!rows || !rows.length || !rows[0]) return map;
+  const headers = rows[0].map(h => h ? String(h).toLowerCase().trim() : '');
+  const ibanCol = headers.findIndex(h => h.includes('iban'));
+  const accCol  = headers.findIndex(h => h.includes('account no'));
+  const remCol  = headers.findIndex(h => h.includes('deduction remaining'));
+  if (remCol === -1) return map; // older reference file — nothing to carry
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const remRaw = r[remCol] ? String(r[remCol]).trim() : '';
+    if (!remRaw) continue;
+    const iban = ibanCol !== -1 && r[ibanCol] ? String(r[ibanCol]).replace(/\s/g, '') : '';
+    const acc  = accCol  !== -1 && r[accCol]  ? String(r[accCol]).trim() : '';
+    const key  = iban || acc;
+    if (!key) continue;
+
+    const entry = {};
+    remRaw.split('|').forEach(seg => {
+      const parts = seg.trim().split(':');
+      if (parts.length < 3) return;
+      const [container, remainingStr, label, labelCode] = parts;
+      const remaining = parseFloat(remainingStr);
+      const m = label.match(/(\d+)\s*\/\s*(\d+)/);
+      if (!container || isNaN(remaining) || !m) return;
+      entry[container.trim()] = {
+        remaining,
+        nextInstallment: parseInt(m[1], 10),
+        totalInstallments: parseInt(m[2], 10),
+        labelCode: labelCode || 'BOTH', // IP / HC / BOTH — older exports default to BOTH
+      };
+    });
+    if (Object.keys(entry).length) map[key] = entry;
+  }
+  return map;
 }
 
 // ─────────────────────────────────────────────────────────────────
