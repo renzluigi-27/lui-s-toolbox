@@ -1,4 +1,43 @@
 /* ─────────────────────────────────────────────────────────────────
+   CHANGELOG
+   ─────────────────────────────────────────────────────────────────
+   2026-07-24
+     - Added "Name as Per EID" as a fallback matching field (Accounts
+       often truncates/typos Column A but has the full correct name
+       in Column B). Folded into aggregate()'s _keys so either name
+       can match.
+     - Split the single "Value Differences" sheet into separate
+       "Local" and "International" sheets, classified by which
+       Accounts sheet the payee matched to (falls back to the Gen
+       file's Client Type column).
+     - Value rows now follow the Accounts payout list's own row
+       order (not alphabetical, not Gen's iteration order).
+     - Added "Accounts Remarks" column (from Accounts' own remarks
+       field, e.g. "Remarks - Deepa") and "Gen Notes" column (from
+       the Payout Generator's own NOTES column) to every comparison
+       sheet, for side-by-side context.
+     - Missing Clients sheet: added a Note column per side flagging
+       when a "missing" name actually has another bank account
+       already matched elsewhere (client has 2+ accounts, only one
+       not yet reconciled) instead of reading as a totally unknown
+       client, plus a Local/International column per entry.
+
+   Earlier (same day, prior pass)
+     - isPaid() fixed: was matching "paid" as a bare word anywhere in
+       a note (false-positive excluded rows like "client already
+       PAID insurance..."). Now requires "PAID" as the field's actual
+       leading status text.
+     - Grouping changed to IBAN-first (falls back to account number,
+       then name) across aggregate() and aggregatePI() — matches how
+       the Payout Generator itself groups payees, so clients sharing
+       one bank account no longer show as false-diff missing entries
+       on both sides.
+     - Added thin borders to every cell in the Excel export so
+       highlighted diff cells are visually distinguishable once
+       downloaded (previously only the fill color existed, hard to
+       see the boundary).
+   ───────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────
    PAYOUT AUDITOR — Toolbox by Renz Luigi
    Self-contained module. Requires SheetJS (global XLSX) for reading
    uploaded files, and ExcelJS (global ExcelJS) for writing the audit
@@ -218,13 +257,17 @@
 
   var SYN = {
     name:       ['client name', 'name'],
+    eidName:    ['name as per eid', 'name as eid', 'eid name'],
     rent:       ['monthly rent', 'monthly rental', 'rent', 'rental', 'new rental'],
     deduction:  ['deduction'],
     addition:   ['addition'],
     rentalDue:  ['rental due', 'due', 'rental amount'],
     account:    ['account no', 'account number', 'account', 'acc no'],
     iban:       ['iban no', 'iban', 'iban number'],
-    swift:      ['swift code', 'swift']
+    swift:      ['swift code', 'swift'],
+    clientType: ['client type'],
+    notes:      ['notes', 'note'],
+    remarks:    ['remarks - deepa', 'remarks', 'remark']
   };
 
   function mapHeaders(aoa) {
@@ -245,7 +288,7 @@
     return { headerRowIdx: headerRowIdx, map: map };
   }
 
-  function parseSheet(ws) {
+  function parseSheet(ws, sheetName) {
     var aoa = sheetToAOA(ws);
     var hm = mapHeaders(aoa);
     if (hm.headerRowIdx < 0) return [];
@@ -256,6 +299,7 @@
       function g(field) { var c = hm.map[field]; return c == null ? null : raw[c]; }
       rows.push({
         name: g('name'),
+        eidName: g('eidName'),
         rent: g('rent'),
         deduction: g('deduction'),
         addition: g('addition'),
@@ -263,6 +307,11 @@
         account: g('account'),
         iban: g('iban'),
         swift: g('swift'),
+        clientType: g('clientType'),
+        notes: g('notes'),
+        remarks: g('remarks'),
+        sheetName: sheetName || null,
+        rowOrder: i,
         _raw: raw
       });
     }
@@ -272,7 +321,7 @@
   function parseAccounts(wb) {
     var all = [];
     wb.SheetNames.forEach(function (sn) {
-      parseSheet(wb.Sheets[sn]).forEach(function (r) { all.push(r); });
+      parseSheet(wb.Sheets[sn], sn).forEach(function (r) { all.push(r); });
     });
     return all;
   }
@@ -294,11 +343,20 @@
         map[key] = {
           name: disp, rent: 0, deduction: 0, addition: 0, rentalDue: 0,
           account: null, iban: null, swift: null,
+          notes: [], remarks: [], clientType: null, sheetName: null, rowOrder: null,
           _keys: nameKeys(r.name), _norm: nameKey, _names: {}
         };
         order.push(key);
       }
       var g = map[key];
+      // Fold "Name as Per EID" into the matching keys too — Accounts sometimes
+      // truncates/typos Column A (Client name) but has the full correct name
+      // in Column B (Name as Per EID). Either one should be able to match.
+      if (r.eidName && String(r.eidName).trim()) {
+        nameKeys(r.eidName).forEach(function (k) {
+          if (k && g._keys.indexOf(k) === -1) g._keys.push(k);
+        });
+      }
       if (!g._names[nameKey]) {
         g._names[nameKey] = disp;
         var distinctNames = Object.keys(g._names).map(function (k) { return g._names[k]; });
@@ -314,6 +372,17 @@
       if (g.account == null && r.account != null && String(r.account).trim() !== '') g.account = r.account;
       if (g.iban == null && r.iban != null && String(r.iban).trim() !== '') g.iban = r.iban;
       if (g.swift == null && r.swift != null && String(r.swift).trim() !== '') g.swift = r.swift;
+      if (r.notes != null && String(r.notes).trim() !== '' && g.notes.indexOf(String(r.notes).trim()) === -1) {
+        g.notes.push(String(r.notes).trim());
+      }
+      if (r.remarks != null && String(r.remarks).trim() !== '' && g.remarks.indexOf(String(r.remarks).trim()) === -1) {
+        g.remarks.push(String(r.remarks).trim());
+      }
+      if (g.clientType == null && r.clientType != null && String(r.clientType).trim() !== '') {
+        g.clientType = String(r.clientType).trim();
+      }
+      if (g.sheetName == null && r.sheetName) g.sheetName = r.sheetName;
+      if (g.rowOrder == null && r.rowOrder != null) g.rowOrder = r.rowOrder;
     });
     return order.map(function (k) { return map[k]; });
   }
@@ -388,6 +457,53 @@
     return bestScore >= 88 ? best : null;
   }
 
+  /* ── Local / International classification — prefer which Accounts sheet
+     the payee was found on (sheet name itself carries the answer), fall
+     back to the Gen file's Client Type column. ── */
+  function classify(genRow, accRow) {
+    if (accRow && accRow.sheetName) {
+      var sn = String(accRow.sheetName).toLowerCase();
+      if (sn.indexOf('international') > -1) return 'International';
+      if (sn.indexOf('local') > -1) return 'Local';
+    }
+    if (genRow && genRow.clientType) {
+      var ct = String(genRow.clientType).toLowerCase();
+      if (ct.indexOf('international') > -1) return 'International';
+      if (ct.indexOf('local') > -1) return 'Local';
+    }
+    return 'Unclassified';
+  }
+
+  /* ── "this client has another bank account already matched elsewhere" —
+     for Missing Clients entries, check whether the same person (by name
+     token overlap) already has a different, matched account so it's clear
+     this is a second/extra account gap, not an unknown client. ── */
+  function surnameTokens(name) {
+    var base = String(name || '').replace(/\([^)]*\)/g, ' ').trim();
+    return base.toLowerCase().split(/\s+/).filter(function (w) { return w.length > 2; });
+  }
+
+  function findOtherAccountNote(missingName, matchedNames) {
+    var mtoks = surnameTokens(missingName);
+    if (!mtoks.length) return '';
+    var bestMatch = null, bestScore = 0;
+    matchedNames.forEach(function (n) {
+      if (n === missingName) return;
+      var ntoks = surnameTokens(n);
+      var overlap = mtoks.filter(function (t) { return ntoks.indexOf(t) > -1; }).length;
+      var minLen = Math.min(mtoks.length, ntoks.length);
+      if (!minLen) return;
+      var overlapRatio = overlap / minLen;
+      var score = tokenSortRatio(missingName.toLowerCase(), n.toLowerCase());
+      if (overlapRatio >= 0.6 && score >= 75 && score > bestScore) {
+        bestScore = score; bestMatch = n;
+      }
+    });
+    return bestMatch
+      ? 'Client has another bank account already matched as "' + bestMatch + '" — this is an additional account not yet reconciled'
+      : '';
+  }
+
   /* ════════════════════════════════════════════
      PERIOD (from generator file name)
      ════════════════════════════════════════════ */
@@ -438,6 +554,10 @@
 
     return {
       client: g.name,
+      class: classify(g, a),
+      rowOrder: a.rowOrder,
+      genNotes: (g.notes || []).join(' | '),
+      acctRemarks: (a.remarks || []).join(' | '),
       piRent: piRent, genRent: g.rent, acctRent: a.rent,
       genDed: g.deduction, acctDed: a.deduction,
       genAdd: g.addition, acctAdd: a.addition,
@@ -467,7 +587,8 @@
     ]).then(function (res) {
       var genWb = res[0], accWb = res[1], piRawRows = res[2];
 
-      var genPayees = aggregate(parseSheet(genWb.Sheets[genWb.SheetNames[0]]));
+      var genSheetName = genWb.SheetNames[0];
+      var genPayees = aggregate(parseSheet(genWb.Sheets[genSheetName], genSheetName));
       var accPayees = aggregate(parseAccounts(accWb));
 
       var period = derivePeriod(files.gen.name, genWb);
@@ -482,16 +603,21 @@
       var piIndex  = buildIndex(piPayees);
 
       var values = [];
-      var mineNotInAcc = [];
-      var accNotInMine = [];
+      var mineNotInAcc = [];       // {name, class}
+      var accNotInMine = [];       // {name, class}
       var matchedAcc = {};
       var matchedCount = 0;
+      var allMatchedNames = [];    // for "another account" cross-reference
 
       genPayees.forEach(function (g) {
         var a = findMatch(g, accIndex);
-        if (!a) { mineNotInAcc.push(g.name); return; }
+        if (!a) {
+          mineNotInAcc.push({ name: g.name, class: classify(g, null) });
+          return;
+        }
         matchedAcc[a._norm] = true;
         matchedCount++;
+        allMatchedNames.push(g.name);
         var p = findMatch(g, piIndex);
         var row = valueRow(g, a, p);
         if (row) values.push(row);
@@ -499,8 +625,24 @@
 
       accPayees.forEach(function (a) {
         if (matchedAcc[a._norm]) return;
-        accNotInMine.push(a.name);
+        accNotInMine.push({ name: a.name, class: classify(null, a) });
       });
+
+      // cross-reference: does a "missing" name have another account already matched?
+      mineNotInAcc.forEach(function (m) { m.note = findOtherAccountNote(m.name, allMatchedNames); });
+      accNotInMine.forEach(function (m) { m.note = findOtherAccountNote(m.name, allMatchedNames); });
+
+      // sort value rows to follow the Accounts payout list's own row order
+      values.sort(function (x, y) {
+        var ox = x.rowOrder == null ? Infinity : x.rowOrder;
+        var oy = y.rowOrder == null ? Infinity : y.rowOrder;
+        if (ox !== oy) return ox - oy;
+        return x.client.localeCompare(y.client);
+      });
+
+      var localValues = values.filter(function (v) { return v.class === 'Local'; });
+      var intlValues  = values.filter(function (v) { return v.class === 'International'; });
+      var otherValues = values.filter(function (v) { return v.class !== 'Local' && v.class !== 'International'; });
 
       var summary = {
         matched: matchedCount,
@@ -511,9 +653,13 @@
 
       lastFilename = 'PAYOUT_AUDIT_' + (period ? period.token : 'OUTPUT') + '.xlsx';
 
-      return buildWorkbook(values, mineNotInAcc, accNotInMine, summary, period).then(function (wb) {
+      return buildWorkbook(localValues, intlValues, otherValues, mineNotInAcc, accNotInMine, summary, period).then(function (wb) {
         lastWb = wb;
-        return { values: values, mineNotInAcc: mineNotInAcc, accNotInMine: accNotInMine, summary: summary, period: period };
+        return {
+          values: values, localValues: localValues, intlValues: intlValues,
+          mineNotInAcc: mineNotInAcc, accNotInMine: accNotInMine,
+          summary: summary, period: period
+        };
       });
     });
   }
@@ -552,16 +698,13 @@
     }
   }
 
-  function buildWorkbook(values, mineNotInAcc, accNotInMine, summary, period) {
-    var wb = new window.ExcelJS.Workbook();
-
-    /* ── Sheet 1: Value Differences ── */
-    var ws = wb.addWorksheet('Value Differences');
+  function buildComparisonSheet(wb, sheetName, values) {
+    var ws = wb.addWorksheet(sheetName);
     ws.columns = [
       { width: 34 }, { width: 12 }, { width: 12 }, { width: 12 },
       { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 },
       { width: 12 }, { width: 12 }, { width: 24 }, { width: 24 }, { width: 24 },
-      { width: 18 }
+      { width: 18 }, { width: 40 }, { width: 45 }
     ];
 
     ws.mergeCells('A1:A2'); headerCell(ws, 'A1', 'Client', COLOR_HEADER1);
@@ -571,6 +714,8 @@
     ws.mergeCells('I1:J1'); headerCell(ws, 'I1', 'Rental Due', COLOR_HEADER1);
     ws.mergeCells('K1:M1'); headerCell(ws, 'K1', 'IBAN', COLOR_HEADER1);
     ws.mergeCells('N1:N2'); headerCell(ws, 'N1', 'Diff Fields', COLOR_HEADER1);
+    ws.mergeCells('O1:O2'); headerCell(ws, 'O1', 'Accounts Remarks', COLOR_HEADER1);
+    ws.mergeCells('P1:P2'); headerCell(ws, 'P1', 'Gen Notes', COLOR_HEADER1);
 
     ['B2:PI','C2:Gen','D2:Acct','E2:Gen','F2:Acct','G2:Gen','H2:Acct','I2:Gen','J2:Acct','K2:PI','L2:Gen','M2:Acct'].forEach(function (pair) {
       var parts = pair.split(':');
@@ -583,9 +728,9 @@
         v.client, v.piRent, v.genRent, v.acctRent,
         v.genDed, v.acctDed, v.genAdd, v.acctAdd,
         v.genDue, v.acctDue, v.piIban, v.genIban, v.acctIban,
-        v.diffFields
+        v.diffFields, v.acctRemarks || '-', v.genNotes || '-'
       ];
-      borderRow(ws, rowNum, 14);
+      borderRow(ws, rowNum, 16);
       if (v.diff.rental) highlightCells(ws, rowNum, [2, 3, 4]);
       if (v.diff.ded)    highlightCells(ws, rowNum, [5, 6]);
       if (v.diff.add)    highlightCells(ws, rowNum, [7, 8]);
@@ -595,16 +740,34 @@
     });
 
     ws.views = [{ state: 'frozen', ySplit: 2, xSplit: 1 }];
+    return ws;
+  }
 
-    /* ── Sheet 2: Missing Clients ── */
+  function buildWorkbook(localValues, intlValues, otherValues, mineNotInAcc, accNotInMine, summary, period) {
+    var wb = new window.ExcelJS.Workbook();
+
+    buildComparisonSheet(wb, 'Local', localValues);
+    buildComparisonSheet(wb, 'International', intlValues);
+    if (otherValues.length) buildComparisonSheet(wb, 'Unclassified', otherValues);
+
+    /* ── Missing Clients — now with per-entry note + classification ── */
     var ws2 = wb.addWorksheet('Missing Clients');
-    ws2.columns = [{ width: 42 }, { width: 42 }];
+    ws2.columns = [{ width: 38 }, { width: 38 }, { width: 55 }, { width: 55 }, { width: 16 }, { width: 16 }];
     headerCell(ws2, 'A1', 'In My Payout, Not In Accounts List', COLOR_HEADER1);
     headerCell(ws2, 'B1', 'In Accounts List, Not In My Payout', COLOR_HEADER1);
+    headerCell(ws2, 'C1', 'Note (Col A)', COLOR_HEADER1);
+    headerCell(ws2, 'D1', 'Note (Col B)', COLOR_HEADER1);
+    headerCell(ws2, 'E1', 'Local/Intl (Col A)', COLOR_HEADER1);
+    headerCell(ws2, 'F1', 'Local/Intl (Col B)', COLOR_HEADER1);
     var maxLen = Math.max(mineNotInAcc.length, accNotInMine.length);
     for (var i = 0; i < maxLen; i++) {
-      ws2.getRow(i + 2).values = [mineNotInAcc[i] || '', accNotInMine[i] || ''];
-      borderRow(ws2, i + 2, 2);
+      var mA = mineNotInAcc[i], mB = accNotInMine[i];
+      ws2.getRow(i + 2).values = [
+        mA ? mA.name : '', mB ? mB.name : '',
+        mA ? (mA.note || '-') : '', mB ? (mB.note || '-') : '',
+        mA ? mA.class : '', mB ? mB.class : ''
+      ];
+      borderRow(ws2, i + 2, 6);
     }
 
     return Promise.resolve(wb);
@@ -747,11 +910,19 @@
     var maxLen = Math.max(mineNotInAcc.length, accNotInMine.length);
     var rows = '';
     for (var i = 0; i < maxLen; i++) {
-      rows += '<tr><td class="td-name">' + (mineNotInAcc[i] || '') + '</td><td class="td-name">' + (accNotInMine[i] || '') + '</td></tr>';
+      var mA = mineNotInAcc[i], mB = accNotInMine[i];
+      var aName = mA ? esc2(mA.name) + (mA.note ? '<br><span class="td-hint">' + esc2(mA.note) + '</span>' : '') : '';
+      var bName = mB ? esc2(mB.name) + (mB.note ? '<br><span class="td-hint">' + esc2(mB.note) + '</span>' : '') : '';
+      rows += '<tr><td class="td-name">' + aName + '</td><td class="td-name">' + bName + '</td></tr>';
     }
     return '<div class="card"><div class="results-header"><span class="results-title">Missing clients</span></div>' +
       '<div class="table-wrap"><table><thead><tr><th>In My Payout, Not In Accounts List</th><th>In Accounts List, Not In My Payout</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>';
+  }
+
+  function esc2(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   function statBox(val, lbl) {
