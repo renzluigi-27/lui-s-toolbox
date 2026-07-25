@@ -260,6 +260,31 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.11</strong> — Deduction split fix, quarterly/yearly overrides<br>
+              <div style="padding-left:1rem;">
+                • Fixed a bug where a deduction larger than a client's monthly rent produced a negative Rental Due — deduction is now capped at that cycle's rent per container, and Rental Due never goes below 0<br>
+                • Uncollected deduction carries forward automatically via a new DEDUCTION REMAINING export column — re-uploading that export as next cycle's reference file continues collecting it until fully paid<br>
+                • Notes now show which container a split deduction belongs to, with an installment count (e.g. "1,800AED deducted for IP -LGMU2245175 (1/2) — 700AED remaining, continue next cycle"), and confirm once fully collected — no more installment count for already-settled deductions<br>
+                • 19 specific containers with broken restart-date data hardcoded to compute as quarterly, starting Oct 2026 (pending final confirmation from Accounts)<br>
+                • 4 specific containers hardcoded with a "yearly payout, start date not yet confirmed" note — flagged only, no computation change<br>
+                • Deduction notes consolidated further — one total per type (IP / HC / IP &amp; HC) with a container list, instead of one line per container<br>
+              </div><br>
+
+              <strong>Version 2.0.10</strong> — Reroute anniversary fix, audit grouping<br>
+              <div style="padding-left:1rem;">
+                • Fixed a bug in the reroute anniversary formula where months-paid being an exact multiple of 12 (0, 12, 24) computed a full year late — affected roughly 783 of 4,303 rerouted contracts<br>
+                • Deduction notes changed to match Accounts' own style, grouped by container<br>
+                • Payout Auditor: fixed isPaid() incorrectly matching "paid" anywhere in a note instead of only as the field's leading status<br>
+                • Payout Auditor: switched to IBAN-first grouping (falls back to account number, then name) — matches how the Payout Generator itself groups payees, fixing false "missing client" diffs for shared bank accounts<br>
+                • Payout Auditor: border styling fixed on highlighted diff cells<br>
+              </div><br>
+
+              <strong>Version 2.0.9</strong> — Payout Schedule pre-reroute history<br>
+              <div style="padding-left:1rem;">
+                • Payout Schedule: added a Pre-Reroute History section for rerouted clients — toggle checkbox, auto-computed "Payouts Made Before Reroute," and a gap note, so the PDF schedule can show the client's complete history from the very beginning<br>
+                • Payout Schedule: fixed buildReroutedRows() — it had its own separate, older deduction-date logic that didn't match shared.js's reroute formula; now uses the same engine so the PDF always matches what the Payout Generator actually deducts<br>
+              </div><br>
+
               <strong>Version 2.0.8</strong> — Payout &amp; IP Deduction logic fixes<br>
               <div style="padding-left:1rem;">
                 • Quarterly/Yearly frequency clients now appear every cycle at the base monthly rental — no more due-month filtering, no ×3/×12 multiplier — flagged with a "verify rental amount with accounts" note instead<br>
