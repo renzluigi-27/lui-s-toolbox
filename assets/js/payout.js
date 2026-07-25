@@ -7,13 +7,102 @@
 // and payout-specific extra notes/flags. Quarterly/yearly clients keep
 // their monthly rental figure — no ×3/×12 multiplier — a note in
 // shared.js flags the frequency for manual verification with accounts.
+//
+// DEDUCTION SPLIT / CARRYOVER — if a container's IP/HC deduction this
+// cycle is more than that client's rent can cover, the deduction is
+// capped at rent (Rental Due never goes negative) and the remainder is
+// written to the DEDUCTION REMAINING export column, per container, as
+// "container:amount:n/total". Uploading that export as next cycle's
+// reference file (via parseDeductionCarryover in app.js) picks the
+// remainder back up and continues collecting it until fully paid.
 // ─────────────────────────────────────────────────────────────────
+
+function computeDeductionSplit(g, rent, carryover) {
+  rent = Math.max(0, rent || 0);
+
+  const containersOrder = [...new Set(g.containers)];
+  const due = {};
+
+  containersOrder.forEach(c => {
+    const newAmt   = (g.dedByContainer && g.dedByContainer[c]) ? g.dedByContainer[c] : { ip: 0, hc: 0 };
+    const carried  = carryover[c];
+    const newTotal = Math.round((newAmt.ip || 0) + (newAmt.hc || 0));
+    if (newTotal <= 0 && !carried) return; // nothing due for this container this cycle
+
+    due[c] = {
+      ip: newAmt.ip || 0, hc: newAmt.hc || 0,
+      newTotal,
+      carriedRemaining: carried ? carried.remaining : 0,
+      isContinuing: !!carried,
+      nextInstallment: carried ? carried.nextInstallment : null,
+      totalInstallments: carried ? carried.totalInstallments : null,
+      carriedLabelCode: carried ? carried.labelCode : null,
+    };
+  });
+
+  let available = rent;
+  let appliedDeduction = 0;
+  const noteLines = [];
+  const remainingExport = [];
+  const cleanContainers = {}; // label -> { total, containers[] } — no split needed, grouped as one line
+
+  Object.keys(due).forEach(c => {
+    const d = due[c];
+    const totalOwed = Math.round(d.newTotal + d.carriedRemaining);
+    const freshLabelCode = d.ip > 0 && d.hc > 0 ? 'BOTH' : (d.hc > 0 ? 'HC' : (d.ip > 0 ? 'IP' : null));
+    // A continuing installment keeps whatever type it started as; a brand
+    // new deduction this cycle (even alongside a carryover) uses the fresh type.
+    const labelCode = freshLabelCode || d.carriedLabelCode || 'BOTH';
+    const label = labelCode === 'BOTH' ? 'IP & HC' : labelCode;
+    const pay = Math.min(available, totalOwed);
+    available -= pay;
+    appliedDeduction += pay;
+    const remaining = Math.round(totalOwed - pay);
+
+    if (!d.isContinuing && remaining <= 0) {
+      if (!cleanContainers[label]) cleanContainers[label] = { total: 0, containers: [] };
+      cleanContainers[label].total += pay;
+      cleanContainers[label].containers.push(c);
+      return;
+    }
+
+    let thisInstallmentNum, totalInstallments;
+    if (d.isContinuing) {
+      thisInstallmentNum = d.nextInstallment;
+      totalInstallments  = d.totalInstallments;
+    } else {
+      totalInstallments  = Math.max(2, Math.ceil(totalOwed / (rent || 1)));
+      thisInstallmentNum = 1;
+    }
+    const installmentLabel = `${thisInstallmentNum}/${totalInstallments}`;
+
+    if (remaining <= 0) {
+      noteLines.push(`${Math.round(pay).toLocaleString()}AED deducted for ${label} -${c} (${installmentLabel}) — fully collected`);
+    } else {
+      noteLines.push(`${Math.round(pay).toLocaleString()}AED deducted for ${label} -${c} (${installmentLabel}) — ${remaining.toLocaleString()}AED remaining, continue next cycle`);
+      remainingExport.push(`${c}:${remaining}:${thisInstallmentNum + 1}/${totalInstallments}:${labelCode}`);
+    }
+  });
+
+  const consolidatedParts = Object.entries(cleanContainers).map(([label, grp]) =>
+    `${Math.round(grp.total).toLocaleString()}AED total deduction for ${label} | ${grp.containers.join(', ')}`
+  );
+
+  return {
+    appliedDeduction: Math.round(appliedDeduction),
+    rentalDue: Math.round(rent - appliedDeduction),
+    noteLines,
+    consolidatedLine: consolidatedParts.length ? consolidatedParts.join(' | ') : null,
+    remainingExport,
+  };
+}
 
 function runPayout(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
   const emailRecords = emailData.length ? buildEmailRecords() : [];
+  const carryoverMap = (refData && refData.length) ? parseDeductionCarryover(refData) : {};
 
   const filtered = filterRowsForCycle(paymentData, cycle, payoutDate);
 
@@ -59,14 +148,20 @@ function runPayout(yr, mo, cycle) {
       ? (() => { const m = balanceNoteArr.join(' ').match(/[\d]+(?:\.\d+)?/); return m ? parseFloat(m[0]) : null; })() : null;
     const hasBalance = balanceNumeric !== null;
 
-    const allNotes = [g.note, ...balanceNoteArr].filter(Boolean).join(' | ');
+    const split = computeDeductionSplit(g, totalReturn, carryoverMap[key] || {});
+
+    const flagNotes = [...new Set(g.deductionNotes)];
+    const allNotes = [split.consolidatedLine, ...split.noteLines, ...flagNotes, ...balanceNoteArr]
+      .filter(Boolean).join(' | ');
 
     const em = lookupEmailRecord(emailRecords, g.clientName);
     const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
 
     return {
       ...g, totalReturn, totalCost,
-      rentalDue: hasBalance ? null : (totalReturn - g.totalDeduction),
+      totalDeduction: split.appliedDeduction,
+      rentalDue: hasBalance ? null : split.rentalDue,
+      deductionRemainingExport: split.remainingExport.join(' | '),
       balanceAddition: balanceNumeric, note: allNotes,
       emailSheetClientName: em ? em.emailSheetClientName : '',
       email1: emEmail1, email2: emEmail2,
@@ -103,6 +198,10 @@ function runPayout(yr, mo, cycle) {
   mismatchFlags.forEach(f => {
     flagLines.push(`🔴 Duplicate container mismatch: ${f.container} — contracts ${f.contractNos.join(' / ')} — clients: ${f.clientNames.join(' / ')} — manual check required`);
   });
+  const carriedCount = results.filter(r => r.deductionRemainingExport).length;
+  if (carriedCount > 0) {
+    flagLines.push(`⚑ ${carriedCount} payee(s) with a deduction carried to next cycle — upload this export as next cycle's reference file to continue collecting`);
+  }
   renderFlags(flagLines);
 
   document.getElementById('tableHead').innerHTML = `<tr>
@@ -137,7 +236,7 @@ function exportPayout() {
     'CLIENT TYPE', 'CLIENT NAME',
     'CLIENT NAME (EMAIL SHEET)', 'EMAIL 1', 'EMAIL 2', 'MOBILE', 'NATIONALITY', 'EID/PASSPORT/NATIONAL CARD',
     'UNIT', 'FIRST PAYOUT', 'TOTAL COST',
-    'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE',
+    'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE', 'DEDUCTION REMAINING',
     'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'NOTES',
   ];
 
@@ -150,6 +249,7 @@ function exportPayout() {
     r.totalReturn,
     r.totalDeduction || null, r.balanceAddition || null,
     r.rentalDue !== null ? r.rentalDue : null,
+    r.deductionRemainingExport || '',
     r.accountNo, r.iban, r.swift, r.bankName, r.agent || '', r.note || '',
   ]);
 
@@ -157,14 +257,14 @@ function exportPayout() {
   const totCost     = results.reduce((s,r) => s + (r.totalCost || 0), 0);
   const totDeduct   = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue      = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['','TOTAL','','','','','','','','', totCost, totReturn, totDeduct,'', totDue,'','','','','','']);
+  rows.push(['','TOTAL','','','','','','','','', totCost, totReturn, totDeduct,'', totDue,'','','','','','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = [
     {wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},
     {wch:8},{wch:14},{wch:14},
-    {wch:14},{wch:12},{wch:12},{wch:14},
+    {wch:14},{wch:12},{wch:12},{wch:14},{wch:30},
     {wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50},
   ];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} - ${cycle === '15' ? '15th' : 'EOM'}`.substring(0, 31));
