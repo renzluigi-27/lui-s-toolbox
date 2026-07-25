@@ -260,6 +260,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.12</strong> — Email Matcher agent email resolution<br>
+              <div style="padding-left:1rem;">
+                • Added a 3rd upload box (Payment Info Sheet) — parses client name + agent name (col AL) to resolve AGENT EMAIL via the hardcoded map, with a default fallback<br>
+                • New AGENT EMAIL column added to output table and export<br>
+                • checkReady() now requires all 3 files before Generate is enabled<br>
+              </div><br>
+              
               <strong>Version 2.0.11</strong> — Deduction split fix, quarterly/yearly overrides<br>
               <div style="padding-left:1rem;">
                 • Fixed a bug where a deduction larger than a client's monthly rent produced a negative Rental Due — deduction is now capped at that cycle's rent per container, and Rental Due never goes below 0<br>
