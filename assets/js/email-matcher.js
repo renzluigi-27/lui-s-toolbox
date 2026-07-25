@@ -14,6 +14,8 @@ window.EmailMatcherStandalone = (function () {
   let selectedSheetNames = [];
   let emailData = [];
   let emailRecords = [];
+  let paymentInfoLoaded = false;
+  let paymentAgentMap = new Map(); // normName/normParen -> agent name (from Payment Info Sheet, col AL)
   let outputBySheet = {};       // { sheetName: { results: [...] } }
 
   const OUTPUT_COLUMNS = [
@@ -23,7 +25,33 @@ window.EmailMatcherStandalone = (function () {
     'NATIONALITY',
     'EMAIL 1',
     'EMAIL 2',
+    'AGENT EMAIL',
   ];
+
+  // Hardcoded source of truth for agent -> email. Payment Info Sheet (col AL)
+  // only supplies the agent NAME; the email always comes from this map.
+  const AGENT_EMAIL_MAP = {
+    'faiqa':             'bdm@legendmaritime.com',
+    'naushad':           'manager@coraluae.com',
+    'numan':             'wm@aim-bc.com',
+    'kate':              'wm@aim-bc.com',
+    'ali altawel':       'ali_altawel@legendmaritime.com',
+    'mustafa':           'ali_altawel@legendmaritime.com',
+    'janagan':           'janagan@legendmaritime.com',
+    'christian':         'christian@legendmaritime.com',
+    'himali':            'renz@legendmaritime.com',
+    'ms. sagithra nath': 'cfo@legendmaritime.com',
+    'sagithra nath':     'cfo@legendmaritime.com',
+    'mag':               'bdm@legendmaritime.com',
+    'mr. ahnaf':         'info@legendmaritime.com',
+    'ahnaf':             'info@legendmaritime.com',
+    'ruheed':            'manager@coraluae.com',
+    'athul':             'manager@coraluae.com',
+    'sanjana':           'janagan@legendmaritime.com',
+    'khadija':           'khadija@coraluae.com',
+    'renz':              'renz@legendmaritime.com',
+  };
+  const DEFAULT_AGENT_EMAIL = 'info@legendmaritime.com'; // agent name not in map above
 
   // ── Helpers ──────────────────────────────────────────────────
 
@@ -103,6 +131,53 @@ window.EmailMatcherStandalone = (function () {
     const normOuter  = normalizeName(rawClientName.replace(/\([^)]*\)/g, ' ').trim(), true);
     const find = n => emailRecords.find(r => r.normName === n || r.normParen === n);
     return (normParen && find(normParen)) || find(normOuter) || find(norm) || null;
+  }
+
+  // ── Payment Info Sheet handling (agent name → agent email) ────
+  // Client name = col 1 (B), Agent Closing = col 37 (AL). Agent column
+  // uses fill-down since merged cells leave it blank on repeat rows.
+
+  function handlePaymentInfoFile(buf, filename) {
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+    const dataRows = rows.slice(1);
+
+    paymentAgentMap = new Map();
+    let lastAgent = '', lastClientName = '';
+
+    dataRows.forEach(row => {
+      const rawName = row[1] != null ? String(row[1]).trim() : '';
+      if (rawName && rawName !== lastClientName) { lastAgent = ''; lastClientName = rawName; }
+
+      const cellAgent = row[37] != null ? String(row[37]).trim() : '';
+      if (cellAgent) lastAgent = cellAgent;
+      const agent = cellAgent || lastAgent;
+
+      if (rawName && agent) {
+        const parenMatch = rawName.match(/\(([^)]+)\)/);
+        const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
+        const normName   = normalizeName(mainName || rawName, true);
+        const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+        if (!paymentAgentMap.has(normName)) paymentAgentMap.set(normName, agent);
+        if (normParen && !paymentAgentMap.has(normParen)) paymentAgentMap.set(normParen, agent);
+      }
+    });
+
+    paymentInfoLoaded = true;
+    q('#em-file3-loaded').classList.add('show');
+    q('#em-file3-loaded-name').textContent = filename;
+    checkReady();
+  }
+
+  function resolveAgentEmail(rawClientName) {
+    const parenMatch = rawClientName.match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(rawClientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+
+    const agent = (normParen && paymentAgentMap.get(normParen)) || paymentAgentMap.get(normOuter) || '';
+    if (!agent) return '';
+    return AGENT_EMAIL_MAP[agent.toLowerCase().trim()] || DEFAULT_AGENT_EMAIL;
   }
 
   // ── File 1 handling ──────────────────────────────────────────
@@ -195,13 +270,15 @@ window.EmailMatcherStandalone = (function () {
   function checkReady() {
     const btn  = q('#em-generate-btn');
     const hint = q('#em-generate-hint');
-    const ready = file1Sheets.length > 0 && emailData.length > 0;
+    const ready = file1Sheets.length > 0 && emailData.length > 0 && paymentInfoLoaded;
     btn.disabled = !ready;
     hint.textContent = ready
       ? 'Ready to generate'
       : file1Sheets.length === 0
         ? 'Upload File 1 (with CLIENT NAME column) to continue'
-        : 'Upload email sheet to continue';
+        : emailData.length === 0
+          ? 'Upload email sheet to continue'
+          : 'Upload Payment Info Sheet to continue';
   }
 
   // ── Generate ─────────────────────────────────────────────────
@@ -229,6 +306,7 @@ window.EmailMatcherStandalone = (function () {
         if (rawClientName) matched = lookupMatch(rawClientName);
 
         const [email1, email2] = matched ? splitEmails(matched.clientEmailRaw) : ['', ''];
+        const agentEmail = rawClientName ? resolveAgentEmail(rawClientName) : '';
 
         return {
           clientType,
@@ -237,7 +315,7 @@ window.EmailMatcherStandalone = (function () {
           eidPassportName: matched ? matched.emailSheetClientNameNoPrefix : '',
           nationality: matched ? matched.nationality : '',
           deduction,
-          email1, email2,
+          email1, email2, agentEmail,
           matched: !!matched,
         };
       });
@@ -262,7 +340,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY'];
+    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -274,6 +352,7 @@ window.EmailMatcherStandalone = (function () {
           <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
           <td>${esc(r.nationality || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.agentEmail || '')}</td>
         </tr>`;
       }).join('');
 
@@ -311,6 +390,7 @@ window.EmailMatcherStandalone = (function () {
         'NATIONALITY':                  r.nationality,
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
+        'AGENT EMAIL':                  r.agentEmail,
       }));
 
       const ws = XLSX.utils.json_to_sheet(exportRows, { header: OUTPUT_COLUMNS });
@@ -355,34 +435,37 @@ window.EmailMatcherStandalone = (function () {
   function buildUI() {
     const mount = document.getElementById(mountId);
     mount.innerHTML = `
-      <div class="card">
-        <div class="section-label">Upload files</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div>
-            <div style="font-size:11px;font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">File 1 <span class="optional-label">needs CLIENT NAME column</span></div>
-            <div class="upload-zone upload-zone-sm" id="em-zone-file1">
-              <input type="file" accept=".xlsx,.xls" id="em-input-file1">
-              <div class="upload-zone-text"><strong>Click to upload</strong><span>any file</span></div>
-            </div>
-            <div class="file-loaded" id="em-file1-loaded">
-              <span>✓</span>
-              <div>
-                <div class="file-loaded-name" id="em-file1-loaded-name">—</div>
-                <div class="file-loaded-meta" id="em-file1-loaded-meta">—</div>
-              </div>
-            </div>
-            <div class="msg" id="em-file1-error"></div>
+      <div class="upload-row">
+        <div class="card">
+          <div class="section-label">File 1 <span class="optional-label">needs CLIENT NAME column</span></div>
+          <div class="upload-zone upload-zone-sm" id="em-zone-file1">
+            <input type="file" accept=".xlsx,.xls" id="em-input-file1" />
+            <div class="upload-zone-text"><strong>Click to upload</strong><span>any file</span></div>
           </div>
-          <div>
-            <div style="font-size:11px;font-weight:500;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Email Sheet</div>
-            <div class="upload-zone upload-zone-sm" id="em-zone-file2">
-              <input type="file" accept=".xlsx,.xls" id="em-input-file2">
-              <div class="upload-zone-text"><strong>Click to upload</strong><span>email sheet</span></div>
-            </div>
-            <div class="file-loaded" id="em-file2-loaded">
-              <span>✓</span>
-              <div class="file-loaded-name" id="em-file2-loaded-name">—</div>
-            </div>
+          <div class="file-loaded" id="em-file1-loaded">
+            <span class="file-loaded-name" id="em-file1-loaded-name"></span>
+            <span class="file-loaded-meta" id="em-file1-loaded-meta"></span>
+          </div>
+          <div class="msg" id="em-file1-error"></div>
+        </div>
+        <div class="card">
+          <div class="section-label">Email Sheet</div>
+          <div class="upload-zone upload-zone-sm" id="em-zone-file2">
+            <input type="file" accept=".xlsx,.xls" id="em-input-file2" />
+            <div class="upload-zone-text"><strong>Click to upload</strong><span>email sheet</span></div>
+          </div>
+          <div class="file-loaded" id="em-file2-loaded">
+            <span class="file-loaded-name" id="em-file2-loaded-name"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="section-label">Payment Info Sheet</div>
+          <div class="upload-zone upload-zone-sm" id="em-zone-file3">
+            <input type="file" accept=".xlsx,.xls" id="em-input-file3" />
+            <div class="upload-zone-text"><strong>Click to upload</strong><span>.xlsx</span></div>
+          </div>
+          <div class="file-loaded" id="em-file3-loaded">
+            <span class="file-loaded-name" id="em-file3-loaded-name"></span>
           </div>
         </div>
       </div>
@@ -429,6 +512,7 @@ window.EmailMatcherStandalone = (function () {
     buildUI();
     setupUpload('em-input-file1', 'em-zone-file1', handleFile1);
     setupUpload('em-input-file2', 'em-zone-file2', handleEmailFile);
+    setupUpload('em-input-file3', 'em-zone-file3', handlePaymentInfoFile);
 
     q('#em-generate-btn').addEventListener('click', generate);
     q('#em-export-btn').addEventListener('click', exportResults);
