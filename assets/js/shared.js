@@ -455,6 +455,11 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       else byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
     });
 
+    // Exposed so payout.js can cap deductions at that cycle's rent and
+    // carry any remainder forward per container — shared.js itself stays
+    // rent-agnostic (IP Deduction tool uses the uncapped totals below).
+    g.dedByContainer = byContainer;
+
     const labelGroups = {};
     Object.entries(byContainer).forEach(([container, amt]) => {
       if (amt.ip <= 0 && amt.hc <= 0) return;
