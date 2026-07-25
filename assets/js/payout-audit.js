@@ -1,43 +1,4 @@
 /* ─────────────────────────────────────────────────────────────────
-   CHANGELOG
-   ─────────────────────────────────────────────────────────────────
-   2026-07-24
-     - Added "Name as Per EID" as a fallback matching field (Accounts
-       often truncates/typos Column A but has the full correct name
-       in Column B). Folded into aggregate()'s _keys so either name
-       can match.
-     - Split the single "Value Differences" sheet into separate
-       "Local" and "International" sheets, classified by which
-       Accounts sheet the payee matched to (falls back to the Gen
-       file's Client Type column).
-     - Value rows now follow the Accounts payout list's own row
-       order (not alphabetical, not Gen's iteration order).
-     - Added "Accounts Remarks" column (from Accounts' own remarks
-       field, e.g. "Remarks - Deepa") and "Gen Notes" column (from
-       the Payout Generator's own NOTES column) to every comparison
-       sheet, for side-by-side context.
-     - Missing Clients sheet: added a Note column per side flagging
-       when a "missing" name actually has another bank account
-       already matched elsewhere (client has 2+ accounts, only one
-       not yet reconciled) instead of reading as a totally unknown
-       client, plus a Local/International column per entry.
-
-   Earlier (same day, prior pass)
-     - isPaid() fixed: was matching "paid" as a bare word anywhere in
-       a note (false-positive excluded rows like "client already
-       PAID insurance..."). Now requires "PAID" as the field's actual
-       leading status text.
-     - Grouping changed to IBAN-first (falls back to account number,
-       then name) across aggregate() and aggregatePI() — matches how
-       the Payout Generator itself groups payees, so clients sharing
-       one bank account no longer show as false-diff missing entries
-       on both sides.
-     - Added thin borders to every cell in the Excel export so
-       highlighted diff cells are visually distinguishable once
-       downloaded (previously only the fill color existed, hard to
-       see the boundary).
-   ───────────────────────────────────────────────────────────────── */
-/* ─────────────────────────────────────────────────────────────────
    PAYOUT AUDITOR — Toolbox by Renz Luigi
    Self-contained module. Requires SheetJS (global XLSX) for reading
    uploaded files, and ExcelJS (global ExcelJS) for writing the audit
