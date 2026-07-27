@@ -17,6 +17,7 @@ window.EmailMatcherStandalone = (function () {
   let paymentInfoLoaded = false;
   let paymentAgentMap = new Map(); // normName/normParen -> agent name (from Payment Info Sheet, col AL)
   let paymentNameBridge = new Map(); // norm variant -> alt norm variant (inside/outside parenthesis)
+  let paymentAllNames = new Set(); // every normalized standalone name seen in the sheet
   let outputBySheet = {};       // { sheetName: { results: [...] } }
 
   const OUTPUT_COLUMNS = [
@@ -148,6 +149,7 @@ window.EmailMatcherStandalone = (function () {
 
     paymentAgentMap = new Map();
     paymentNameBridge = new Map(); // norm variant -> alt norm variant (paren <-> outer), from same row
+    paymentAllNames = new Set();   // every normalized standalone name seen in the sheet
     let lastAgent = '', lastClientName = '';
 
     dataRows.forEach(row => {
@@ -163,6 +165,9 @@ window.EmailMatcherStandalone = (function () {
         const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
         const normName   = normalizeName(mainName || rawName, true);
         const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+
+        paymentAllNames.add(normName);
+        if (normParen) paymentAllNames.add(normParen);
 
         if (agent) {
           paymentAgentMap.set(normName, agent);
@@ -205,6 +210,48 @@ window.EmailMatcherStandalone = (function () {
     const alt = (normParen && paymentNameBridge.get(normParen)) || paymentNameBridge.get(normOuter) || '';
     if (!alt) return null;
     return emailRecords.find(r => r.normName === alt || r.normParen === alt) || null;
+  }
+
+  const BLANK_MATCH = { emailSheetClientName: '', eidPassportName: '', nationality: '', email1: '', email2: '', isMatched: false };
+
+  // Resolves a File 1 client name to Email Sheet data. Tries a direct match,
+  // then the Payment Info Sheet paren/outer bridge, then — for joint names
+  // like "A & B" — splits and matches each side separately. The split only
+  // runs if at least one side is a real standalone name in the Payment Info
+  // Sheet, so company names like "X & Y Logistics L.L.C." are never split.
+  function resolveClientMatch(rawClientName) {
+    const direct = lookupMatch(rawClientName) || lookupViaBridge(rawClientName);
+    if (direct) {
+      const [e1, e2] = splitEmails(direct.clientEmailRaw);
+      return {
+        emailSheetClientName: direct.emailSheetClientName,
+        eidPassportName: direct.emailSheetClientNameNoPrefix,
+        nationality: direct.nationality,
+        email1: e1, email2: e2,
+        isMatched: true,
+      };
+    }
+
+    if (rawClientName.includes(' & ')) {
+      const parts = rawClientName.split(' & ').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 2 && parts.some(p => paymentAllNames.has(normalizeName(p, true)))) {
+        const m1 = lookupMatch(parts[0]) || lookupViaBridge(parts[0]);
+        const m2 = lookupMatch(parts[1]) || lookupViaBridge(parts[1]);
+        if (m1 || m2) {
+          const e1 = m1 ? splitEmails(m1.clientEmailRaw)[0] : '';
+          const e2 = m2 ? splitEmails(m2.clientEmailRaw)[0] : '';
+          return {
+            emailSheetClientName: [m1 && m1.emailSheetClientName, m2 && m2.emailSheetClientName].filter(Boolean).join(' & '),
+            eidPassportName: [m1 && m1.emailSheetClientNameNoPrefix, m2 && m2.emailSheetClientNameNoPrefix].filter(Boolean).join(' & '),
+            nationality: [m1 && m1.nationality, m2 && m2.nationality].filter(Boolean).join(' / '),
+            email1: e1, email2: e2,
+            isMatched: true,
+          };
+        }
+      }
+    }
+
+    return BLANK_MATCH;
   }
 
   // ── File 1 handling ──────────────────────────────────────────
@@ -329,26 +376,23 @@ window.EmailMatcherStandalone = (function () {
         const deduction = sheet.deductionCol !== -1 && row[sheet.deductionCol] != null
           ? String(row[sheet.deductionCol]).trim() : '';
 
-        let matched = null;
-        if (rawClientName) matched = lookupMatch(rawClientName) || lookupViaBridge(rawClientName);
-
-        const [email1, email2] = matched ? splitEmails(matched.clientEmailRaw) : ['', ''];
+        const match = rawClientName ? resolveClientMatch(rawClientName) : BLANK_MATCH;
         const agentEmail = rawClientName ? resolveAgentEmail(rawClientName) : '';
 
         const notes = [];
-        if (rawClientName && !matched) notes.push('Not found in Email Sheet');
+        if (rawClientName && !match.isMatched) notes.push('Not found in Email Sheet');
         if (rawClientName && !agentEmail) notes.push('Not found in Payment Info Sheet');
 
         return {
           clientType,
           clientName: rawClientName,
-          emailSheetClientName: matched ? matched.emailSheetClientName : '',
-          eidPassportName: matched ? matched.emailSheetClientNameNoPrefix : '',
-          nationality: matched ? matched.nationality : '',
+          emailSheetClientName: match.emailSheetClientName,
+          eidPassportName: match.eidPassportName,
+          nationality: match.nationality,
           deduction,
-          email1, email2, agentEmail,
+          email1: match.email1, email2: match.email2, agentEmail,
           notes: notes.join('; '),
-          matched: !!matched,
+          matched: match.isMatched,
         };
       });
 
