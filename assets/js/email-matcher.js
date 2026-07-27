@@ -381,6 +381,7 @@ window.EmailMatcherStandalone = (function () {
 
         const notes = [];
         if (rawClientName && !match.isMatched) notes.push('Not found in Email Sheet');
+        else if (rawClientName && match.isMatched && !match.email1 && !match.email2) notes.push('Matched but no email listed in Email Sheet');
         if (rawClientName && !agentEmail) notes.push('Not found in Payment Info Sheet');
 
         return {
