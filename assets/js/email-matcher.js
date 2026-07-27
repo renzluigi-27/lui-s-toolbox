@@ -42,6 +42,7 @@ window.EmailMatcherStandalone = (function () {
     'himali':            'renz@legendmaritime.com',
     'ms. sagithra nath': 'cfo@legendmaritime.com',
     'sagithra nath':     'cfo@legendmaritime.com',
+    'sagithra':          'cfo@legendmaritime.com',
     'mag':               'bdm@legendmaritime.com',
     'mr. ahnaf':         'info@legendmaritime.com',
     'ahnaf':             'info@legendmaritime.com',
@@ -134,7 +135,7 @@ window.EmailMatcherStandalone = (function () {
   }
 
   // ── Payment Info Sheet handling (agent name → agent email) ────
-  // Client name = col 1 (B), Agent Closing = col 37 (AL). Agent column
+  // Client name = col 1 (B), Agent Closing = col 42 (AQ). Agent column
   // uses fill-down since merged cells leave it blank on repeat rows.
 
   function handlePaymentInfoFile(buf, filename) {
@@ -150,7 +151,7 @@ window.EmailMatcherStandalone = (function () {
       const rawName = row[1] != null ? String(row[1]).trim() : '';
       if (rawName && rawName !== lastClientName) { lastAgent = ''; lastClientName = rawName; }
 
-      const cellAgent = row[37] != null ? String(row[37]).trim() : '';
+      const cellAgent = row[42] != null ? String(row[42]).trim() : '';
       if (cellAgent) lastAgent = cellAgent;
       const agent = cellAgent || lastAgent;
 
