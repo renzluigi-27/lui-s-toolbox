@@ -16,6 +16,7 @@ window.EmailMatcherStandalone = (function () {
   let emailRecords = [];
   let paymentInfoLoaded = false;
   let paymentAgentMap = new Map(); // normName/normParen -> agent name (from Payment Info Sheet, col AL)
+  let paymentNameBridge = new Map(); // norm variant -> alt norm variant (inside/outside parenthesis)
   let outputBySheet = {};       // { sheetName: { results: [...] } }
 
   const OUTPUT_COLUMNS = [
@@ -26,6 +27,7 @@ window.EmailMatcherStandalone = (function () {
     'EMAIL 1',
     'EMAIL 2',
     'AGENT EMAIL',
+    'NOTES',
   ];
 
   // Hardcoded source of truth for agent -> email. Payment Info Sheet (col AL)
@@ -118,8 +120,8 @@ window.EmailMatcherStandalone = (function () {
         nationality: row[17] != null ? String(row[17]).trim() : '',
       };
 
-      if (!grouped.has(normName)) grouped.set(normName, record);
-      if (normParen && !grouped.has(normParen)) grouped.set(normParen, record);
+      if (normName) grouped.set(normName, record);
+      if (normParen) grouped.set(normParen, record);
     });
 
     return Array.from(grouped.values());
@@ -145,6 +147,7 @@ window.EmailMatcherStandalone = (function () {
     const dataRows = rows.slice(1);
 
     paymentAgentMap = new Map();
+    paymentNameBridge = new Map(); // norm variant -> alt norm variant (paren <-> outer), from same row
     let lastAgent = '', lastClientName = '';
 
     dataRows.forEach(row => {
@@ -155,13 +158,24 @@ window.EmailMatcherStandalone = (function () {
       if (cellAgent) lastAgent = cellAgent;
       const agent = cellAgent || lastAgent;
 
-      if (rawName && agent) {
+      if (rawName) {
         const parenMatch = rawName.match(/\(([^)]+)\)/);
         const mainName   = rawName.replace(/\([^)]*\)/g, ' ').trim();
         const normName   = normalizeName(mainName || rawName, true);
         const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
-        if (!paymentAgentMap.has(normName)) paymentAgentMap.set(normName, agent);
-        if (normParen && !paymentAgentMap.has(normParen)) paymentAgentMap.set(normParen, agent);
+
+        if (agent) {
+          paymentAgentMap.set(normName, agent);
+          if (normParen) paymentAgentMap.set(normParen, agent);
+        }
+
+        // Bridge: link the outside-parenthesis name to the inside-parenthesis
+        // name (and vice versa), so if File 1 only shows one side, we can
+        // still try the other side against the Email Sheet.
+        if (normParen && normName && normParen !== normName) {
+          paymentNameBridge.set(normName, normParen);
+          paymentNameBridge.set(normParen, normName);
+        }
       }
     });
 
@@ -179,6 +193,18 @@ window.EmailMatcherStandalone = (function () {
     const agent = (normParen && paymentAgentMap.get(normParen)) || paymentAgentMap.get(normOuter) || '';
     if (!agent) return '';
     return AGENT_EMAIL_MAP[agent.toLowerCase().trim()] || DEFAULT_AGENT_EMAIL;
+  }
+
+  // Try the Payment Info Sheet bridge name(s) against the Email Sheet when a
+  // direct File 1 -> Email Sheet match fails.
+  function lookupViaBridge(rawClientName) {
+    const parenMatch = rawClientName.match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(rawClientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+
+    const alt = (normParen && paymentNameBridge.get(normParen)) || paymentNameBridge.get(normOuter) || '';
+    if (!alt) return null;
+    return emailRecords.find(r => r.normName === alt || r.normParen === alt) || null;
   }
 
   // ── File 1 handling ──────────────────────────────────────────
@@ -304,10 +330,14 @@ window.EmailMatcherStandalone = (function () {
           ? String(row[sheet.deductionCol]).trim() : '';
 
         let matched = null;
-        if (rawClientName) matched = lookupMatch(rawClientName);
+        if (rawClientName) matched = lookupMatch(rawClientName) || lookupViaBridge(rawClientName);
 
         const [email1, email2] = matched ? splitEmails(matched.clientEmailRaw) : ['', ''];
         const agentEmail = rawClientName ? resolveAgentEmail(rawClientName) : '';
+
+        const notes = [];
+        if (rawClientName && !matched) notes.push('Not found in Email Sheet');
+        if (rawClientName && !agentEmail) notes.push('Not found in Payment Info Sheet');
 
         return {
           clientType,
@@ -317,6 +347,7 @@ window.EmailMatcherStandalone = (function () {
           nationality: matched ? matched.nationality : '',
           deduction,
           email1, email2, agentEmail,
+          notes: notes.join('; '),
           matched: !!matched,
         };
       });
@@ -341,7 +372,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL'];
+    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL', 'NOTES'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -354,6 +385,7 @@ window.EmailMatcherStandalone = (function () {
           <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
           <td>${esc(r.nationality || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.agentEmail || '')}</td>
+          <td style="color:var(--red-text, #e88);font-size:12px">${esc(r.notes || '')}</td>
         </tr>`;
       }).join('');
 
@@ -392,6 +424,7 @@ window.EmailMatcherStandalone = (function () {
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
         'AGENT EMAIL':                  r.agentEmail,
+        'NOTES':                        r.notes,
       }));
 
       const ws = XLSX.utils.json_to_sheet(exportRows, { header: OUTPUT_COLUMNS });
