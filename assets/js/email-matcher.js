@@ -16,6 +16,7 @@ window.EmailMatcherStandalone = (function () {
   let emailRecords = [];
   let paymentInfoLoaded = false;
   let paymentAgentMap = new Map(); // normName/normParen -> agent name (from Payment Info Sheet, col AL)
+  let paymentClientTypeMap = new Map(); // normName/normParen -> "Local"/"International" (col 40)
   let paymentNameBridge = new Map(); // norm variant -> alt norm variant (inside/outside parenthesis)
   let paymentAllNames = new Set(); // every normalized standalone name seen in the sheet
   let outputBySheet = {};       // { sheetName: { results: [...] } }
@@ -28,6 +29,7 @@ window.EmailMatcherStandalone = (function () {
     'EMAIL 1',
     'EMAIL 2',
     'AGENT EMAIL',
+    'CLIENT TYPE',
     'NOTES',
   ];
 
@@ -148,17 +150,22 @@ window.EmailMatcherStandalone = (function () {
     const dataRows = rows.slice(1);
 
     paymentAgentMap = new Map();
+    paymentClientTypeMap = new Map(); // normName/normParen -> "Local"/"International"
     paymentNameBridge = new Map(); // norm variant -> alt norm variant (paren <-> outer), from same row
     paymentAllNames = new Set();   // every normalized standalone name seen in the sheet
-    let lastAgent = '', lastClientName = '';
+    let lastAgent = '', lastClientType = '', lastClientName = '';
 
     dataRows.forEach(row => {
       const rawName = row[1] != null ? String(row[1]).trim() : '';
-      if (rawName && rawName !== lastClientName) { lastAgent = ''; lastClientName = rawName; }
+      if (rawName && rawName !== lastClientName) { lastAgent = ''; lastClientType = ''; lastClientName = rawName; }
 
       const cellAgent = row[42] != null ? String(row[42]).trim() : '';
       if (cellAgent) lastAgent = cellAgent;
       const agent = cellAgent || lastAgent;
+
+      const cellClientType = row[40] != null ? String(row[40]).trim() : '';
+      if (cellClientType) lastClientType = cellClientType;
+      const clientType = cellClientType || lastClientType;
 
       if (rawName) {
         const parenMatch = rawName.match(/\(([^)]+)\)/);
@@ -172,6 +179,12 @@ window.EmailMatcherStandalone = (function () {
         if (agent) {
           paymentAgentMap.set(normName, agent);
           if (normParen) paymentAgentMap.set(normParen, agent);
+        }
+
+        if (clientType) {
+          const clientTypeNorm = /^international$/i.test(clientType) ? 'International' : /^local$/i.test(clientType) ? 'Local' : clientType;
+          paymentClientTypeMap.set(normName, clientTypeNorm);
+          if (normParen) paymentClientTypeMap.set(normParen, clientTypeNorm);
         }
 
         // Bridge: link the outside-parenthesis name to the inside-parenthesis
@@ -198,6 +211,14 @@ window.EmailMatcherStandalone = (function () {
     const agent = (normParen && paymentAgentMap.get(normParen)) || paymentAgentMap.get(normOuter) || '';
     if (!agent) return '';
     return AGENT_EMAIL_MAP[agent.toLowerCase().trim()] || DEFAULT_AGENT_EMAIL;
+  }
+
+  function resolveClientType(rawClientName) {
+    const parenMatch = rawClientName.match(/\(([^)]+)\)/);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    const normOuter  = normalizeName(rawClientName.replace(/\([^)]*\)/g, ' ').trim(), true);
+
+    return (normParen && paymentClientTypeMap.get(normParen)) || paymentClientTypeMap.get(normOuter) || '';
   }
 
   // Try the Payment Info Sheet bridge name(s) against the Email Sheet when a
@@ -378,6 +399,7 @@ window.EmailMatcherStandalone = (function () {
 
         const match = rawClientName ? resolveClientMatch(rawClientName) : BLANK_MATCH;
         const agentEmail = rawClientName ? resolveAgentEmail(rawClientName) : '';
+        const paymentClientType = rawClientName ? resolveClientType(rawClientName) : '';
 
         const notes = [];
         if (rawClientName && !match.isMatched) notes.push('Not found in Email Sheet');
@@ -392,6 +414,7 @@ window.EmailMatcherStandalone = (function () {
           nationality: match.nationality,
           deduction,
           email1: match.email1, email2: match.email2, agentEmail,
+          paymentClientType,
           notes: notes.join('; '),
           matched: match.isMatched,
         };
@@ -417,7 +440,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL', 'NOTES'];
+    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL', 'CLIENT TYPE', 'NOTES'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -430,6 +453,7 @@ window.EmailMatcherStandalone = (function () {
           <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
           <td>${esc(r.nationality || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.agentEmail || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.paymentClientType || '')}</td>
           <td style="color:var(--red-text, #e88);font-size:12px">${esc(r.notes || '')}</td>
         </tr>`;
       }).join('');
@@ -469,6 +493,7 @@ window.EmailMatcherStandalone = (function () {
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
         'AGENT EMAIL':                  r.agentEmail,
+        'CLIENT TYPE':                  r.paymentClientType,
         'NOTES':                        r.notes,
       }));
 
