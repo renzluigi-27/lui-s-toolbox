@@ -333,7 +333,7 @@ const WEIGHTED_SPLITS = {
   'CONMO0379':   { 'Mohamed Rafi Hakeem': 0.75, 'Sundarrajan Dharmarajan Dhayalakumaran': 0.25 },
   'CONRA181':    { 'Rashedur Rahman Chowdhury': 0.50, 'Reshad Abd Alim': 0.25, 'Adnan Amin Ziaul Amin': 0.25 },
   'CONMRTMN0529':{ 'Muhammad Rameez Tahir Muhammad Naeem': 0.3333, 'Muhammad Jawad Tahir': 0.3333, 'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar': 0.3333 },
-  'CONNU0415':   { 'Nuzhat Mursaleen Faisal Fakir Mohammed': 0.61, 'Barayil Porakandy Roshan Valiyakath Aboobacker': 0.39 },
+  'CONNU0415':   { 'Nuzhat Mursaleen Faisal Fakir Mohammed': 0.63, 'Barayil Porakandy Roshan Valiyakath Aboobacker': 0.37 },
 };
 
 function filterRowsForCycle(rows, cycle, payoutDate) {
