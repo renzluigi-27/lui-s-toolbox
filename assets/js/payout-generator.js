@@ -672,8 +672,8 @@ function runGenerate() {
           'Muhammad Junaid Jamshaid Hafiz Jamshaid Akhtar': 					0.3333
         },
 		'CONNU0415': {
-          'Nuzhat Mursaleen Faisal Fakir Mohammed':         0.61,
-          'Barayil Porakandy Roshan Valiyakath Aboobacker': 0.39
+          'Nuzhat Mursaleen Faisal Fakir Mohammed':         0.63,
+          'Barayil Porakandy Roshan Valiyakath Aboobacker': 0.37
         }
       };
       const contractKey = r.contractNo || [...sg.contractNos].find(c => c !== '__NONE__') || '';
