@@ -260,6 +260,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.13</strong> — Skip terminated/settlement containers<br>
+              <div style="padding-left:1rem;">
+                • Payment Info Sheet column BA ("For Settlement") now checked during parsing — rows marked "Termination" are dropped before rental/deduction calc<br>
+                • Applies to every tool sharing app.js's parsePaymentSheet(): Payout Generator, IP Deduction, Payout Auditor, and Payout Schedule (all inside the AIO tool)<br>
+                • Legacy standalone payout-generator.html was not touched<br>
+              </div><br>
+
               <strong>Version 2.0.12</strong> — Email Matcher agent email resolution<br>
               <div style="padding-left:1rem;">
                 • Added a 3rd upload box (Payment Info Sheet) — parses client name + agent name (col AL) to resolve AGENT EMAIL via the hardcoded map, with a default fallback<br>
