@@ -484,6 +484,7 @@ function parsePaymentSheet(raw) {
     agent:          42,   // Agent Closing
     contractNo:     col('contract no') !== -1 ? col('contract no') : 0,
     contractClosed: col('contract closed'),
+    forSettlement:  col('for settlement'),
     balance:        col('balance amount pending'),
     payCalcStart:   col('payout calculation start date'),
   };
@@ -554,6 +555,10 @@ function parsePaymentSheet(raw) {
     if (closedRaw && SKIP_CLOSED.some(s => closedRaw.includes(s))) continue;
     const contractClosedFlag = closedRaw && !SKIP_CLOSED.some(s => closedRaw.includes(s))
       ? `⚑ Contract Closed field: "${r[C.contractClosed]}" — review` : '';
+
+    const settlementRaw = (C.forSettlement !== -1 && r[C.forSettlement])
+      ? String(r[C.forSettlement]).toLowerCase().trim() : '';
+    if (settlementRaw.includes('termination')) continue;
 
     const firstPayout    = parseDate(r[C.firstPayout]);
     const payReceived    = parseDate(r[C.payReceived]);
