@@ -235,9 +235,9 @@ function exportPayout() {
   const headers = [
     'CLIENT TYPE', 'CLIENT NAME',
     'CLIENT NAME (EMAIL SHEET)', 'EMAIL 1', 'EMAIL 2', 'MOBILE', 'NATIONALITY', 'EID/PASSPORT/NATIONAL CARD',
-    'UNIT', 'FIRST PAYOUT', 'TOTAL COST',
-    'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE', 'DEDUCTION REMAINING',
-    'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'NOTES',
+    'UNIT', 'FIRST PAYOUT',
+    'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE',
+    'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'DEDUCTION REMAINING', 'NOTES',
   ];
 
   const rows = results.map(r => [
@@ -245,27 +245,26 @@ function exportPayout() {
     r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
     r.containers.length,
     r.firstPayoutDisplay || '',
-    r.totalCost || null,
     r.totalReturn,
     r.totalDeduction || null, r.balanceAddition || null,
     r.rentalDue !== null ? r.rentalDue : null,
+    r.accountNo, r.iban, r.swift, r.bankName, r.agent || '',
     r.deductionRemainingExport || '',
-    r.accountNo, r.iban, r.swift, r.bankName, r.agent || '', r.note || '',
+    r.note || '',
   ]);
 
   const totReturn   = results.reduce((s,r) => s + r.totalReturn, 0);
-  const totCost     = results.reduce((s,r) => s + (r.totalCost || 0), 0);
   const totDeduct   = results.reduce((s,r) => s + r.totalDeduction, 0);
   const totDue      = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['','TOTAL','','','','','','','','', totCost, totReturn, totDeduct,'', totDue,'','','','','','','']);
+  rows.push(['','TOTAL','','','','','','','','', totReturn, totDeduct,'', totDue,'','','','','','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = [
     {wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},
-    {wch:8},{wch:14},{wch:14},
-    {wch:14},{wch:12},{wch:12},{wch:14},{wch:30},
-    {wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:50},
+    {wch:8},{wch:14},
+    {wch:14},{wch:12},{wch:12},{wch:14},
+    {wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:30},{wch:50},
   ];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} - ${cycle === '15' ? '15th' : 'EOM'}`.substring(0, 31));
   XLSX.writeFile(wb, getExpectedOutputFilename());
