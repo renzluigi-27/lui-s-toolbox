@@ -543,6 +543,15 @@
      PERIOD (from generator file name)
      ════════════════════════════════════════════ */
 
+  // Time-of-generation stamp so re-running the audit doesn't produce the
+  // same filename twice — a repeated name makes the browser silently
+  // suffix "(1)", "(2)" etc, which is confusing when comparing runs.
+  function genStamp() {
+    var d = new Date();
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    return pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+  }
+
   function derivePeriod(genFileName, genWb) {
     var day, mon, yr;
     var m = (genFileName || '').match(/PAYOUT[_\- ]*(\d{1,2})[_\- ]*([A-Za-z]{3})[A-Za-z]*[_\- ]*(\d{4})/i);
@@ -787,7 +796,7 @@
         local: localRows.length, intl: intlRows.length
       };
 
-      lastFilename = 'PAYOUT_AUDIT_' + (period ? period.token : 'OUTPUT') + '.xlsx';
+      lastFilename = 'PAYOUT_AUDIT_' + (period ? period.token : 'OUTPUT') + '_' + genStamp() + '.xlsx';
 
       return buildWorkbook(rentalRows, deductionRows, additionRows, dueRows, bankRows,
         localRows, intlRows, mineNotInAcc, accNotInMine, summary, period).then(function (wb) {
