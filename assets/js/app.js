@@ -558,7 +558,7 @@ function parsePaymentSheet(raw) {
 
     const settlementRaw = (C.forSettlement !== -1 && r[C.forSettlement])
       ? String(r[C.forSettlement]).toLowerCase().trim() : '';
-    if (settlementRaw.includes('termination')) continue;
+    const isTerminated = settlementRaw.includes('termination');
 
     const firstPayout    = parseDate(r[C.firstPayout]);
     const payReceived    = parseDate(r[C.payReceived]);
@@ -645,6 +645,7 @@ function parsePaymentSheet(raw) {
       clientType,
       clientTypeBlank,
       contractClosedFlag,
+      isTerminated,
       balanceNote,
       noIban,
       isSharedContainer,
