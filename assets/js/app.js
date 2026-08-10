@@ -223,9 +223,6 @@ function updateTabUI() {
     }
   }
 
-  document.getElementById('emailSheetCard').style.display =
-    (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
-
   updateRefHint();
   updateGenerateBtn();
 }
@@ -380,33 +377,6 @@ function handleRefFile(file) {
     document.getElementById('refLoadedName').textContent = file.name;
     document.getElementById('refLoadedMeta').textContent = `${rows.length - 1} reference rows loaded`;
   }, err => showMsg('refError', 'Error reading reference file: ' + err, 'error'));
-}
-
-// ─────────────────────────────────────────────────────────────────
-// FILE UPLOAD — email sheet (payout / ip modes only — integrated matching)
-// ─────────────────────────────────────────────────────────────────
-const emailZone = document.getElementById('emailUploadZone');
-emailZone.addEventListener('dragover',  e => { e.preventDefault(); emailZone.classList.add('dragover'); });
-emailZone.addEventListener('dragleave', () => emailZone.classList.remove('dragover'));
-emailZone.addEventListener('drop', e => {
-  e.preventDefault(); emailZone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) handleEmailFile(e.dataTransfer.files[0]);
-});
-document.getElementById('emailFileInput').addEventListener('change', e => {
-  if (e.target.files[0]) handleEmailFile(e.target.files[0]);
-});
-
-function handleEmailFile(file) {
-  showMsg('emailError', '');
-  if (!file.name.match(/\.(xlsx|xls)$/i)) {
-    showMsg('emailError', 'Please upload an Excel file (.xlsx or .xls)', 'error'); return;
-  }
-  readExcel(file, rows => {
-    emailData = rows;
-    document.getElementById('emailFileLoaded').classList.add('show');
-    document.getElementById('emailLoadedName').textContent = file.name;
-    updateGenerateBtn();
-  }, err => showMsg('emailError', 'Error reading email file: ' + err, 'error'));
 }
 
 // ─────────────────────────────────────────────────────────────────
