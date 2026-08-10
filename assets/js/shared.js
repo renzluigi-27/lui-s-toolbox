@@ -385,6 +385,11 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     }
 
     const g = groups[key];
+    g.totalContainerCount = (g.totalContainerCount || 0) + 1;
+    if (r.isTerminated) {
+      g.terminatedContainerCount = (g.terminatedContainerCount || 0) + 1;
+      return; // excluded from money calc entirely — counted above only
+    }
     g.containers.push(r.container);
     if (r.agent) g.agents.add(r.agent);
 
@@ -439,6 +444,13 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
   });
 
   Object.values(groups).forEach(g => {
+    g.allTerminated = g.totalContainerCount > 0 && g.terminatedContainerCount === g.totalContainerCount;
+    if (g.allTerminated) {
+      g.deductionNotes.push('⚑ All containers marked for termination — no payout this cycle');
+    } else if (g.terminatedContainerCount) {
+      g.deductionNotes.push(`⚑ ${g.terminatedContainerCount} of ${g.totalContainerCount} container(s) marked for termination — excluded from this payout`);
+    }
+
     const roundedDeduction = Math.round(g.totalDeduction);
     const y1Items        = g.deductionItems.filter(it => it.type === 'Y1 Insurance');
     const ipItems        = g.deductionItems.filter(it => it.type === 'Y2 Insurance' || it.type === 'Y3 Insurance');
