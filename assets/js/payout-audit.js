@@ -81,6 +81,25 @@
     return isNaN(n) ? 0 : n;
   }
   function numsEqual(a, b) { return Math.abs(toNum(a) - toNum(b)) < 0.005; }
+
+  // Account/IBAN/SWIFT must stay actual strings, never raw JS numbers —
+  // same fix the Payout Generator and Payment Info parser already use.
+  // A numeric cell written straight into Excel gets Excel's own "General"
+  // format applied, which switches to scientific notation for big
+  // integers depending on column width (972396217001 -> 9.72396E+11).
+  // A string cell is never reformatted. Also recovers the digits if the
+  // source cell was itself already scientific-notation text.
+  function idString(v) {
+    if (v == null || v === '') return null;
+    var s = String(v).trim();
+    if (!s) return null;
+    if (/e\+/i.test(s)) {
+      var n = Number(s);
+      if (!isNaN(n)) s = n.toLocaleString('fullwide', { useGrouping: false });
+    }
+    return s;
+  }
+
   function isPaid(rowVals) {
     return rowVals.some(function (c) {
       if (c == null) return false;
@@ -287,9 +306,9 @@
         deduction: g('deduction'),
         addition: g('addition'),
         rentalDue: g('rentalDue'),
-        account: g('account'),
-        iban: g('iban'),
-        swift: g('swift'),
+        account: idString(g('account')),
+        iban: idString(g('iban')),
+        swift: idString(g('swift')),
         clientType: g('clientType'),
         notes: g('notes'),
         remarks: g('remarks'),
@@ -700,13 +719,11 @@
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.due || !v.genMath.ok || !v.acctMath.ok) {
+        if (v.diff.due) {
           dueRows.push({
             client: v.client,
             genRent: v.genRent, genDed: v.genDed, genAdd: v.genAdd, genDue: v.genDue,
-            genOk: v.genMath.ok, genExpected: v.genMath.expected,
             acctRent: v.acctRent, acctDed: v.acctDed, acctAdd: v.acctAdd, acctDue: v.acctDue,
-            acctOk: v.acctMath.ok, acctExpected: v.acctMath.expected,
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
@@ -747,7 +764,6 @@
           genDed: v.genDed, acctDed: v.acctDed,
           genAdd: v.genAdd, acctAdd: v.acctAdd,
           genDue: v.genDue, acctDue: v.acctDue,
-          genOk: v.genMath.ok, acctOk: v.acctMath.ok,
           genAccount: v.genAccount, acctAccount: v.acctAccount,
           genIban: v.genIban, acctIban: v.acctIban,
           genSwift: v.genSwift, acctSwift: v.acctSwift,
@@ -878,24 +894,22 @@
   function buildRentalDueSheet(wb, rows) {
     var ws = wb.addWorksheet('Rental Due');
     ws.columns = [
-      { width: 34 }, { width: 11 }, { width: 13 }, { width: 11 }, { width: 10 }, { width: 11 }, { width: 11 },
-      { width: 11 }, { width: 13 }, { width: 11 }, { width: 10 }, { width: 11 }, { width: 11 },
+      { width: 34 }, { width: 12 }, { width: 13 }, { width: 12 }, { width: 11 },
+      { width: 12 }, { width: 13 }, { width: 12 }, { width: 11 },
       { width: 20 }, { width: 45 }
     ];
-    headerRow(ws, ['Client', 'Gen Rental', 'Gen Deduction', 'Gen Addition', 'Gen Due', 'Gen Math OK', 'Gen Expected',
-      'Acct Rental', 'Acct Deduction', 'Acct Addition', 'Acct Due', 'Acct Math OK', 'Acct Expected',
+    headerRow(ws, ['Client', 'Gen Rental', 'Gen Deduction', 'Gen Addition', 'Gen Due',
+      'Acct Rental', 'Acct Deduction', 'Acct Addition', 'Acct Due',
       'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
       ws.getRow(rn).values = [
-        r.client, r.genRent, r.genDed, r.genAdd, r.genDue, r.genOk ? 'OK' : 'MISMATCH', r.genExpected,
-        r.acctRent, r.acctDed, r.acctAdd, r.acctDue, r.acctOk ? 'OK' : 'MISMATCH', r.acctExpected,
+        r.client, r.genRent, r.genDed, r.genAdd, r.genDue,
+        r.acctRent, r.acctDed, r.acctAdd, r.acctDue,
         r.acctRemarks, r.genNotes
       ];
-      borderRow(ws, rn, 15);
-      highlightCells(ws, rn, [5, 11]);
-      if (!r.genOk) ws.getCell(rn, 6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
-      if (!r.acctOk) ws.getCell(rn, 12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+      borderRow(ws, rn, 11);
+      highlightCells(ws, rn, [5, 9]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -932,13 +946,13 @@
     ws.columns = [
       { width: 34 }, { width: 11 }, { width: 11 }, { width: 11 },
       { width: 12 }, { width: 12 }, { width: 11 }, { width: 11 },
-      { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 },
+      { width: 10 }, { width: 10 },
       { width: 18 }, { width: 18 }, { width: 24 }, { width: 24 },
       { width: 13 }, { width: 13 }, { width: 22 }, { width: 20 }, { width: 45 }
     ];
     headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental',
       'Gen Deduction', 'Acct Deduction', 'Gen Addition', 'Acct Addition',
-      'Gen Due', 'Acct Due', 'Gen Math', 'Acct Math',
+      'Gen Due', 'Acct Due',
       'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN',
       'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
@@ -946,21 +960,19 @@
       ws.getRow(rn).values = [
         r.client, r.piRent, r.genRent, r.acctRent,
         r.genDed, r.acctDed, r.genAdd, r.acctAdd,
-        r.genDue, r.acctDue, r.genOk ? 'OK' : 'MISMATCH', r.acctOk ? 'OK' : 'MISMATCH',
+        r.genDue, r.acctDue,
         r.genAccount, r.acctAccount, r.genIban, r.acctIban,
         r.genSwift, r.acctSwift, r.diffFields, r.acctRemarks, r.genNotes
       ];
-      borderRow(ws, rn, 21);
+      borderRow(ws, rn, 19);
       var tags = r.diffFields;
       if (tags.indexOf('Rental') > -1) highlightCells(ws, rn, [3, 4]);
       if (tags.indexOf('Ded') > -1) highlightCells(ws, rn, [5, 6]);
       if (tags.indexOf('Add') > -1) highlightCells(ws, rn, [7, 8]);
       if (tags.indexOf('Due') > -1) highlightCells(ws, rn, [9, 10]);
-      if (tags.indexOf('Account No.') > -1) highlightCells(ws, rn, [13, 14]);
-      if (tags.indexOf('IBAN') > -1) highlightCells(ws, rn, [15, 16]);
-      if (tags.indexOf('SWIFT') > -1) highlightCells(ws, rn, [17, 18]);
-      if (!r.genOk) ws.getCell(rn, 11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
-      if (!r.acctOk) ws.getCell(rn, 12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+      if (tags.indexOf('Account No.') > -1) highlightCells(ws, rn, [11, 12]);
+      if (tags.indexOf('IBAN') > -1) highlightCells(ws, rn, [13, 14]);
+      if (tags.indexOf('SWIFT') > -1) highlightCells(ws, rn, [15, 16]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -970,13 +982,13 @@
       localRows, intlRows, mineNotInAcc, accNotInMine, summary, period) {
     var wb = new window.ExcelJS.Workbook();
 
+    buildClassSummarySheet(wb, 'Local', localRows);
+    buildClassSummarySheet(wb, 'International', intlRows);
     buildRentalDueSheet(wb, dueRows);
     buildRentalSheet(wb, rentalRows);
     buildDeductionSheet(wb, deductionRows);
     buildAdditionSheet(wb, additionRows);
     buildBankDetailsSheet(wb, bankRows);
-    buildClassSummarySheet(wb, 'Local', localRows);
-    buildClassSummarySheet(wb, 'International', intlRows);
 
     /* ── Missing Clients — PI cross-check reason + "another account" cross-ref ── */
     var ws2 = wb.addWorksheet('Missing Clients');
@@ -1133,13 +1145,12 @@
       [1, 2]);
   }
   function renderDueTable(rows) {
-    return simpleTable('Rental Due (math check)',
-      ['Client', 'Gen Rental', 'Gen Ded', 'Gen Add', 'Gen Due', 'Gen Math', 'Acct Rental', 'Acct Ded', 'Acct Add', 'Acct Due', 'Acct Math', 'Accounts Remarks', 'Gen Notes'],
+    return simpleTable('Rental Due',
+      ['Client', 'Gen Rental', 'Gen Ded', 'Gen Add', 'Gen Due', 'Acct Rental', 'Acct Ded', 'Acct Add', 'Acct Due', 'Accounts Remarks', 'Gen Notes'],
       rows.map(function (r) {
         return [esc2(r.client), fmt2(r.genRent), fmt2(r.genDed), fmt2(r.genAdd), fmt2(r.genDue),
-          r.genOk ? 'OK' : 'MISMATCH', fmt2(r.acctRent), fmt2(r.acctDed), fmt2(r.acctAdd), fmt2(r.acctDue),
-          r.acctOk ? 'OK' : 'MISMATCH', esc2(r.acctRemarks), esc2(r.genNotes)];
-      }), [4, 9]);
+          fmt2(r.acctRent), fmt2(r.acctDed), fmt2(r.acctAdd), fmt2(r.acctDue), esc2(r.acctRemarks), esc2(r.genNotes)];
+      }), [4, 8]);
   }
   function renderBankTable(rows) {
     return simpleTable('Bank Details', ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN', 'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
@@ -1152,12 +1163,12 @@
   function renderClassTable(title, rows) {
     return simpleTable(title,
       ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Gen Ded', 'Acct Ded', 'Gen Add', 'Acct Add',
-        'Gen Due', 'Acct Due', 'Gen Math', 'Acct Math', 'Gen Account', 'Acct Account', 'Gen IBAN', 'Acct IBAN',
+        'Gen Due', 'Acct Due', 'Gen Account', 'Acct Account', 'Gen IBAN', 'Acct IBAN',
         'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
       rows.map(function (r) {
         return [esc2(r.client), fmt2(r.piRent), fmt2(r.genRent), fmt2(r.acctRent),
           fmt2(r.genDed), fmt2(r.acctDed), fmt2(r.genAdd), fmt2(r.acctAdd),
-          fmt2(r.genDue), fmt2(r.acctDue), r.genOk ? 'OK' : 'MISMATCH', r.acctOk ? 'OK' : 'MISMATCH',
+          fmt2(r.genDue), fmt2(r.acctDue),
           esc2(r.genAccount || '—'), esc2(r.acctAccount || '—'), esc2(r.genIban || '—'), esc2(r.acctIban || '—'),
           esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
       }), [2, 3, 4, 5, 6, 7, 8, 9, 10]);
@@ -1191,24 +1202,24 @@
     var sm = res.summary;
     var html = '<div class="card"><div class="stats-grid">' +
       statBox(sm.matched, 'Matched') +
+      statBox(sm.local, 'Local') +
+      statBox(sm.intl, 'International') +
       statBox(sm.due, 'Rental Due') +
       statBox(sm.rental, 'Rental') +
       statBox(sm.deduction, 'Deduction') +
       statBox(sm.addition, 'Addition') +
       statBox(sm.bank, 'Bank Details') +
-      statBox(sm.local, 'Local') +
-      statBox(sm.intl, 'International') +
       statBox(sm.mineOnly, 'Mine only') +
       statBox(sm.accOnly, 'Accounts only') +
       '</div></div>';
 
+    html += renderClassTable('Local', res.localRows);
+    html += renderClassTable('International', res.intlRows);
     html += renderDueTable(res.dueRows);
     html += renderRentalTable(res.rentalRows);
     html += renderDeductionTable(res.deductionRows);
     html += renderAdditionTable(res.additionRows);
     html += renderBankTable(res.bankRows);
-    html += renderClassTable('Local', res.localRows);
-    html += renderClassTable('International', res.intlRows);
     html += renderMissingTable(res.mineNotInAcc, res.accNotInMine);
 
     document.getElementById('pa-results').innerHTML = html;
