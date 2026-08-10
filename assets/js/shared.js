@@ -218,8 +218,9 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
     const hc1 = new Date(firstPayout);
     const hc2 = addYears(firstPayout, 1);
     const hc3 = addYears(firstPayout, 2);
-    const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
-    if (hcDueThisCycle) items.push({ type: 'HC', amount: 1000, firstPayout });
+    if (samePayoutMonth(hc1)) items.push({ type: 'HC', year: 'Y1', amount: 1000, firstPayout });
+    else if (samePayoutMonth(hc2)) items.push({ type: 'HC', year: 'Y2', amount: 1000, firstPayout });
+    else if (samePayoutMonth(hc3)) items.push({ type: 'HC', year: 'Y3', amount: 1000, firstPayout });
   }
 
   return { amount: items.reduce((s, it) => s + it.amount, 0), items };
@@ -459,12 +460,23 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     // Accounts-style note, grouped by label (IP / HC / IP & HC) with a
     // single running total and the list of containers it covers — avoids
     // one line per container when several containers deduct this cycle.
-    const byContainer = {};
+    const byContainer = {};       // flat totals per container — used by payout.js for rent-capping
+    const byContainerYear = {};   // nested by year — used only for note labeling below
     g.deductionItems.forEach(it => {
       const c = it.container || '—';
+      const year = it.type === 'HC' ? it.year : it.type.slice(0, 2); // 'Y1'/'Y2'/'Y3'
+
       if (!byContainer[c]) byContainer[c] = { ip: 0, hc: 0 };
-      if (it.type === 'HC') byContainer[c].hc += it.amount;
-      else byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
+      if (!byContainerYear[c]) byContainerYear[c] = {};
+      if (!byContainerYear[c][year]) byContainerYear[c][year] = { ip: 0, hc: 0 };
+
+      if (it.type === 'HC') {
+        byContainer[c].hc += it.amount;
+        byContainerYear[c][year].hc += it.amount;
+      } else {
+        byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
+        byContainerYear[c][year].ip += it.amount;
+      }
     });
 
     // Exposed so payout.js can cap deductions at that cycle's rent and
@@ -473,12 +485,15 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     g.dedByContainer = byContainer;
 
     const labelGroups = {};
-    Object.entries(byContainer).forEach(([container, amt]) => {
-      if (amt.ip <= 0 && amt.hc <= 0) return;
-      const label = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
-      if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
-      labelGroups[label].total += Math.round(amt.ip + amt.hc);
-      labelGroups[label].containers.push(container);
+    Object.entries(byContainerYear).forEach(([container, years]) => {
+      Object.entries(years).forEach(([year, amt]) => {
+        if (amt.ip <= 0 && amt.hc <= 0) return;
+        const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
+        const label = year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
+        if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
+        labelGroups[label].total += Math.round(amt.ip + amt.hc);
+        labelGroups[label].containers.push(container);
+      });
     });
 
     const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
