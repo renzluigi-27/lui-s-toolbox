@@ -115,7 +115,7 @@ function runPayout(yr, mo, cycle) {
   filtered.forEach(r => {
     const ibanValid = r.iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(r.iban.replace(/\s/g, ''));
     const key = (ibanValid ? r.iban.replace(/\s/g, '') : r.accountNo) || r.clientName;
-    if (!groups[key]) return;
+    if (!groups[key] || r.isTerminated) return;
 
     const baseRental = (r.isRerouted && r.revisedRental) ? r.revisedRental : r.returnAmt;
 
@@ -158,11 +158,12 @@ function runPayout(yr, mo, cycle) {
     const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
 
     return {
-      ...g, totalReturn, totalCost,
-      totalDeduction: split.appliedDeduction,
-      rentalDue: hasBalance ? null : split.rentalDue,
+      ...g, totalCost,
+      totalReturn: g.allTerminated ? null : totalReturn,
+      totalDeduction: g.allTerminated ? null : split.appliedDeduction,
+      rentalDue: g.allTerminated ? null : (hasBalance ? null : split.rentalDue),
       deductionRemainingExport: split.remainingExport.join(' | '),
-      balanceAddition: balanceNumeric, note: allNotes,
+      balanceAddition: g.allTerminated ? null : balanceNumeric, note: allNotes,
       emailSheetClientName: em ? em.emailSheetClientName : '',
       email1: emEmail1, email2: emEmail2,
       mobile: em ? em.mobile : '',
