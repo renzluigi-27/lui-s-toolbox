@@ -101,7 +101,6 @@ function runPayout(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
-  const emailRecords = emailData.length ? buildEmailRecords() : [];
   const carryoverMap = (refData && refData.length) ? parseDeductionCarryover(refData) : {};
 
   const filtered = filterRowsForCycle(paymentData, cycle, payoutDate);
@@ -154,9 +153,6 @@ function runPayout(yr, mo, cycle) {
     const allNotes = [split.consolidatedLine, ...split.noteLines, ...flagNotes, ...balanceNoteArr]
       .filter(Boolean).join(' | ');
 
-    const em = lookupEmailRecord(emailRecords, g.clientName);
-    const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
-
     return {
       ...g, totalCost,
       totalReturn: g.allTerminated ? null : totalReturn,
@@ -164,11 +160,6 @@ function runPayout(yr, mo, cycle) {
       rentalDue: g.allTerminated ? null : (hasBalance ? null : split.rentalDue),
       deductionRemainingExport: split.remainingExport.join(' | '),
       balanceAddition: g.allTerminated ? null : balanceNumeric, note: allNotes,
-      emailSheetClientName: em ? em.emailSheetClientName : '',
-      email1: emEmail1, email2: emEmail2,
-      mobile: em ? em.mobile : '',
-      nationality: em ? em.nationality : '',
-      eid: em ? em.eid : '',
     };
   });
 
@@ -235,7 +226,6 @@ function exportPayout() {
 
   const headers = [
     'CLIENT TYPE', 'CLIENT NAME',
-    'CLIENT NAME (EMAIL SHEET)', 'EMAIL 1', 'EMAIL 2', 'MOBILE', 'NATIONALITY', 'EID/PASSPORT/NATIONAL CARD',
     'UNIT', 'FIRST PAYOUT',
     'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE',
     'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'DEDUCTION REMAINING', 'NOTES',
@@ -243,7 +233,6 @@ function exportPayout() {
 
   const rows = results.map(r => [
     r.clientType || '', r.clientName,
-    r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
     r.containers.length,
     r.firstPayoutDisplay || '',
     r.totalReturn,
