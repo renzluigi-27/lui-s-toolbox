@@ -125,6 +125,28 @@
     return true;
   }
 
+  /* ── separate Account No. / IBAN / SWIFT comparisons for the Bank
+     Details sheet — a shared IBAN with different account numbers (US
+     routing-number style entries) shouldn't collapse into one diff. ── */
+  function accountDiffers(a, b) {
+    var accA = normAccount(a && a.account), accB = normAccount(b && b.account);
+    if (accA && accB && isRoundingOnly(accA, accB)) return false;
+    return accA !== accB;
+  }
+  function ibanFieldDiffers(a, b) {
+    var ibA = normIBAN(a && a.iban), ibB = normIBAN(b && b.iban);
+    return ibA !== ibB;
+  }
+  function swiftDiffers(a, b) {
+    var swA = a && a.swift ? String(a.swift).toUpperCase().replace(/\s+/g, '') : '';
+    var swB = b && b.swift ? String(b.swift).toUpperCase().replace(/\s+/g, '') : '';
+    // Accounts' Local sheet never captures SWIFT — only flag when both
+    // sides actually have a value to compare (avoids flooding false
+    // positives on every Local client).
+    if (!swA || !swB) return false;
+    return swA !== swB;
+  }
+
   /* ── grouping key: IBAN first, then account no., then name — matches how
      the Payout Generator itself groups payees, so clients sharing one bank
      account (2-3 people on the same IBAN) aggregate together correctly
@@ -366,7 +388,7 @@
       if (!map[key]) {
         map[key] = {
           name: disp, rental: 0, account: null, iban: null, swift: null,
-          _keys: nameKeys(disp), _norm: nameKey, _names: {}
+          _keys: nameKeys(disp), _norm: nameKey, _names: {}, rawRows: []
         };
         order.push(key);
       }
@@ -379,6 +401,7 @@
           g._keys = g._keys.concat(nameKeys(disp)).filter(function (v, i, a) { return a.indexOf(v) === i; });
         }
       }
+      g.rawRows.push(r);
       if (filteredKeys[r.index]) {
         var val = r.isRerouted ? r.revisedRental : r.returnAmt;
         g.rental += toNum(val);
@@ -388,6 +411,38 @@
       if (g.swift == null && r.swift) g.swift = r.swift;
     });
     return order.map(function (k) { return map[k]; });
+  }
+
+  /* ── reason a payee sits in "Accounts List, Not In My Payout" —
+     mirrors the Payment Info cross-check: terminated / wrong cycle /
+     rerouted-needs-verification / genuine gap. ── */
+  function piReasonForGroup(piGroup, cycle) {
+    if (!piGroup || !piGroup.rawRows || !piGroup.rawRows.length) {
+      return 'No match found in Payment Info Sheet — verify client name/spelling';
+    }
+    var rows = piGroup.rawRows;
+    var active = rows.filter(function (r) { return !r.isTerminated; });
+    if (!active.length) {
+      return 'All Payment Info rows marked Termination — expected exclusion, not a real gap';
+    }
+    function effCycle(r) {
+      if (r.isRerouted && r.restartDate) return r.restartDate.getDate() <= 15 ? '15' : '30';
+      return String(r.payoutCycle || '').replace(/\s/g, '');
+    }
+    var cycles = {};
+    active.forEach(function (r) { cycles[effCycle(r)] = true; });
+    var wantCycle = cycle === '15' ? '15' : '30';
+    var cycleOk = wantCycle === '15' ? !!cycles['15'] : !!(cycles['30'] || cycles['31'] || cycles['30/31']);
+    if (!cycleOk) {
+      return 'Payment Info cycle is ' + Object.keys(cycles).join(', ') + ', not ' + (wantCycle === '15' ? '15th' : '30th/31st') + ' — belongs to different cycle';
+    }
+    var reroutes = active.filter(function (r) { return r.isRerouted && r.restartDate; });
+    if (reroutes.length) {
+      var dates = reroutes.map(function (r) { return fmtDate(r.restartDate); });
+      var uniqueDates = dates.filter(function (v, i, a) { return a.indexOf(v) === i; });
+      return 'Rerouted client, restart date ' + uniqueDates.join(', ') + ' — verify against reroute anniversary before flagging as gap';
+    }
+    return 'Active, cycle ' + wantCycle + ', no restart flag — genuine gap, needs review';
   }
 
   /* ════════════════════════════════════════════
@@ -490,42 +545,48 @@
   }
 
   /* ════════════════════════════════════════════
-     ROW BUILDER — Value Differences
-     Returns null if nothing differs for this client.
+     ROW BUILDER — per-field diff computation
+     Always returns the full comparison; callers decide which
+     category sheet(s) a client belongs in based on the flags.
      ════════════════════════════════════════════ */
+
+  function mathCheck(rent, ded, add, due) {
+    var expected = Math.round((toNum(rent) - toNum(ded) + toNum(add)) * 100) / 100;
+    var actual = Math.round(toNum(due) * 100) / 100;
+    return { ok: Math.abs(expected - actual) < 0.005, expected: expected };
+  }
 
   function valueRow(g, a, p) {
     var piRent = p ? p.rental : null;
-    var rentalDiff = !numsEqual(g.rent, a.rent) ||
-      (piRent != null && !numsEqual(piRent, g.rent)) ||
-      (piRent != null && !numsEqual(piRent, a.rent));
+    var rentalDiff = !numsEqual(g.rent, a.rent);
     var dedDiff = !numsEqual(g.deduction, a.deduction);
     var addDiff = !numsEqual(g.addition, a.addition);
     var dueDiff = !numsEqual(g.rentalDue, a.rentalDue);
-    var ibanDiff = bankDiffers(g, a) || (p && bankDiffers(g, p));
+    var accDiff = accountDiffers(g, a);
+    var ibanDiff = ibanFieldDiffers(g, a);
+    var swiftDiff = swiftDiffers(g, a);
 
-    if (!rentalDiff && !dedDiff && !addDiff && !dueDiff && !ibanDiff) return null;
-
-    var tags = [];
-    if (rentalDiff) tags.push('Rental');
-    if (dedDiff) tags.push('Ded');
-    if (addDiff) tags.push('Add');
-    if (dueDiff) tags.push('Due');
-    if (ibanDiff) tags.push('IBAN');
+    var genMath = mathCheck(g.rent, g.deduction, g.addition, g.rentalDue);
+    var acctMath = mathCheck(a.rent, a.deduction, a.addition, a.rentalDue);
 
     return {
       client: g.name,
       class: classify(g, a),
       rowOrder: a.rowOrder,
-      genNotes: (g.notes || []).join(' | '),
-      acctRemarks: (a.remarks || []).join(' | '),
+      genNotes: (g.notes || []).join(' | ') || '-',
+      acctRemarks: (a.remarks || []).join(' | ') || '-',
       piRent: piRent, genRent: g.rent, acctRent: a.rent,
       genDed: g.deduction, acctDed: a.deduction,
       genAdd: g.addition, acctAdd: a.addition,
       genDue: g.rentalDue, acctDue: a.rentalDue,
-      piIban: p ? bankDisplay(p) : '', genIban: bankDisplay(g), acctIban: bankDisplay(a),
-      diff: { rental: rentalDiff, ded: dedDiff, add: addDiff, due: dueDiff, iban: ibanDiff },
-      diffFields: tags.join(',')
+      genAccount: g.account, acctAccount: a.account,
+      genIban: g.iban, acctIban: a.iban,
+      genSwift: g.swift, acctSwift: a.swift,
+      genMath: genMath, acctMath: acctMath,
+      diff: {
+        rental: rentalDiff, ded: dedDiff, add: addDiff, due: dueDiff,
+        account: accDiff, iban: ibanDiff, swift: swiftDiff
+      }
     };
   }
 
@@ -580,8 +641,7 @@
         matchedCount++;
         allMatchedNames.push(g.name);
         var p = findMatch(g, piIndex);
-        var row = valueRow(g, a, p);
-        if (row) values.push(row);
+        values.push(valueRow(g, a, p));
       });
 
       accPayees.forEach(function (a) {
@@ -589,9 +649,21 @@
         accNotInMine.push({ name: a.name, class: classify(null, a) });
       });
 
-      // cross-reference: does a "missing" name have another account already matched?
-      mineNotInAcc.forEach(function (m) { m.note = findOtherAccountNote(m.name, allMatchedNames); });
-      accNotInMine.forEach(function (m) { m.note = findOtherAccountNote(m.name, allMatchedNames); });
+      // Missing-clients notes: PI cross-check reason first (termination /
+      // wrong cycle / rerouted-needs-check / genuine gap), then the
+      // "another account already matched" cross-reference as a secondary
+      // note when relevant.
+      var cycleForReason = period ? period.cycle : '15';
+      mineNotInAcc.forEach(function (m) {
+        var otherAcc = findOtherAccountNote(m.name, allMatchedNames);
+        m.note = otherAcc || '-';
+      });
+      accNotInMine.forEach(function (m) {
+        var pig = findMatch({ name: m.name, _keys: nameKeys(m.name), _norm: normName(m.name) }, piIndex);
+        var reason = piReasonForGroup(pig, cycleForReason);
+        var otherAcc = findOtherAccountNote(m.name, allMatchedNames);
+        m.note = otherAcc ? reason + ' | ' + otherAcc : reason;
+      });
 
       // sort value rows to follow the Accounts payout list's own row order
       values.sort(function (x, y) {
@@ -601,23 +673,112 @@
         return x.client.localeCompare(y.client);
       });
 
-      var localValues = values.filter(function (v) { return v.class === 'Local'; });
-      var intlValues  = values.filter(function (v) { return v.class === 'International'; });
-      var otherValues = values.filter(function (v) { return v.class !== 'Local' && v.class !== 'International'; });
+      /* ── split into the 5 category groups. A client can appear in more
+         than one (e.g. Rental + Bank Details) since each sheet is scoped
+         to its own field(s). ── */
+      var rentalRows = [], deductionRows = [], additionRows = [], dueRows = [], bankRows = [];
+
+      values.forEach(function (v) {
+        if (v.diff.rental) {
+          rentalRows.push({
+            client: v.client, pi: v.piRent, gen: v.genRent, acct: v.acctRent,
+            diff: Math.round(((v.acctRent || 0) - (v.genRent || 0)) * 100) / 100,
+            acctRemarks: v.acctRemarks, genNotes: v.genNotes
+          });
+        }
+        if (v.diff.ded) {
+          deductionRows.push({
+            client: v.client, gen: v.genDed, acct: v.acctDed,
+            diff: Math.round(((v.acctDed || 0) - (v.genDed || 0)) * 100) / 100,
+            acctRemarks: v.acctRemarks, genNotes: v.genNotes
+          });
+        }
+        if (v.diff.add) {
+          additionRows.push({
+            client: v.client, gen: v.genAdd, acct: v.acctAdd,
+            diff: Math.round(((v.acctAdd || 0) - (v.genAdd || 0)) * 100) / 100,
+            acctRemarks: v.acctRemarks, genNotes: v.genNotes
+          });
+        }
+        if (v.diff.due || !v.genMath.ok || !v.acctMath.ok) {
+          dueRows.push({
+            client: v.client,
+            genRent: v.genRent, genDed: v.genDed, genAdd: v.genAdd, genDue: v.genDue,
+            genOk: v.genMath.ok, genExpected: v.genMath.expected,
+            acctRent: v.acctRent, acctDed: v.acctDed, acctAdd: v.acctAdd, acctDue: v.acctDue,
+            acctOk: v.acctMath.ok, acctExpected: v.acctMath.expected,
+            acctRemarks: v.acctRemarks, genNotes: v.genNotes
+          });
+        }
+        if (v.diff.account || v.diff.iban || v.diff.swift) {
+          var tags = [];
+          if (v.diff.account) tags.push('Account No.');
+          if (v.diff.iban) tags.push('IBAN');
+          if (v.diff.swift) tags.push('SWIFT');
+          bankRows.push({
+            client: v.client,
+            genAccount: v.genAccount, acctAccount: v.acctAccount,
+            genIban: v.genIban, acctIban: v.acctIban,
+            genSwift: v.genSwift, acctSwift: v.acctSwift,
+            diffFields: tags.join(', '),
+            acctRemarks: v.acctRemarks, genNotes: v.genNotes
+          });
+        }
+      });
+
+      /* ── Local / International full per-client summary — combines every
+         field into one row per client (only rows with at least one diff),
+         split by classification. Same sort as the 5 category sheets. ── */
+      var classRows = values.filter(function (v) {
+        return v.diff.rental || v.diff.ded || v.diff.add || v.diff.due ||
+          v.diff.account || v.diff.iban || v.diff.swift;
+      }).map(function (v) {
+        var tags = [];
+        if (v.diff.rental) tags.push('Rental');
+        if (v.diff.ded) tags.push('Ded');
+        if (v.diff.add) tags.push('Add');
+        if (v.diff.due) tags.push('Due');
+        if (v.diff.account) tags.push('Account No.');
+        if (v.diff.iban) tags.push('IBAN');
+        if (v.diff.swift) tags.push('SWIFT');
+        return {
+          client: v.client, class: v.class,
+          piRent: v.piRent, genRent: v.genRent, acctRent: v.acctRent,
+          genDed: v.genDed, acctDed: v.acctDed,
+          genAdd: v.genAdd, acctAdd: v.acctAdd,
+          genDue: v.genDue, acctDue: v.acctDue,
+          genOk: v.genMath.ok, acctOk: v.acctMath.ok,
+          genAccount: v.genAccount, acctAccount: v.acctAccount,
+          genIban: v.genIban, acctIban: v.acctIban,
+          genSwift: v.genSwift, acctSwift: v.acctSwift,
+          diffFields: tags.join(', '),
+          acctRemarks: v.acctRemarks, genNotes: v.genNotes
+        };
+      });
+      var localRows = classRows.filter(function (r) { return r.class === 'Local'; });
+      // Only 2 sheets requested (Local / International) — any 'Unclassified'
+      // (couldn't determine from Accounts sheet name or Gen's Client Type)
+      // folds into International here so it isn't silently dropped.
+      var intlRows = classRows.filter(function (r) { return r.class !== 'Local'; });
 
       var summary = {
         matched: matchedCount,
         differences: values.length,
         mineOnly: mineNotInAcc.length,
-        accOnly: accNotInMine.length
+        accOnly: accNotInMine.length,
+        rental: rentalRows.length, deduction: deductionRows.length,
+        addition: additionRows.length, due: dueRows.length, bank: bankRows.length,
+        local: localRows.length, intl: intlRows.length
       };
 
       lastFilename = 'PAYOUT_AUDIT_' + (period ? period.token : 'OUTPUT') + '.xlsx';
 
-      return buildWorkbook(localValues, intlValues, otherValues, mineNotInAcc, accNotInMine, summary, period).then(function (wb) {
+      return buildWorkbook(rentalRows, deductionRows, additionRows, dueRows, bankRows,
+        localRows, intlRows, mineNotInAcc, accNotInMine, summary, period).then(function (wb) {
         lastWb = wb;
         return {
-          values: values, localValues: localValues, intlValues: intlValues,
+          rentalRows: rentalRows, deductionRows: deductionRows, additionRows: additionRows,
+          dueRows: dueRows, bankRows: bankRows, localRows: localRows, intlRows: intlRows,
           mineNotInAcc: mineNotInAcc, accNotInMine: accNotInMine,
           summary: summary, period: period
         };
@@ -659,67 +820,169 @@
     }
   }
 
-  function buildComparisonSheet(wb, sheetName, values) {
-    var ws = wb.addWorksheet(sheetName);
-    ws.columns = [
-      { width: 34 }, { width: 12 }, { width: 12 }, { width: 12 },
-      { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 },
-      { width: 12 }, { width: 12 }, { width: 24 }, { width: 24 }, { width: 24 },
-      { width: 18 }, { width: 40 }, { width: 45 }
-    ];
-
-    ws.mergeCells('A1:A2'); headerCell(ws, 'A1', 'Client', COLOR_HEADER1);
-    ws.mergeCells('B1:D1'); headerCell(ws, 'B1', 'Rental', COLOR_HEADER1);
-    ws.mergeCells('E1:F1'); headerCell(ws, 'E1', 'Deduction', COLOR_HEADER1);
-    ws.mergeCells('G1:H1'); headerCell(ws, 'G1', 'Addition', COLOR_HEADER1);
-    ws.mergeCells('I1:J1'); headerCell(ws, 'I1', 'Rental Due', COLOR_HEADER1);
-    ws.mergeCells('K1:M1'); headerCell(ws, 'K1', 'IBAN', COLOR_HEADER1);
-    ws.mergeCells('N1:N2'); headerCell(ws, 'N1', 'Diff Fields', COLOR_HEADER1);
-    ws.mergeCells('O1:O2'); headerCell(ws, 'O1', 'Accounts Remarks', COLOR_HEADER1);
-    ws.mergeCells('P1:P2'); headerCell(ws, 'P1', 'Gen Notes', COLOR_HEADER1);
-
-    ['B2:PI','C2:Gen','D2:Acct','E2:Gen','F2:Acct','G2:Gen','H2:Acct','I2:Gen','J2:Acct','K2:PI','L2:Gen','M2:Acct'].forEach(function (pair) {
-      var parts = pair.split(':');
-      headerCell(ws, parts[0], parts[1], COLOR_HEADER2);
+  function headerRow(ws, headers) {
+    headers.forEach(function (text, i) {
+      var cell = ws.getCell(1, i + 1);
+      cell.value = text;
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_HEADER1 } };
+      cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.border = THIN_BORDER;
     });
+  }
 
-    var rowNum = 3;
-    values.forEach(function (v) {
-      ws.getRow(rowNum).values = [
-        v.client, v.piRent, v.genRent, v.acctRent,
-        v.genDed, v.acctDed, v.genAdd, v.acctAdd,
-        v.genDue, v.acctDue, v.piIban, v.genIban, v.acctIban,
-        v.diffFields, v.acctRemarks || '-', v.genNotes || '-'
-      ];
-      borderRow(ws, rowNum, 16);
-      if (v.diff.rental) highlightCells(ws, rowNum, [2, 3, 4]);
-      if (v.diff.ded)    highlightCells(ws, rowNum, [5, 6]);
-      if (v.diff.add)    highlightCells(ws, rowNum, [7, 8]);
-      if (v.diff.due)    highlightCells(ws, rowNum, [9, 10]);
-      if (v.diff.iban)   highlightCells(ws, rowNum, [11, 12, 13]);
-      rowNum++;
+  function buildRentalSheet(wb, rows) {
+    var ws = wb.addWorksheet('Rental');
+    ws.columns = [{ width: 34 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 16 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [r.client, r.pi, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 7);
+      highlightCells(ws, rn, [3, 4]);
     });
-
-    ws.views = [{ state: 'frozen', ySplit: 2, xSplit: 1 }];
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
   }
 
-  function buildWorkbook(localValues, intlValues, otherValues, mineNotInAcc, accNotInMine, summary, period) {
+  function buildDeductionSheet(wb, rows) {
+    var ws = wb.addWorksheet('Deduction');
+    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 6);
+      highlightCells(ws, rn, [2, 3]);
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
+    return ws;
+  }
+
+  function buildAdditionSheet(wb, rows) {
+    var ws = wb.addWorksheet('Addition');
+    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 6);
+      highlightCells(ws, rn, [2, 3]);
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
+    return ws;
+  }
+
+  var COLOR_MISMATCH = 'FFFFC7CE'; // pale red — math-check failure
+
+  function buildRentalDueSheet(wb, rows) {
+    var ws = wb.addWorksheet('Rental Due');
+    ws.columns = [
+      { width: 34 }, { width: 11 }, { width: 13 }, { width: 11 }, { width: 10 }, { width: 11 }, { width: 11 },
+      { width: 11 }, { width: 13 }, { width: 11 }, { width: 10 }, { width: 11 }, { width: 11 },
+      { width: 20 }, { width: 45 }
+    ];
+    headerRow(ws, ['Client', 'Gen Rental', 'Gen Deduction', 'Gen Addition', 'Gen Due', 'Gen Math OK', 'Gen Expected',
+      'Acct Rental', 'Acct Deduction', 'Acct Addition', 'Acct Due', 'Acct Math OK', 'Acct Expected',
+      'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [
+        r.client, r.genRent, r.genDed, r.genAdd, r.genDue, r.genOk ? 'OK' : 'MISMATCH', r.genExpected,
+        r.acctRent, r.acctDed, r.acctAdd, r.acctDue, r.acctOk ? 'OK' : 'MISMATCH', r.acctExpected,
+        r.acctRemarks, r.genNotes
+      ];
+      borderRow(ws, rn, 15);
+      highlightCells(ws, rn, [5, 11]);
+      if (!r.genOk) ws.getCell(rn, 6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+      if (!r.acctOk) ws.getCell(rn, 12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
+    return ws;
+  }
+
+  function buildBankDetailsSheet(wb, rows) {
+    var ws = wb.addWorksheet('Bank Details');
+    ws.columns = [
+      { width: 34 }, { width: 20 }, { width: 20 }, { width: 26 }, { width: 26 },
+      { width: 14 }, { width: 14 }, { width: 24 }, { width: 20 }, { width: 45 }
+    ];
+    headerRow(ws, ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN',
+      'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [
+        r.client, r.genAccount, r.acctAccount, r.genIban, r.acctIban,
+        r.genSwift, r.acctSwift, r.diffFields, r.acctRemarks, r.genNotes
+      ];
+      borderRow(ws, rn, 10);
+      if (r.diffFields.indexOf('Account No.') > -1) highlightCells(ws, rn, [2, 3]);
+      if (r.diffFields.indexOf('IBAN') > -1) highlightCells(ws, rn, [4, 5]);
+      if (r.diffFields.indexOf('SWIFT') > -1) highlightCells(ws, rn, [6, 7]);
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
+    return ws;
+  }
+
+  /* ── Local / International — full per-client summary, single header
+     row, every field in one place. Same shape as the old combined
+     comparison sheet, just modernized (single-row header + notes). ── */
+  function buildClassSummarySheet(wb, sheetName, rows) {
+    var ws = wb.addWorksheet(sheetName);
+    ws.columns = [
+      { width: 34 }, { width: 11 }, { width: 11 }, { width: 11 },
+      { width: 12 }, { width: 12 }, { width: 11 }, { width: 11 },
+      { width: 10 }, { width: 10 }, { width: 10 }, { width: 10 },
+      { width: 18 }, { width: 18 }, { width: 24 }, { width: 24 },
+      { width: 13 }, { width: 13 }, { width: 22 }, { width: 20 }, { width: 45 }
+    ];
+    headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental',
+      'Gen Deduction', 'Acct Deduction', 'Gen Addition', 'Acct Addition',
+      'Gen Due', 'Acct Due', 'Gen Math', 'Acct Math',
+      'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN',
+      'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
+    rows.forEach(function (r, i) {
+      var rn = i + 2;
+      ws.getRow(rn).values = [
+        r.client, r.piRent, r.genRent, r.acctRent,
+        r.genDed, r.acctDed, r.genAdd, r.acctAdd,
+        r.genDue, r.acctDue, r.genOk ? 'OK' : 'MISMATCH', r.acctOk ? 'OK' : 'MISMATCH',
+        r.genAccount, r.acctAccount, r.genIban, r.acctIban,
+        r.genSwift, r.acctSwift, r.diffFields, r.acctRemarks, r.genNotes
+      ];
+      borderRow(ws, rn, 21);
+      var tags = r.diffFields;
+      if (tags.indexOf('Rental') > -1) highlightCells(ws, rn, [3, 4]);
+      if (tags.indexOf('Ded') > -1) highlightCells(ws, rn, [5, 6]);
+      if (tags.indexOf('Add') > -1) highlightCells(ws, rn, [7, 8]);
+      if (tags.indexOf('Due') > -1) highlightCells(ws, rn, [9, 10]);
+      if (tags.indexOf('Account No.') > -1) highlightCells(ws, rn, [13, 14]);
+      if (tags.indexOf('IBAN') > -1) highlightCells(ws, rn, [15, 16]);
+      if (tags.indexOf('SWIFT') > -1) highlightCells(ws, rn, [17, 18]);
+      if (!r.genOk) ws.getCell(rn, 11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+      if (!r.acctOk) ws.getCell(rn, 12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_MISMATCH } };
+    });
+    ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
+    return ws;
+  }
+
+  function buildWorkbook(rentalRows, deductionRows, additionRows, dueRows, bankRows,
+      localRows, intlRows, mineNotInAcc, accNotInMine, summary, period) {
     var wb = new window.ExcelJS.Workbook();
 
-    buildComparisonSheet(wb, 'Local', localValues);
-    buildComparisonSheet(wb, 'International', intlValues);
-    if (otherValues.length) buildComparisonSheet(wb, 'Unclassified', otherValues);
+    buildRentalDueSheet(wb, dueRows);
+    buildRentalSheet(wb, rentalRows);
+    buildDeductionSheet(wb, deductionRows);
+    buildAdditionSheet(wb, additionRows);
+    buildBankDetailsSheet(wb, bankRows);
+    buildClassSummarySheet(wb, 'Local', localRows);
+    buildClassSummarySheet(wb, 'International', intlRows);
 
-    /* ── Missing Clients — now with per-entry note + classification ── */
+    /* ── Missing Clients — PI cross-check reason + "another account" cross-ref ── */
     var ws2 = wb.addWorksheet('Missing Clients');
-    ws2.columns = [{ width: 38 }, { width: 38 }, { width: 55 }, { width: 55 }, { width: 16 }, { width: 16 }];
-    headerCell(ws2, 'A1', 'In My Payout, Not In Accounts List', COLOR_HEADER1);
-    headerCell(ws2, 'B1', 'In Accounts List, Not In My Payout', COLOR_HEADER1);
-    headerCell(ws2, 'C1', 'Note (Col A)', COLOR_HEADER1);
-    headerCell(ws2, 'D1', 'Note (Col B)', COLOR_HEADER1);
-    headerCell(ws2, 'E1', 'Local/Intl (Col A)', COLOR_HEADER1);
-    headerCell(ws2, 'F1', 'Local/Intl (Col B)', COLOR_HEADER1);
+    ws2.columns = [{ width: 38 }, { width: 42 }, { width: 16 }, { width: 55 }, { width: 14 }, { width: 14 }];
+    headerRow(ws2, ['In My Payout, Not In Accounts List', 'In Accounts List, Not In My Payout',
+      'Note (Col A)', 'Note (Col B)', 'Local/Intl (Col A)', 'Local/Intl (Col B)']);
     var maxLen = Math.max(mineNotInAcc.length, accNotInMine.length);
     for (var i = 0; i < maxLen; i++) {
       var mA = mineNotInAcc[i], mB = accNotInMine[i];
@@ -839,31 +1102,65 @@
 
   function fmt2(v) { return v == null ? '—' : Math.round(toNum(v)).toLocaleString(); }
 
-  function renderValueTable(values) {
-    if (!values.length) return '';
-    var head1 = '<tr>' +
-      '<th rowspan="2">Client</th><th colspan="3">Rental</th><th colspan="2">Deduction</th>' +
-      '<th colspan="2">Addition</th><th colspan="2">Rental Due</th><th colspan="3">IBAN</th>' +
-      '<th rowspan="2">Diff Fields</th></tr>';
-    var head2 = '<tr><th>PI</th><th>Gen</th><th>Acct</th><th>Gen</th><th>Acct</th>' +
-      '<th>Gen</th><th>Acct</th><th>Gen</th><th>Acct</th><th>PI</th><th>Gen</th><th>Acct</th></tr>';
-
-    var body = values.map(function (v) {
-      function td(val, hi) { return '<td class="td-num' + (hi ? ' diff-hi' : '') + '">' + val + '</td>'; }
-      return '<tr>' +
-        '<td class="td-name">' + v.client + '</td>' +
-        td(fmt2(v.piRent), v.diff.rental) + td(fmt2(v.genRent), v.diff.rental) + td(fmt2(v.acctRent), v.diff.rental) +
-        td(fmt2(v.genDed), v.diff.ded) + td(fmt2(v.acctDed), v.diff.ded) +
-        td(fmt2(v.genAdd), v.diff.add) + td(fmt2(v.acctAdd), v.diff.add) +
-        td(fmt2(v.genDue), v.diff.due) + td(fmt2(v.acctDue), v.diff.due) +
-        td(v.piIban || '—', v.diff.iban) + td(v.genIban || '—', v.diff.iban) + td(v.acctIban || '—', v.diff.iban) +
-        '<td class="td-name">' + v.diffFields + '</td>' +
-        '</tr>';
+  function simpleTable(title, headers, rows, hiCols) {
+    if (!rows.length) return '';
+    var head = '<tr>' + headers.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+    var body = rows.map(function (r) {
+      return '<tr>' + r.map(function (cell, i) {
+        var isName = i === 0;
+        var hi = hiCols && hiCols.indexOf(i) > -1;
+        return '<td class="' + (isName ? 'td-name' : 'td-num') + (hi ? ' diff-hi' : '') + '">' + cell + '</td>';
+      }).join('') + '</tr>';
     }).join('');
-
-    return '<div class="card"><div class="results-header"><span class="results-title">Value differences (' + values.length + ')</span></div>' +
-      '<div class="table-wrap"><table><thead>' + head1 + head2 + '</thead><tbody>' + body + '</tbody></table></div></div>' +
+    return '<div class="card"><div class="results-header"><span class="results-title">' + title + ' (' + rows.length + ')</span></div>' +
+      '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>' +
       '<style>.diff-hi{background:rgba(255,220,100,0.28)!important;}</style>';
+  }
+
+  function renderRentalTable(rows) {
+    return simpleTable('Rental', ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.pi), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+      [2, 3]);
+  }
+  function renderDeductionTable(rows) {
+    return simpleTable('Deduction', ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+      [1, 2]);
+  }
+  function renderAdditionTable(rows) {
+    return simpleTable('Addition', ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+      [1, 2]);
+  }
+  function renderDueTable(rows) {
+    return simpleTable('Rental Due (math check)',
+      ['Client', 'Gen Rental', 'Gen Ded', 'Gen Add', 'Gen Due', 'Gen Math', 'Acct Rental', 'Acct Ded', 'Acct Add', 'Acct Due', 'Acct Math', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) {
+        return [esc2(r.client), fmt2(r.genRent), fmt2(r.genDed), fmt2(r.genAdd), fmt2(r.genDue),
+          r.genOk ? 'OK' : 'MISMATCH', fmt2(r.acctRent), fmt2(r.acctDed), fmt2(r.acctAdd), fmt2(r.acctDue),
+          r.acctOk ? 'OK' : 'MISMATCH', esc2(r.acctRemarks), esc2(r.genNotes)];
+      }), [4, 9]);
+  }
+  function renderBankTable(rows) {
+    return simpleTable('Bank Details', ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN', 'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) {
+        return [esc2(r.client), esc2(r.genAccount || '—'), esc2(r.acctAccount || '—'), esc2(r.genIban || '—'), esc2(r.acctIban || '—'),
+          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
+      }), [1, 2, 3, 4, 5, 6]);
+  }
+
+  function renderClassTable(title, rows) {
+    return simpleTable(title,
+      ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Gen Ded', 'Acct Ded', 'Gen Add', 'Acct Add',
+        'Gen Due', 'Acct Due', 'Gen Math', 'Acct Math', 'Gen Account', 'Acct Account', 'Gen IBAN', 'Acct IBAN',
+        'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) {
+        return [esc2(r.client), fmt2(r.piRent), fmt2(r.genRent), fmt2(r.acctRent),
+          fmt2(r.genDed), fmt2(r.acctDed), fmt2(r.genAdd), fmt2(r.acctAdd),
+          fmt2(r.genDue), fmt2(r.acctDue), r.genOk ? 'OK' : 'MISMATCH', r.acctOk ? 'OK' : 'MISMATCH',
+          esc2(r.genAccount || '—'), esc2(r.acctAccount || '—'), esc2(r.genIban || '—'), esc2(r.acctIban || '—'),
+          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
+      }), [2, 3, 4, 5, 6, 7, 8, 9, 10]);
   }
 
   function renderMissingTable(mineNotInAcc, accNotInMine) {
@@ -894,12 +1191,24 @@
     var sm = res.summary;
     var html = '<div class="card"><div class="stats-grid">' +
       statBox(sm.matched, 'Matched') +
-      statBox(sm.differences, 'Differences') +
+      statBox(sm.due, 'Rental Due') +
+      statBox(sm.rental, 'Rental') +
+      statBox(sm.deduction, 'Deduction') +
+      statBox(sm.addition, 'Addition') +
+      statBox(sm.bank, 'Bank Details') +
+      statBox(sm.local, 'Local') +
+      statBox(sm.intl, 'International') +
       statBox(sm.mineOnly, 'Mine only') +
       statBox(sm.accOnly, 'Accounts only') +
       '</div></div>';
 
-    html += renderValueTable(res.values);
+    html += renderDueTable(res.dueRows);
+    html += renderRentalTable(res.rentalRows);
+    html += renderDeductionTable(res.deductionRows);
+    html += renderAdditionTable(res.additionRows);
+    html += renderBankTable(res.bankRows);
+    html += renderClassTable('Local', res.localRows);
+    html += renderClassTable('International', res.intlRows);
     html += renderMissingTable(res.mineNotInAcc, res.accNotInMine);
 
     document.getElementById('pa-results').innerHTML = html;
