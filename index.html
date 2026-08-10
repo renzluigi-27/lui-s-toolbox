@@ -260,6 +260,20 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
+              <strong>Version 2.0.17</strong> — Email Sheet upload removed<br>
+              <div style="padding-left:1rem;">
+                • Removed the optional "Email Sheet" upload card from Payout Generator and IP Deduction — client name/email/mobile/nationality/EID matching now lives only in Email Matcher<br>
+                • Export columns CLIENT NAME (EMAIL SHEET), EMAIL 1, EMAIL 2, MOBILE, NATIONALITY, EID/PASSPORT/NATIONAL CARD removed from both exports<br>
+                • Payout Schedule's own email upload (for autofilling a client's email on the PDF) is unaffected<br>
+              </div><br>
+
+              <strong>Version 2.0.16</strong> — Deduction notes show year + type breakdown<br>
+              <div style="padding-left:1rem;">
+                • Deduction notes now specify which year triggered — Y1 stays plain "IP" (Y1 is always insurance-only), Y2/Y3 show as "Y2 IP", "Y3 HC", "Y2 IP &amp; HC", etc.<br>
+                • Grouped per container so multi-container clients get a clear line-by-line breakdown instead of one merged total<br>
+                • Applies wherever shared.js's deduction engine runs: Payout Generator, IP Deduction, Payout Auditor, and Payout Schedule (all inside the AIO tool)<br>
+              </div><br>
+
               <strong>Version 2.0.15</strong> — Termination no longer fully skipped<br>
               <div style="padding-left:1rem;">
                 • Containers marked "Termination" (For Settlement column) now stay visible instead of being dropped entirely<br>
