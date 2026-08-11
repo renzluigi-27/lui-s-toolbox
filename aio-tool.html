@@ -48,28 +48,49 @@
         <div id="clientOrgMount" style="display:none;"></div>
         <div id="scheduleMount" style="display:none;"></div>
 
-        <!-- Upload Files: Payment Info -->
+        <!-- Upload Files: Payment Info / Accounts Payout List -->
         <div class="card" id="mainUploadRow">
           <div class="section-label">Upload Files</div>
-          <div>
-            <div class="section-label">Payment Info Sheet <span class="optional-label">required · main database</span></div>
-            <div class="upload-zone upload-zone-sm" id="uploadZone">
-              <input type="file" id="fileInput" accept=".xlsx,.xls" />
-              <div class="upload-zone-text">
-                <strong>Click to upload</strong>
-                .xlsx or .xls
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div class="section-label">Payment Info Sheet <span class="optional-label">required · main database</span></div>
+              <div class="upload-zone upload-zone-sm" id="uploadZone">
+                <input type="file" id="fileInput" accept=".xlsx,.xls" />
+                <div class="upload-zone-text">
+                  <strong>Click to upload</strong>
+                  .xlsx or .xls
+                </div>
               </div>
-            </div>
-            <div class="file-loaded" id="fileLoaded">
-              <span>&#10003;</span>
-              <div>
-                <div class="file-loaded-name" id="loadedName">&mdash;</div>
-                <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+              <div class="file-loaded" id="fileLoaded">
+                <span>&#10003;</span>
+                <div>
+                  <div class="file-loaded-name" id="loadedName">&mdash;</div>
+                  <div class="file-loaded-meta" id="loadedMeta">&mdash;</div>
+                </div>
               </div>
+              <div class="msg error" id="fileError"></div>
             </div>
-            <div class="msg error" id="fileError"></div>
+
+            <div id="accountsListCard" style="display:none;">
+              <div class="section-label">Accounts Payout List <span class="optional-label">optional · matches sort order</span></div>
+              <div class="upload-zone upload-zone-sm" id="accountsListUploadZone">
+                <input type="file" id="accountsListFileInput" accept=".xlsx,.xls" />
+                <div class="upload-zone-text">
+                  <strong>Click to upload</strong>
+                  .xlsx or .xls
+                </div>
+              </div>
+              <div class="file-loaded" id="accountsListFileLoaded">
+                <span>&#10003;</span>
+                <div>
+                  <div class="file-loaded-name" id="accountsListLoadedName">&mdash;</div>
+                </div>
+              </div>
+              <div class="msg error" id="accountsListError"></div>
+            </div>
           </div>
         </div>
+
 
         <!-- Cycle settings (own card) -->
         <div class="card" id="cycleCard">
