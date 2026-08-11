@@ -757,37 +757,72 @@
         gens.forEach(function (g) { allMatchedNames.push(g.name); });
 
         var mergedG;
+        var isMultiAccount = false;
         if (gens.length === 1) {
           mergedG = gens[0];
         } else {
-          // Same payee split across multiple Gen bank accounts, Accounts
-          // has them as one line — sum the split and compare the total.
-          var uniqueNames = gens.map(function (g) { return g.name; })
-            .filter(function (v, i, arr) { return arr.indexOf(v) === i; });
-          mergedG = {
-            name: uniqueNames.join(' / '),
-            rent: 0, deduction: 0, addition: 0, rentalDue: 0,
-            account: null, iban: null, swift: null,
-            clientType: gens[0].clientType,
-            notes: [], _multiAccount: []
-          };
-          gens.forEach(function (g) {
-            mergedG.rent += toNum(g.rent);
-            mergedG.deduction += toNum(g.deduction);
-            mergedG.addition += toNum(g.addition);
-            mergedG.rentalDue += toNum(g.rentalDue);
-            if (g.notes && g.notes.length) mergedG.notes = mergedG.notes.concat(g.notes);
-            mergedG._multiAccount.push({ account: g.account, iban: g.iban, rent: g.rent });
+          // A client can have several Gen accounts where only ONE still
+          // has real money in it (the others are terminated/zeroed-out
+          // history). In that case there's nothing to actually merge —
+          // the single funded account IS the real comparison, and using
+          // it directly (instead of summing) lets a real Bank Details
+          // mismatch surface (e.g. Accounts still has the client's old,
+          // now-terminated account on file instead of their current
+          // active one) rather than being masked as "all good, just
+          // split across accounts."
+          var funded = gens.filter(function (g) {
+            return toNum(g.rent) !== 0 || toNum(g.deduction) !== 0 ||
+              toNum(g.addition) !== 0 || toNum(g.rentalDue) !== 0;
           });
-          var acctList = mergedG._multiAccount.map(function (x) {
-            return (x.account || x.iban || '—') + ' (' + Math.round(toNum(x.rent)).toLocaleString() + ')';
-          }).join('; ');
-          mergedG.notes.unshift('⚑ Split across ' + gens.length + ' Gen bank accounts, summed for this comparison: ' + acctList);
+
+          if (funded.length === 1) {
+            var base = funded[0];
+            var zeroNotes = [];
+            gens.forEach(function (g) {
+              if (g !== base && g.notes && g.notes.length) zeroNotes = zeroNotes.concat(g.notes);
+            });
+            if (zeroNotes.length) {
+              mergedG = {
+                name: base.name, rent: base.rent, deduction: base.deduction,
+                addition: base.addition, rentalDue: base.rentalDue,
+                account: base.account, iban: base.iban, swift: base.swift,
+                clientType: base.clientType,
+                notes: (base.notes || []).concat(zeroNotes)
+              };
+            } else {
+              mergedG = base;
+            }
+          } else {
+            // Genuinely multiple funded accounts (or all zero) — sum
+            // the split and compare the total, same as before.
+            isMultiAccount = true;
+            var uniqueNames = gens.map(function (g) { return g.name; })
+              .filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+            mergedG = {
+              name: uniqueNames.join(' / '),
+              rent: 0, deduction: 0, addition: 0, rentalDue: 0,
+              account: null, iban: null, swift: null,
+              clientType: gens[0].clientType,
+              notes: [], _multiAccount: []
+            };
+            gens.forEach(function (g) {
+              mergedG.rent += toNum(g.rent);
+              mergedG.deduction += toNum(g.deduction);
+              mergedG.addition += toNum(g.addition);
+              mergedG.rentalDue += toNum(g.rentalDue);
+              if (g.notes && g.notes.length) mergedG.notes = mergedG.notes.concat(g.notes);
+              mergedG._multiAccount.push({ account: g.account, iban: g.iban, rent: g.rent });
+            });
+            var acctList = mergedG._multiAccount.map(function (x) {
+              return (x.account || x.iban || '—') + ' (' + Math.round(toNum(x.rent)).toLocaleString() + ')';
+            }).join('; ');
+            mergedG.notes.unshift('⚑ Split across ' + gens.length + ' Gen bank accounts, summed for this comparison: ' + acctList);
+          }
         }
 
         var p = findMatch(gens[0], piIndex);
         var vrow = valueRow(mergedG, a, p);
-        if (gens.length > 1) vrow.isMultiAccount = true;
+        if (isMultiAccount) vrow.isMultiAccount = true;
         values.push(vrow);
       });
 
