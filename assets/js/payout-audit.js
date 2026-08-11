@@ -786,12 +786,30 @@
         }
 
         var p = findMatch(gens[0], piIndex);
-        values.push(valueRow(mergedG, a, p));
+        var vrow = valueRow(mergedG, a, p);
+        if (gens.length > 1) vrow.isMultiAccount = true;
+        values.push(vrow);
       });
 
       accPayees.forEach(function (a) {
         if (matchedAcc[a._norm]) return;
         accNotInMine.push({ name: a.name, class: classify(null, a) });
+      });
+
+      // A client can also have multiple SEPARATE bank accounts that each
+      // paired 1:1 correctly (e.g. Satya's two accounts both match their
+      // own Accounts row exactly) — those produce two independent rows in
+      // `values` rather than one merged row, so tag them here by name
+      // repetition instead of at push-time above.
+      var nameOccurrences = {};
+      values.forEach(function (v) {
+        var k = normName(v.client);
+        nameOccurrences[k] = (nameOccurrences[k] || 0) + 1;
+      });
+      values.forEach(function (v) {
+        if (!v.isMultiAccount && nameOccurrences[normName(v.client)] > 1) {
+          v.isMultiAccount = true;
+        }
       });
 
       // Missing-clients notes: PI cross-check reason first (termination /
@@ -824,40 +842,45 @@
       var rentalRows = [], deductionRows = [], additionRows = [], dueRows = [], bankRows = [];
 
       values.forEach(function (v) {
-        if (v.diff.rental) {
+        if (v.diff.rental || v.isMultiAccount) {
           rentalRows.push({
             client: v.client, pi: v.piRent, gen: v.genRent, acct: v.acctRent,
             diff: Math.round(((v.acctRent || 0) - (v.genRent || 0)) * 100) / 100,
+            status: v.diff.rental ? 'Diff' : 'Multi-Account (OK)',
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.ded) {
+        if (v.diff.ded || v.isMultiAccount) {
           deductionRows.push({
             client: v.client, gen: v.genDed, acct: v.acctDed,
             diff: Math.round(((v.acctDed || 0) - (v.genDed || 0)) * 100) / 100,
+            status: v.diff.ded ? 'Diff' : 'Multi-Account (OK)',
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.add) {
+        if (v.diff.add || v.isMultiAccount) {
           additionRows.push({
             client: v.client, gen: v.genAdd, acct: v.acctAdd,
             diff: Math.round(((v.acctAdd || 0) - (v.genAdd || 0)) * 100) / 100,
+            status: v.diff.add ? 'Diff' : 'Multi-Account (OK)',
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.due) {
+        if (v.diff.due || v.isMultiAccount) {
           dueRows.push({
             client: v.client,
             genRent: v.genRent, genDed: v.genDed, genAdd: v.genAdd, genDue: v.genDue,
             acctRent: v.acctRent, acctDed: v.acctDed, acctAdd: v.acctAdd, acctDue: v.acctDue,
+            status: v.diff.due ? 'Diff' : 'Multi-Account (OK)',
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.account || v.diff.iban || v.diff.swift) {
+        if (v.diff.account || v.diff.iban || v.diff.swift || v.isMultiAccount) {
           var tags = [];
           if (v.diff.account) tags.push('Account No.');
           if (v.diff.iban) tags.push('IBAN');
           if (v.diff.swift) tags.push('SWIFT');
+          if (!tags.length && v.isMultiAccount) tags.push('Multi-Account (OK)');
           bankRows.push({
             client: v.client,
             genAccount: v.genAccount, acctAccount: v.acctAccount,
@@ -874,7 +897,7 @@
          split by classification. Same sort as the 5 category sheets. ── */
       var classRows = values.filter(function (v) {
         return v.diff.rental || v.diff.ded || v.diff.add || v.diff.due ||
-          v.diff.account || v.diff.iban || v.diff.swift;
+          v.diff.account || v.diff.iban || v.diff.swift || v.isMultiAccount;
       }).map(function (v) {
         var tags = [];
         if (v.diff.rental) tags.push('Rental');
@@ -884,6 +907,7 @@
         if (v.diff.account) tags.push('Account No.');
         if (v.diff.iban) tags.push('IBAN');
         if (v.diff.swift) tags.push('SWIFT');
+        if (!tags.length && v.isMultiAccount) tags.push('Multi-Account (OK)');
         return {
           client: v.client, class: v.class,
           piRent: v.piRent, genRent: v.genRent, acctRent: v.acctRent,
@@ -975,13 +999,13 @@
 
   function buildRentalSheet(wb, rows) {
     var ws = wb.addWorksheet('Rental');
-    ws.columns = [{ width: 34 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 16 }, { width: 20 }, { width: 45 }];
-    headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    ws.columns = [{ width: 34 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 16 }, { width: 18 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
-      ws.getRow(rn).values = [r.client, r.pi, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
-      borderRow(ws, rn, 7);
-      highlightCells(ws, rn, [3, 4]);
+      ws.getRow(rn).values = [r.client, r.pi, r.gen, r.acct, r.diff, r.status, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 8);
+      if (r.status === 'Diff') highlightCells(ws, rn, [3, 4]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -989,13 +1013,13 @@
 
   function buildDeductionSheet(wb, rows) {
     var ws = wb.addWorksheet('Deduction');
-    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 20 }, { width: 45 }];
-    headerRow(ws, ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
-      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
-      borderRow(ws, rn, 6);
-      highlightCells(ws, rn, [2, 3]);
+      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.status, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 7);
+      if (r.status === 'Diff') highlightCells(ws, rn, [2, 3]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -1003,13 +1027,13 @@
 
   function buildAdditionSheet(wb, rows) {
     var ws = wb.addWorksheet('Addition');
-    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 20 }, { width: 45 }];
-    headerRow(ws, ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes']);
+    ws.columns = [{ width: 34 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 18 }, { width: 20 }, { width: 45 }];
+    headerRow(ws, ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
-      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.acctRemarks, r.genNotes];
-      borderRow(ws, rn, 6);
-      highlightCells(ws, rn, [2, 3]);
+      ws.getRow(rn).values = [r.client, r.gen, r.acct, r.diff, r.status, r.acctRemarks, r.genNotes];
+      borderRow(ws, rn, 7);
+      if (r.status === 'Diff') highlightCells(ws, rn, [2, 3]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -1021,21 +1045,21 @@
     var ws = wb.addWorksheet('Rental Due');
     ws.columns = [
       { width: 34 }, { width: 12 }, { width: 13 }, { width: 12 }, { width: 11 },
-      { width: 12 }, { width: 13 }, { width: 12 }, { width: 11 },
+      { width: 12 }, { width: 13 }, { width: 12 }, { width: 11 }, { width: 18 },
       { width: 20 }, { width: 45 }
     ];
     headerRow(ws, ['Client', 'Gen Rental', 'Gen Deduction', 'Gen Addition', 'Gen Due',
-      'Acct Rental', 'Acct Deduction', 'Acct Addition', 'Acct Due',
+      'Acct Rental', 'Acct Deduction', 'Acct Addition', 'Acct Due', 'Status',
       'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
       ws.getRow(rn).values = [
         r.client, r.genRent, r.genDed, r.genAdd, r.genDue,
-        r.acctRent, r.acctDed, r.acctAdd, r.acctDue,
+        r.acctRent, r.acctDed, r.acctAdd, r.acctDue, r.status,
         r.acctRemarks, r.genNotes
       ];
-      borderRow(ws, rn, 11);
-      highlightCells(ws, rn, [5, 9]);
+      borderRow(ws, rn, 12);
+      if (r.status === 'Diff') highlightCells(ws, rn, [5, 9]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -1256,26 +1280,26 @@
   }
 
   function renderRentalTable(rows) {
-    return simpleTable('Rental', ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
-      rows.map(function (r) { return [esc2(r.client), fmt2(r.pi), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+    return simpleTable('Rental', ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.pi), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.status), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
       [2, 3]);
   }
   function renderDeductionTable(rows) {
-    return simpleTable('Deduction', ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
-      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+    return simpleTable('Deduction', ['Client', 'Gen Deduction', 'Acct Deduction', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.status), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
       [1, 2]);
   }
   function renderAdditionTable(rows) {
-    return simpleTable('Addition', ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Accounts Remarks', 'Gen Notes'],
-      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
+    return simpleTable('Addition', ['Client', 'Gen Addition', 'Acct Addition', 'Diff (Acct-Gen)', 'Status', 'Accounts Remarks', 'Gen Notes'],
+      rows.map(function (r) { return [esc2(r.client), fmt2(r.gen), fmt2(r.acct), fmt2(r.diff), esc2(r.status), esc2(r.acctRemarks), esc2(r.genNotes)]; }),
       [1, 2]);
   }
   function renderDueTable(rows) {
     return simpleTable('Rental Due',
-      ['Client', 'Gen Rental', 'Gen Ded', 'Gen Add', 'Gen Due', 'Acct Rental', 'Acct Ded', 'Acct Add', 'Acct Due', 'Accounts Remarks', 'Gen Notes'],
+      ['Client', 'Gen Rental', 'Gen Ded', 'Gen Add', 'Gen Due', 'Acct Rental', 'Acct Ded', 'Acct Add', 'Acct Due', 'Status', 'Accounts Remarks', 'Gen Notes'],
       rows.map(function (r) {
         return [esc2(r.client), fmt2(r.genRent), fmt2(r.genDed), fmt2(r.genAdd), fmt2(r.genDue),
-          fmt2(r.acctRent), fmt2(r.acctDed), fmt2(r.acctAdd), fmt2(r.acctDue), esc2(r.acctRemarks), esc2(r.genNotes)];
+          fmt2(r.acctRent), fmt2(r.acctDed), fmt2(r.acctAdd), fmt2(r.acctDue), esc2(r.status), esc2(r.acctRemarks), esc2(r.genNotes)];
       }), [4, 8]);
   }
   function renderBankTable(rows) {
