@@ -163,7 +163,7 @@ function runPayout(yr, mo, cycle) {
     };
   });
 
-  results.sort((a, b) => a.index - b.index);
+  sortResultsByAccountsOrder(results, accountsListRows);
 
   const cycleLabel = cycle === '15' ? '15th' : 'End of Month';
   showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${results.length} payees`);
