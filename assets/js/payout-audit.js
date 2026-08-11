@@ -892,13 +892,11 @@
         }
       });
 
-      /* ── Local / International full per-client summary — combines every
-         field into one row per client (only rows with at least one diff),
-         split by classification. Same sort as the 5 category sheets. ── */
-      var classRows = values.filter(function (v) {
-        return v.diff.rental || v.diff.ded || v.diff.add || v.diff.due ||
-          v.diff.account || v.diff.iban || v.diff.swift || v.isMultiAccount;
-      }).map(function (v) {
+      /* ── Local / International full per-client summary — the COMPLETE
+         matched client list (not diff-only), so these two sheets serve as
+         a full reference/audit trail. Diff Fields shows 'OK' for clients
+         with no issues at all. Same sort as the 5 category sheets. ── */
+      var classRows = values.map(function (v) {
         var tags = [];
         if (v.diff.rental) tags.push('Rental');
         if (v.diff.ded) tags.push('Ded');
@@ -908,6 +906,7 @@
         if (v.diff.iban) tags.push('IBAN');
         if (v.diff.swift) tags.push('SWIFT');
         if (!tags.length && v.isMultiAccount) tags.push('Multi-Account (OK)');
+        if (!tags.length) tags.push('OK');
         return {
           client: v.client, class: v.class,
           piRent: v.piRent, genRent: v.genRent, acctRent: v.acctRent,
