@@ -590,9 +590,21 @@
     var dedDiff = !numsEqual(g.deduction, a.deduction);
     var addDiff = !numsEqual(g.addition, a.addition);
     var dueDiff = !numsEqual(g.rentalDue, a.rentalDue);
-    var accDiff = accountDiffers(g, a);
-    var ibanDiff = ibanFieldDiffers(g, a);
-    var swiftDiff = swiftDiffers(g, a);
+
+    // A merged multi-bank-account payee has no single Gen account/IBAN to
+    // compare — comparing "null" against Accounts' one account would look
+    // like a fabricated mismatch, so skip the Bank Details check here and
+    // show the breakdown as text instead.
+    var isMulti = !!g._multiAccount;
+    var accDiff = isMulti ? false : accountDiffers(g, a);
+    var ibanDiff = isMulti ? false : ibanFieldDiffers(g, a);
+    var swiftDiff = isMulti ? false : swiftDiffers(g, a);
+    var genAccountDisplay = isMulti
+      ? g._multiAccount.map(function (x) { return x.account || '—'; }).join(' / ')
+      : g.account;
+    var genIbanDisplay = isMulti
+      ? g._multiAccount.map(function (x) { return x.iban || '—'; }).join(' / ')
+      : g.iban;
 
     var genMath = mathCheck(g.rent, g.deduction, g.addition, g.rentalDue);
     var acctMath = mathCheck(a.rent, a.deduction, a.addition, a.rentalDue);
@@ -607,9 +619,9 @@
       genDed: g.deduction, acctDed: a.deduction,
       genAdd: g.addition, acctAdd: a.addition,
       genDue: g.rentalDue, acctDue: a.rentalDue,
-      genAccount: g.account, acctAccount: a.account,
-      genIban: g.iban, acctIban: a.iban,
-      genSwift: g.swift, acctSwift: a.swift,
+      genAccount: genAccountDisplay, acctAccount: a.account,
+      genIban: genIbanDisplay, acctIban: a.iban,
+      genSwift: isMulti ? null : g.swift, acctSwift: a.swift,
       genMath: genMath, acctMath: acctMath,
       diff: {
         rental: rentalDiff, ded: dedDiff, add: addDiff, due: dueDiff,
@@ -659,17 +671,70 @@
       var matchedCount = 0;
       var allMatchedNames = [];    // for "another account" cross-reference
 
+      // Some clients get paid across MULTIPLE bank accounts on the Gen
+      // side (different containers routed to different banks), but
+      // Accounts sometimes reports them as a single combined line. If we
+      // compare each Gen sub-account separately against that one Accounts
+      // line, we get confusing duplicate/partial-looking rows even when
+      // the totals actually match perfectly. So: group Gen payees by
+      // which Accounts payee they matched to, and if more than one Gen
+      // payee lands on the same Accounts entry, merge them into one
+      // summed comparison row instead of several partial ones.
+      var accGroups = [];          // [{ acc: a, gens: [g, ...] }]
+      var accGroupIndex = {};      // a._norm+account+iban -> index into accGroups
+
       genPayees.forEach(function (g) {
         var a = findMatch(g, accIndex);
         if (!a) {
           mineNotInAcc.push({ name: g.name, class: classify(g, null) });
           return;
         }
+        var akey = a._norm + '|' + (a.account || '') + '|' + (a.iban || '');
+        if (!Object.prototype.hasOwnProperty.call(accGroupIndex, akey)) {
+          accGroupIndex[akey] = accGroups.length;
+          accGroups.push({ acc: a, gens: [] });
+        }
+        accGroups[accGroupIndex[akey]].gens.push(g);
+      });
+
+      accGroups.forEach(function (entry) {
+        var a = entry.acc;
+        var gens = entry.gens;
         matchedAcc[a._norm] = true;
         matchedCount++;
-        allMatchedNames.push(g.name);
-        var p = findMatch(g, piIndex);
-        values.push(valueRow(g, a, p));
+        gens.forEach(function (g) { allMatchedNames.push(g.name); });
+
+        var mergedG;
+        if (gens.length === 1) {
+          mergedG = gens[0];
+        } else {
+          // Same payee split across multiple Gen bank accounts, Accounts
+          // has them as one line — sum the split and compare the total.
+          var uniqueNames = gens.map(function (g) { return g.name; })
+            .filter(function (v, i, arr) { return arr.indexOf(v) === i; });
+          mergedG = {
+            name: uniqueNames.join(' / '),
+            rent: 0, deduction: 0, addition: 0, rentalDue: 0,
+            account: null, iban: null, swift: null,
+            clientType: gens[0].clientType,
+            notes: [], _multiAccount: []
+          };
+          gens.forEach(function (g) {
+            mergedG.rent += toNum(g.rent);
+            mergedG.deduction += toNum(g.deduction);
+            mergedG.addition += toNum(g.addition);
+            mergedG.rentalDue += toNum(g.rentalDue);
+            if (g.notes && g.notes.length) mergedG.notes = mergedG.notes.concat(g.notes);
+            mergedG._multiAccount.push({ account: g.account, iban: g.iban, rent: g.rent });
+          });
+          var acctList = mergedG._multiAccount.map(function (x) {
+            return (x.account || x.iban || '—') + ' (' + Math.round(toNum(x.rent)).toLocaleString() + ')';
+          }).join('; ');
+          mergedG.notes.unshift('⚑ Split across ' + gens.length + ' Gen bank accounts, summed for this comparison: ' + acctList);
+        }
+
+        var p = findMatch(gens[0], piIndex);
+        values.push(valueRow(mergedG, a, p));
       });
 
       accPayees.forEach(function (a) {
