@@ -776,27 +776,12 @@
           });
 
           if (funded.length === 1) {
-            var base = funded[0];
-            var otherNotes = [];
-            gens.forEach(function (g) {
-              if (g !== base && g.notes && g.notes.length) {
-                var acctLabel = g.account || g.iban || 'other account';
-                g.notes.forEach(function (n) {
-                  otherNotes.push('[Other account ' + acctLabel + ', 0 due] ' + n);
-                });
-              }
-            });
-            if (otherNotes.length) {
-              mergedG = {
-                name: base.name, rent: base.rent, deduction: base.deduction,
-                addition: base.addition, rentalDue: base.rentalDue,
-                account: base.account, iban: base.iban, swift: base.swift,
-                clientType: base.clientType,
-                notes: (base.notes || []).concat(otherNotes)
-              };
-            } else {
-              mergedG = base;
-            }
+            // The zeroed-out sibling account(s) (usually fully terminated,
+            // 0 due) aren't related to this account's own status — pulling
+            // their notes over here just misattributes context that
+            // belongs to a different, unrelated account. Use the funded
+            // account as-is, own notes only.
+            mergedG = funded[0];
           } else {
             // Genuinely multiple funded accounts (or all zero) — sum
             // the split and compare the total, same as before.
@@ -815,13 +800,28 @@
               mergedG.deduction += toNum(g.deduction);
               mergedG.addition += toNum(g.addition);
               mergedG.rentalDue += toNum(g.rentalDue);
-              if (g.notes && g.notes.length) mergedG.notes = mergedG.notes.concat(g.notes);
+              if (g.notes && g.notes.length) {
+                g.notes.forEach(function (n) {
+                  if (mergedG.notes.indexOf(n) === -1) mergedG.notes.push(n);
+                });
+              }
               mergedG._multiAccount.push({ account: g.account, iban: g.iban, rent: g.rent });
             });
-            var acctList = mergedG._multiAccount.map(function (x) {
-              return (x.account || x.iban || '—') + ' (' + Math.round(toNum(x.rent)).toLocaleString() + ')';
-            }).join('; ');
-            mergedG.notes.unshift('⚑ Split across ' + gens.length + ' Gen bank accounts, summed for this comparison: ' + acctList);
+            // If every account came out to zero, there's no real split to
+            // explain — it's just the client's whole file being terminated
+            // across the board, so the account-by-account breakdown (and
+            // the "Multi-Account" framing) only adds noise. Let whatever
+            // termination note each side already carries speak for itself.
+            var allZero = mergedG.rent === 0 && mergedG.deduction === 0 &&
+              mergedG.addition === 0 && mergedG.rentalDue === 0;
+            if (!allZero) {
+              var acctList = mergedG._multiAccount.map(function (x) {
+                return (x.account || x.iban || '—') + ' (' + Math.round(toNum(x.rent)).toLocaleString() + ')';
+              }).join('; ');
+              mergedG.notes.unshift('⚑ Split across ' + gens.length + ' Gen bank accounts, summed for this comparison: ' + acctList);
+            } else {
+              isMultiAccount = false;
+            }
           }
         }
 
