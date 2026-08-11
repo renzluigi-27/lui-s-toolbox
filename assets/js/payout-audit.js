@@ -777,17 +777,22 @@
 
           if (funded.length === 1) {
             var base = funded[0];
-            var zeroNotes = [];
+            var otherNotes = [];
             gens.forEach(function (g) {
-              if (g !== base && g.notes && g.notes.length) zeroNotes = zeroNotes.concat(g.notes);
+              if (g !== base && g.notes && g.notes.length) {
+                var acctLabel = g.account || g.iban || 'other account';
+                g.notes.forEach(function (n) {
+                  otherNotes.push('[Other account ' + acctLabel + ', 0 due] ' + n);
+                });
+              }
             });
-            if (zeroNotes.length) {
+            if (otherNotes.length) {
               mergedG = {
                 name: base.name, rent: base.rent, deduction: base.deduction,
                 addition: base.addition, rentalDue: base.rentalDue,
                 account: base.account, iban: base.iban, swift: base.swift,
                 clientType: base.clientType,
-                notes: (base.notes || []).concat(zeroNotes)
+                notes: (base.notes || []).concat(otherNotes)
               };
             } else {
               mergedG = base;
