@@ -20,8 +20,9 @@ function runIPDeduction(yr, mo, cycle) {
 
   results = Object.values(groups)
     .filter(g => g.totalDeduction > 0)
-    .sort((a, b) => a.index - b.index)
     .map(g => ({ ...g }));
+
+  sortResultsByAccountsOrder(results, accountsListRows);
 
   const cycleLabel = cycle === '15' ? '15th' : 'End of Month';
   showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${results.length} clients with deductions`);
