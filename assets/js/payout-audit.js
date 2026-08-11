@@ -71,9 +71,19 @@
     if (v == null) return '';
     return String(v).replace(/\s+/g, '').replace(/^0+/, '');
   }
+  // A real IBAN always starts with 2 letters (country code) + 2 digits
+  // (check digits). International clients paid via US routing numbers
+  // have text like "Routing No: 021000021" in this same field — without
+  // this check, two different clients sharing the same US routing number
+  // (very common; there are only a few thousand routing numbers total)
+  // get treated as if they had the same unique IBAN and get merged
+  // together during aggregation.
+  var IBAN_PATTERN = /^[A-Z]{2}\d{2}[A-Z0-9]{6,}$/;
   function normIBAN(v) {
     if (v == null) return '';
-    return String(v).toUpperCase().replace(/\s+/g, '');
+    var s = String(v).toUpperCase().replace(/\s+/g, '');
+    if (!s || !IBAN_PATTERN.test(s)) return '';
+    return s;
   }
   function toNum(v) {
     if (v == null || v === '') return 0;
@@ -671,30 +681,72 @@
       var matchedCount = 0;
       var allMatchedNames = [];    // for "another account" cross-reference
 
-      // Some clients get paid across MULTIPLE bank accounts on the Gen
-      // side (different containers routed to different banks), but
-      // Accounts sometimes reports them as a single combined line. If we
-      // compare each Gen sub-account separately against that one Accounts
-      // line, we get confusing duplicate/partial-looking rows even when
-      // the totals actually match perfectly. So: group Gen payees by
-      // which Accounts payee they matched to, and if more than one Gen
-      // payee lands on the same Accounts entry, merge them into one
-      // summed comparison row instead of several partial ones.
       var accGroups = [];          // [{ acc: a, gens: [g, ...] }]
       var accGroupIndex = {};      // a._norm+account+iban -> index into accGroups
+      function accKeyOf(a) { return a._norm + '|' + (a.account || '') + '|' + (a.iban || ''); }
+      function getOrCreateGroup(a) {
+        var k = accKeyOf(a);
+        if (!Object.prototype.hasOwnProperty.call(accGroupIndex, k)) {
+          accGroupIndex[k] = accGroups.length;
+          accGroups.push({ acc: a, gens: [] });
+        }
+        return accGroups[accGroupIndex[k]];
+      }
 
+      // ── Pass 1: exact IBAN/Account match ──
+      // When a client name repeats (e.g. two people sharing a name, or one
+      // person paid into two genuinely separate Accounts-tracked banks),
+      // pairing must go by the actual bank account, not just the name —
+      // name-only matching always grabs whichever entry it saw first for
+      // that name, silently pairing the wrong accounts together.
+      var accByIBAN = {}, accByAccount = {};
+      accPayees.forEach(function (a) {
+        var ib = normIBAN(a.iban);
+        if (ib) (accByIBAN[ib] = accByIBAN[ib] || []).push(a);
+        var ac = normAccount(a.account);
+        if (ac) (accByAccount[ac] = accByAccount[ac] || []).push(a);
+      });
+      var usedAcc = {};
+      function findExact(g) {
+        var ib = normIBAN(g.iban);
+        if (ib && accByIBAN[ib]) {
+          for (var i = 0; i < accByIBAN[ib].length; i++) {
+            if (!usedAcc[accKeyOf(accByIBAN[ib][i])]) return accByIBAN[ib][i];
+          }
+        }
+        var ac = normAccount(g.account);
+        if (ac && accByAccount[ac]) {
+          for (var j = 0; j < accByAccount[ac].length; j++) {
+            if (!usedAcc[accKeyOf(accByAccount[ac][j])]) return accByAccount[ac][j];
+          }
+        }
+        return null;
+      }
+
+      var unmatchedGens = [];
       genPayees.forEach(function (g) {
+        var target = findExact(g);
+        if (target) {
+          usedAcc[accKeyOf(target)] = true;
+          getOrCreateGroup(target).gens.push(g);
+        } else {
+          unmatchedGens.push(g);
+        }
+      });
+
+      // ── Pass 2: name-based fallback for whatever Pass 1 couldn't pin
+      // down by account/IBAN. If this lands on an Accounts entry that
+      // Pass 1 already claimed (e.g. Allen Jose's second bank account,
+      // which Accounts never split out), it merges into that same group —
+      // same summed-comparison behavior as before, just now only used
+      // when there's genuinely no distinct account to match on. ──
+      unmatchedGens.forEach(function (g) {
         var a = findMatch(g, accIndex);
         if (!a) {
           mineNotInAcc.push({ name: g.name, class: classify(g, null) });
           return;
         }
-        var akey = a._norm + '|' + (a.account || '') + '|' + (a.iban || '');
-        if (!Object.prototype.hasOwnProperty.call(accGroupIndex, akey)) {
-          accGroupIndex[akey] = accGroups.length;
-          accGroups.push({ acc: a, gens: [] });
-        }
-        accGroups[accGroupIndex[akey]].gens.push(g);
+        getOrCreateGroup(a).gens.push(g);
       });
 
       accGroups.forEach(function (entry) {
