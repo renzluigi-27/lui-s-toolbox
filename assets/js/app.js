@@ -10,6 +10,7 @@
 let paymentData   = [];
 let refData       = [];
 let emailData     = [];
+let accountsListRows = null; // array of per-sheet AOA from optional Accounts Payout List upload
 let results       = [];
 let activeMode    = 'payout';
 let auditInited   = false;
@@ -164,6 +165,7 @@ document.querySelectorAll('.mode-tab').forEach(btn => {
       updateTabUI();
       clearResults();
       resetRefUpload();
+      resetAccountsListUpload();
       animateCards();
     }, 140);
   });
@@ -223,6 +225,11 @@ function updateTabUI() {
     }
   }
 
+  const accountsListCard = document.getElementById('accountsListCard');
+  if (accountsListCard) {
+    accountsListCard.style.display = (activeMode === 'payout' || activeMode === 'ip') ? 'block' : 'none';
+  }
+
   updateRefHint();
   updateGenerateBtn();
 }
@@ -273,7 +280,7 @@ function getExpectedOutputFilename() {
   const cycleTag = cycle === '15' ? '15' : '30';
   const monthStr = MONTHS[mo - 1].toUpperCase();
   const prefixes = { payout:'PAYOUT', ip:'IP_DEDUCTION', container:'CONTAINER_INFO' };
-  return `${prefixes[activeMode]}_${cycleTag}_${monthStr}${yr}.xlsx`;
+  return `${prefixes[activeMode]}_${cycleTag}_${monthStr}${yr}_${timestampTag()}.xlsx`;
 }
 
 function clearResults() {
@@ -291,6 +298,17 @@ function resetRefUpload() {
   document.getElementById('refLoadedMeta').textContent = '—';
   document.getElementById('refFileInput').value = '';
   showMsg('refError', '');
+}
+
+function resetAccountsListUpload() {
+  accountsListRows = null;
+  const zone = document.getElementById('accountsListUploadZone');
+  if (!zone) return;
+  zone.classList.remove('dragover');
+  document.getElementById('accountsListFileLoaded').classList.remove('show');
+  document.getElementById('accountsListLoadedName').textContent = '—';
+  document.getElementById('accountsListFileInput').value = '';
+  showMsg('accountsListError', '');
 }
 
 function updateGenerateBtn() {
@@ -394,6 +412,53 @@ function readExcel(file, onSuccess, onError) {
   };
   reader.onerror = () => onError('File read error');
   reader.readAsArrayBuffer(file);
+}
+
+// Reads every sheet (Local / International / Indian, etc.) as its own
+// AOA array — used by the Accounts Payout List upload, since that file
+// isn't a single flat sheet like the other reference uploads.
+function readExcelAllSheets(file, onSuccess, onError) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const sheets = wb.SheetNames.map(sn =>
+        XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, defval: null, raw: false })
+      );
+      onSuccess(sheets);
+    } catch(ex) { onError(ex.message); }
+  };
+  reader.onerror = () => onError('File read error');
+  reader.readAsArrayBuffer(file);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// FILE UPLOAD — Accounts Payout List (payout / ip modes only — optional,
+// sorts output to match this file's row order; see sortResultsByAccountsOrder)
+// ─────────────────────────────────────────────────────────────────
+const accountsListZone = document.getElementById('accountsListUploadZone');
+if (accountsListZone) {
+  accountsListZone.addEventListener('dragover',  e => { e.preventDefault(); accountsListZone.classList.add('dragover'); });
+  accountsListZone.addEventListener('dragleave', () => accountsListZone.classList.remove('dragover'));
+  accountsListZone.addEventListener('drop', e => {
+    e.preventDefault(); accountsListZone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) handleAccountsListFile(e.dataTransfer.files[0]);
+  });
+  document.getElementById('accountsListFileInput').addEventListener('change', e => {
+    if (e.target.files[0]) handleAccountsListFile(e.target.files[0]);
+  });
+}
+
+function handleAccountsListFile(file) {
+  showMsg('accountsListError', '');
+  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+    showMsg('accountsListError', 'Please upload an Excel file (.xlsx or .xls)', 'error'); return;
+  }
+  readExcelAllSheets(file, sheets => {
+    accountsListRows = sheets;
+    document.getElementById('accountsListFileLoaded').classList.add('show');
+    document.getElementById('accountsListLoadedName').textContent = file.name;
+  }, err => showMsg('accountsListError', 'Error reading accounts payout list: ' + err, 'error'));
 }
 
 // ─────────────────────────────────────────────────────────────────
