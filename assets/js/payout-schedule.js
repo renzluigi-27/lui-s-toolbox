@@ -280,12 +280,9 @@ window.PayoutSchedule = (function () {
     rows.forEach(r => {
       const noNumber = !r.contractNo || r.contractNo.toLowerCase() === 'no number';
       // One group per contract. If there's no contract number, fall back to
-      // clientName + rental amount — same name + same monthly rent is
-      // treated as the same contract (containers merge together);
-      // different rental for the same name means a genuinely separate
-      // contract, so they stay in different groups.
-      const rentalKey = Math.round(r.returnAmt || 0);
-      const key = noNumber ? (r.clientName + '|' + rentalKey) : r.contractNo;
+      // clientName + container so unrelated no-number rows for the same
+      // client don't get merged into a single contract by mistake.
+      const key = noNumber ? (r.clientName + '|' + (r.container || r.index)) : r.contractNo;
       if (!map.has(key)) {
         map.set(key, { key, clientName: r.clientName, contractNo: noNumber ? '' : r.contractNo, containers: [], row: r });
       }
@@ -751,14 +748,12 @@ window.PayoutSchedule = (function () {
         const preRows = buildPreRerouteRows({
           origStart, origRent, restartDate: startDate, payoutsMade, gapNote, containers,
         });
-        // All containers were already introduced in preRows — blank them out
-        // of the post-reroute rows too, so they're not printed twice.
-        for (let i = 0; i < containers.length && i < rows.length; i++) rows[i].container = '';
+        if (preRows.length && rows.length) rows[0].container = ''; // avoid repeating the container name
         rows = preRows.concat(rows);
       }
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
-      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+      downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}_${timestampTag()}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
       console.error(ex);

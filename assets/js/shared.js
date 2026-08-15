@@ -6,35 +6,6 @@
 // ─────────────────────────────────────────────────────────────────
 // DATE UTILITIES
 // ─────────────────────────────────────────────────────────────────
-// Builds the deduction label/code for a container's amounts this cycle.
-// Y1 is never called out (every client hits it, not worth flagging) — only
-// Y2/Y3 get a year prefix. Type suffix (IP / HC / IP & HC) is always kept.
-// code is the compact, round-trippable form stored in carryover exports;
-// label is the human-readable form used in Notes.
-function deductionLabelInfo(amt) {
-  const y2 = amt.y2 > 0, y3 = amt.y3 > 0;
-  const yearCode    = y2 && y3 ? 'Y2Y3' : (y2 ? 'Y2' : (y3 ? 'Y3' : ''));
-  const yearDisplay = y2 && y3 ? 'Y2 & Y3' : (y2 ? 'Y2' : (y3 ? 'Y3' : ''));
-  const typeCode    = (amt.ip > 0 && amt.hc > 0) ? 'BOTH' : (amt.hc > 0 ? 'HC' : 'IP');
-  const typeDisplay = typeCode === 'BOTH' ? 'IP & HC' : typeCode;
-  return {
-    code:  yearCode ? `${yearCode}_${typeCode}` : typeCode,
-    label: yearDisplay ? `${yearDisplay} ${typeDisplay}` : typeDisplay,
-  };
-}
-
-// Converts a stored labelCode (current or older IP/HC/BOTH-only format)
-// back into a display label, for continuing carryover installments.
-function labelCodeToDisplay(code) {
-  if (!code) return 'IP & HC';
-  if (code === 'BOTH') return 'IP & HC';
-  if (code === 'IP' || code === 'HC') return code;
-  const [yearPart, typePart] = code.split('_');
-  const yearDisplay = yearPart === 'Y2Y3' ? 'Y2 & Y3' : yearPart;
-  const typeDisplay = typePart === 'BOTH' ? 'IP & HC' : typePart;
-  return `${yearDisplay} ${typeDisplay}`;
-}
-
 function parseDate(val) {
   if (!val) return null;
   if (typeof val === 'number') {
@@ -247,8 +218,9 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
     const hc1 = new Date(firstPayout);
     const hc2 = addYears(firstPayout, 1);
     const hc3 = addYears(firstPayout, 2);
-    const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
-    if (hcDueThisCycle) items.push({ type: 'HC', amount: 1000, firstPayout });
+    if (samePayoutMonth(hc1)) items.push({ type: 'HC', year: 'Y1', amount: 1000, firstPayout });
+    else if (samePayoutMonth(hc2)) items.push({ type: 'HC', year: 'Y2', amount: 1000, firstPayout });
+    else if (samePayoutMonth(hc3)) items.push({ type: 'HC', year: 'Y3', amount: 1000, firstPayout });
   }
 
   return { amount: items.reduce((s, it) => s + it.amount, 0), items };
@@ -285,7 +257,121 @@ function analyzeGroups(rows) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// EMAIL SHEET — shared by payout.js / ip-deduction.js integrated matching
+// GENERATION TIMESTAMP — used in export filenames across tools
+// ─────────────────────────────────────────────────────────────────
+function timestampTag() {
+  const d = new Date();
+  const dd  = String(d.getDate()).padStart(2, '0');
+  const mmm = MONTHS[d.getMonth()].toUpperCase();
+  const yyyy = d.getFullYear();
+  const hh  = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ss  = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}${mmm}${yyyy}_${hh}${min}${ss}`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// ACCOUNTS PAYOUT LIST — optional upload for Payout Generator / IP
+// Deduction to sort output rows in the same order as the accounts
+// team's file. Matching precedence mirrors the rest of the toolbox:
+// IBAN -> Account No -> Name (parentheses-first). Kept independent
+// from payout-audit.js so its own matching logic stays untouched.
+// ─────────────────────────────────────────────────────────────────
+const ACCOUNTS_ORDER_SYN = {
+  name:    ['client name', 'name'],
+  account: ['account no', 'account number', 'account', 'acc no'],
+  iban:    ['iban no', 'iban', 'iban number'],
+};
+
+function buildAccountsOrderIndex(sheetsAOA) {
+  const index = { byIban: {}, byAccount: {}, byName: {} };
+  let order = 0;
+  sheetsAOA.forEach(aoa => {
+    let headerRowIdx = -1, map = {};
+    for (let i = 0; i < Math.min(aoa.length, 10); i++) {
+      const row = (aoa[i] || []).map(c => normalizeName(c, false));
+      if (row.includes('client name') || row.includes('name')) {
+        headerRowIdx = i;
+        Object.keys(ACCOUNTS_ORDER_SYN).forEach(field => {
+          for (let c = 0; c < row.length; c++) {
+            if (ACCOUNTS_ORDER_SYN[field].includes(row[c])) { map[field] = c; break; }
+          }
+        });
+        break;
+      }
+    }
+    if (headerRowIdx < 0) return;
+    for (let i = headerRowIdx + 1; i < aoa.length; i++) {
+      const raw = aoa[i] || [];
+      if (!raw.some(c => c != null && String(c).trim() !== '')) continue;
+
+      const name    = map.name    != null ? raw[map.name]    : null;
+      const account = map.account != null ? raw[map.account] : null;
+      const iban    = map.iban    != null ? raw[map.iban]    : null;
+      const ibanKey = iban ? String(iban).replace(/\s/g, '').toUpperCase() : '';
+      const accKey  = account ? String(account).trim() : '';
+      const nameStr = name ? String(name).trim() : '';
+      if (!ibanKey && !accKey && !nameStr) continue;
+
+      if (ibanKey && !(ibanKey in index.byIban)) index.byIban[ibanKey] = order;
+      if (accKey && !(accKey in index.byAccount)) index.byAccount[accKey] = order;
+      if (nameStr) {
+        const parenMatch = nameStr.match(/\(([^)]+)\)/);
+        const mainName   = nameStr.replace(/\([^)]*\)/g, ' ').trim();
+        const normMain   = normalizeName(mainName || nameStr, true);
+        const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+        if (normMain && !(normMain in index.byName)) index.byName[normMain] = order;
+        if (normParen && !(normParen in index.byName)) index.byName[normParen] = order;
+      }
+      order++;
+    }
+  });
+  return index;
+}
+
+function lookupAccountsOrder(index, iban, accountNo, clientName) {
+  const ibanKey = iban ? String(iban).replace(/\s/g, '').toUpperCase() : '';
+  if (ibanKey && ibanKey in index.byIban) return index.byIban[ibanKey];
+
+  const accKey = accountNo ? String(accountNo).trim() : '';
+  if (accKey && accKey in index.byAccount) return index.byAccount[accKey];
+
+  const nameStr = clientName ? String(clientName).trim() : '';
+  if (nameStr) {
+    const parenMatch = nameStr.match(/\(([^)]+)\)/);
+    const mainName   = nameStr.replace(/\([^)]*\)/g, ' ').trim();
+    const normMain   = normalizeName(mainName || nameStr, true);
+    const normParen  = parenMatch ? normalizeName(parenMatch[1], true) : '';
+    if (normMain && normMain in index.byName) return index.byName[normMain];
+    if (normParen && normParen in index.byName) return index.byName[normParen];
+  }
+  return null; // unmatched — sorts to the end
+}
+
+// results: array of {index, iban, accountNo, clientName, ...}
+// sheetsAOA: array of per-sheet AOA arrays from the uploaded Accounts
+// Payout List, or null/empty if none uploaded (falls back to the
+// Payment Info Sheet's own row order, same as before this feature).
+function sortResultsByAccountsOrder(results, sheetsAOA) {
+  if (!sheetsAOA || !sheetsAOA.length) {
+    results.sort((a, b) => a.index - b.index);
+    return results;
+  }
+  const idx = buildAccountsOrderIndex(sheetsAOA);
+  results.forEach(r => {
+    r._acctOrder = lookupAccountsOrder(idx, r.iban, r.accountNo, r.clientName);
+  });
+  results.sort((a, b) => {
+    const oa = a._acctOrder == null ? Infinity : a._acctOrder;
+    const ob = b._acctOrder == null ? Infinity : b._acctOrder;
+    if (oa !== ob) return oa - ob;
+    return String(a.clientName).localeCompare(String(b.clientName));
+  });
+  return results;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// EMAIL SHEET — shared by payout-schedule.js's own client-email lookup
 // ─────────────────────────────────────────────────────────────────
 function splitEmails(value) {
   const text = String(value || '').trim();
@@ -488,16 +574,22 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     // Accounts-style note, grouped by label (IP / HC / IP & HC) with a
     // single running total and the list of containers it covers — avoids
     // one line per container when several containers deduct this cycle.
-    const byContainer = {};
+    const byContainer = {};       // flat totals per container — used by payout.js for rent-capping
+    const byContainerYear = {};   // nested by year — used only for note labeling below
     g.deductionItems.forEach(it => {
       const c = it.container || '—';
-      if (!byContainer[c]) byContainer[c] = { ip: 0, hc: 0, y1: 0, y2: 0, y3: 0 };
-      if (it.type === 'HC') byContainer[c].hc += it.amount;
-      else {
-        byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance combined
-        if (it.type === 'Y1 Insurance') byContainer[c].y1 += it.amount;
-        else if (it.type === 'Y2 Insurance') byContainer[c].y2 += it.amount;
-        else if (it.type === 'Y3 Insurance') byContainer[c].y3 += it.amount;
+      const year = it.type === 'HC' ? it.year : it.type.slice(0, 2); // 'Y1'/'Y2'/'Y3'
+
+      if (!byContainer[c]) byContainer[c] = { ip: 0, hc: 0 };
+      if (!byContainerYear[c]) byContainerYear[c] = {};
+      if (!byContainerYear[c][year]) byContainerYear[c][year] = { ip: 0, hc: 0 };
+
+      if (it.type === 'HC') {
+        byContainer[c].hc += it.amount;
+        byContainerYear[c][year].hc += it.amount;
+      } else {
+        byContainer[c].ip += it.amount; // Y1/Y2/Y3 Insurance
+        byContainerYear[c][year].ip += it.amount;
       }
     });
 
@@ -507,17 +599,19 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     g.dedByContainer = byContainer;
 
     const labelGroups = {};
-    Object.entries(byContainer).forEach(([container, amt]) => {
-      if (amt.ip <= 0 && amt.hc <= 0) return;
-      const { label } = deductionLabelInfo(amt);
-      const amount = Math.round(amt.ip + amt.hc);
-      const key = `${label}|${amount}`;
-      if (!labelGroups[key]) labelGroups[key] = { label, amount, containers: [] };
-      labelGroups[key].containers.push(container);
+    Object.entries(byContainerYear).forEach(([container, years]) => {
+      Object.entries(years).forEach(([year, amt]) => {
+        if (amt.ip <= 0 && amt.hc <= 0) return;
+        const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
+        const label = year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
+        if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
+        labelGroups[label].total += Math.round(amt.ip + amt.hc);
+        labelGroups[label].containers.push(container);
+      });
     });
 
-    const dedNotes = Object.values(labelGroups).map(lg =>
-      `${lg.amount.toLocaleString()} AED deduction for ${lg.label} | ${lg.containers.join(', ')}`
+    const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
+      `${lg.total.toLocaleString()}AED total deduction for ${label} | ${lg.containers.join(', ')}`
     );
 
     const agentArr = [...g.agents];
