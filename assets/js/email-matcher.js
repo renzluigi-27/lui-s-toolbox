@@ -25,6 +25,7 @@ window.EmailMatcherStandalone = (function () {
     'CLIENT NAME',
     'CLIENT NAME (EMAIL SHEET)',
     'CLIENT NAME (EID/PASSPORT)',
+    'EID/PASSPORT NO.',
     'NATIONALITY',
     'EMAIL 1',
     'EMAIL 2',
@@ -121,6 +122,7 @@ window.EmailMatcherStandalone = (function () {
         emailSheetClientNameNoPrefix: stripTitlePrefix(rawName),
         clientEmailRaw: emailRaw,
         nationality: row[17] != null ? String(row[17]).trim() : '',
+        eidPassportNo: row[18] != null ? String(row[18]).trim() : '',
       };
 
       if (normName) grouped.set(normName, record);
@@ -233,7 +235,7 @@ window.EmailMatcherStandalone = (function () {
     return emailRecords.find(r => r.normName === alt || r.normParen === alt) || null;
   }
 
-  const BLANK_MATCH = { emailSheetClientName: '', eidPassportName: '', nationality: '', email1: '', email2: '', isMatched: false };
+  const BLANK_MATCH = { emailSheetClientName: '', eidPassportName: '', eidPassportNo: '', nationality: '', email1: '', email2: '', isMatched: false };
 
   // Resolves a File 1 client name to Email Sheet data. Tries a direct match,
   // then the Payment Info Sheet paren/outer bridge, then — for joint names
@@ -247,6 +249,7 @@ window.EmailMatcherStandalone = (function () {
       return {
         emailSheetClientName: direct.emailSheetClientName,
         eidPassportName: direct.emailSheetClientNameNoPrefix,
+        eidPassportNo: direct.eidPassportNo,
         nationality: direct.nationality,
         email1: e1, email2: e2,
         isMatched: true,
@@ -264,6 +267,7 @@ window.EmailMatcherStandalone = (function () {
           return {
             emailSheetClientName: [m1 && m1.emailSheetClientName, m2 && m2.emailSheetClientName].filter(Boolean).join(' & '),
             eidPassportName: [m1 && m1.emailSheetClientNameNoPrefix, m2 && m2.emailSheetClientNameNoPrefix].filter(Boolean).join(' & '),
+            eidPassportNo: [m1 && m1.eidPassportNo, m2 && m2.eidPassportNo].filter(Boolean).join(' / '),
             nationality: [m1 && m1.nationality, m2 && m2.nationality].filter(Boolean).join(' / '),
             email1: e1, email2: e2,
             isMatched: true,
@@ -411,6 +415,7 @@ window.EmailMatcherStandalone = (function () {
           clientName: rawClientName,
           emailSheetClientName: match.emailSheetClientName,
           eidPassportName: match.eidPassportName,
+          eidPassportNo: match.eidPassportNo,
           nationality: match.nationality,
           deduction,
           email1: match.email1, email2: match.email2, agentEmail,
@@ -440,7 +445,7 @@ window.EmailMatcherStandalone = (function () {
     q('#em-results-title').textContent =
       `${selectedSheetNames.length} tab(s) · ${totalRows} rows · ${totalMatched} matched`;
 
-    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'NATIONALITY', 'AGENT EMAIL', 'CLIENT TYPE', 'NOTES'];
+    const PREVIEW_COLUMNS = ['CLIENT NAME', 'CLIENT NAME (EMAIL SHEET)', 'CLIENT NAME (EID/PASSPORT)', 'EID/PASSPORT NO.', 'NATIONALITY', 'AGENT EMAIL', 'CLIENT TYPE', 'NOTES'];
 
     document.getElementById(mountId).querySelector('#em-table-head').innerHTML =
       '<tr>' + PREVIEW_COLUMNS.map(c => `<th>${esc(c)}</th>`).join('') + '</tr>';
@@ -451,6 +456,7 @@ window.EmailMatcherStandalone = (function () {
           <td class="td-name">${esc(r.clientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.emailSheetClientName || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportName || '')}</td>
+          <td style="color:var(--text-muted);font-size:12px">${esc(r.eidPassportNo || '')}</td>
           <td>${esc(r.nationality || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.agentEmail || '')}</td>
           <td style="color:var(--text-muted);font-size:12px">${esc(r.paymentClientType || '')}</td>
@@ -489,6 +495,7 @@ window.EmailMatcherStandalone = (function () {
         'CLIENT NAME':                  r.clientName,
         'CLIENT NAME (EMAIL SHEET)':    r.emailSheetClientName,
         'CLIENT NAME (EID/PASSPORT)':   r.eidPassportName,
+        'EID/PASSPORT NO.':             r.eidPassportNo,
         'NATIONALITY':                  r.nationality,
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
