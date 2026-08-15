@@ -24,13 +24,14 @@ function computeDeductionSplit(g, rent, carryover) {
   const due = {};
 
   containersOrder.forEach(c => {
-    const newAmt   = (g.dedByContainer && g.dedByContainer[c]) ? g.dedByContainer[c] : { ip: 0, hc: 0 };
+    const newAmt   = (g.dedByContainer && g.dedByContainer[c]) ? g.dedByContainer[c] : { ip: 0, hc: 0, y1: 0, y2: 0, y3: 0 };
     const carried  = carryover[c];
     const newTotal = Math.round((newAmt.ip || 0) + (newAmt.hc || 0));
     if (newTotal <= 0 && !carried) return; // nothing due for this container this cycle
 
     due[c] = {
       ip: newAmt.ip || 0, hc: newAmt.hc || 0,
+      y1: newAmt.y1 || 0, y2: newAmt.y2 || 0, y3: newAmt.y3 || 0,
       newTotal,
       carriedRemaining: carried ? carried.remaining : 0,
       isContinuing: !!carried,
@@ -44,25 +45,27 @@ function computeDeductionSplit(g, rent, carryover) {
   let appliedDeduction = 0;
   const noteLines = [];
   const remainingExport = [];
-  const cleanContainers = {}; // label -> { total, containers[] } — no split needed, grouped as one line
+  const cleanContainers = {}; // "label|amount" -> { label, amount, containers[] } — same label AND same per-container amount grouped as one line
 
   Object.keys(due).forEach(c => {
     const d = due[c];
     const totalOwed = Math.round(d.newTotal + d.carriedRemaining);
-    const freshLabelCode = d.ip > 0 && d.hc > 0 ? 'BOTH' : (d.hc > 0 ? 'HC' : (d.ip > 0 ? 'IP' : null));
+    const hasFresh = d.ip > 0 || d.hc > 0;
     // A continuing installment keeps whatever type it started as; a brand
     // new deduction this cycle (even alongside a carryover) uses the fresh type.
-    const labelCode = freshLabelCode || d.carriedLabelCode || 'BOTH';
-    const label = labelCode === 'BOTH' ? 'IP & HC' : labelCode;
+    const freshInfo = hasFresh ? deductionLabelInfo(d) : null;
+    const labelCode = freshInfo ? freshInfo.code : (d.carriedLabelCode || 'BOTH');
+    const label = freshInfo ? freshInfo.label : labelCodeToDisplay(d.carriedLabelCode);
     const pay = Math.min(available, totalOwed);
     available -= pay;
     appliedDeduction += pay;
     const remaining = Math.round(totalOwed - pay);
+    const payRounded = Math.round(pay);
 
     if (!d.isContinuing && remaining <= 0) {
-      if (!cleanContainers[label]) cleanContainers[label] = { total: 0, containers: [] };
-      cleanContainers[label].total += pay;
-      cleanContainers[label].containers.push(c);
+      const groupKey = `${label}|${payRounded}`;
+      if (!cleanContainers[groupKey]) cleanContainers[groupKey] = { label, amount: payRounded, containers: [] };
+      cleanContainers[groupKey].containers.push(c);
       return;
     }
 
@@ -77,15 +80,15 @@ function computeDeductionSplit(g, rent, carryover) {
     const installmentLabel = `${thisInstallmentNum}/${totalInstallments}`;
 
     if (remaining <= 0) {
-      noteLines.push(`${Math.round(pay).toLocaleString()}AED deducted for ${label} -${c} (${installmentLabel}) — fully collected`);
+      noteLines.push(`${payRounded.toLocaleString()} AED deducted for ${label} -${c} (${installmentLabel}) — fully collected`);
     } else {
-      noteLines.push(`${Math.round(pay).toLocaleString()}AED deducted for ${label} -${c} (${installmentLabel}) — ${remaining.toLocaleString()}AED remaining, continue next cycle`);
+      noteLines.push(`${payRounded.toLocaleString()} AED deducted for ${label} -${c} (${installmentLabel}) — ${remaining.toLocaleString()} AED remaining, continue next cycle`);
       remainingExport.push(`${c}:${remaining}:${thisInstallmentNum + 1}/${totalInstallments}:${labelCode}`);
     }
   });
 
-  const consolidatedParts = Object.entries(cleanContainers).map(([label, grp]) =>
-    `${Math.round(grp.total).toLocaleString()}AED total deduction for ${label} | ${grp.containers.join(', ')}`
+  const consolidatedParts = Object.values(cleanContainers).map(grp =>
+    `${grp.amount.toLocaleString()} AED deduction for ${grp.label} | ${grp.containers.join(', ')}`
   );
 
   return {
@@ -101,6 +104,7 @@ function runPayout(yr, mo, cycle) {
   const payoutDay  = cycle === '15' ? 15 : new Date(yr, mo, 0).getDate();
   const payoutDate = new Date(yr, mo - 1, payoutDay);
 
+  const emailRecords = emailData.length ? buildEmailRecords() : [];
   const carryoverMap = (refData && refData.length) ? parseDeductionCarryover(refData) : {};
 
   const filtered = filterRowsForCycle(paymentData, cycle, payoutDate);
@@ -153,6 +157,9 @@ function runPayout(yr, mo, cycle) {
     const allNotes = [split.consolidatedLine, ...split.noteLines, ...flagNotes, ...balanceNoteArr]
       .filter(Boolean).join(' | ');
 
+    const em = lookupEmailRecord(emailRecords, g.clientName);
+    const [emEmail1, emEmail2] = em ? splitEmails(em.clientEmailRaw) : ['', ''];
+
     return {
       ...g, totalCost,
       totalReturn: g.allTerminated ? null : totalReturn,
@@ -160,10 +167,15 @@ function runPayout(yr, mo, cycle) {
       rentalDue: g.allTerminated ? null : (hasBalance ? null : split.rentalDue),
       deductionRemainingExport: split.remainingExport.join(' | '),
       balanceAddition: g.allTerminated ? null : balanceNumeric, note: allNotes,
+      emailSheetClientName: em ? em.emailSheetClientName : '',
+      email1: emEmail1, email2: emEmail2,
+      mobile: em ? em.mobile : '',
+      nationality: em ? em.nationality : '',
+      eid: em ? em.eid : '',
     };
   });
 
-  sortResultsByAccountsOrder(results, accountsListRows);
+  results.sort((a, b) => a.index - b.index);
 
   const cycleLabel = cycle === '15' ? '15th' : 'End of Month';
   showResultsSection(`${MONTHS[mo-1]} ${yr} — ${cycleLabel} · ${results.length} payees`);
@@ -226,6 +238,7 @@ function exportPayout() {
 
   const headers = [
     'CLIENT TYPE', 'CLIENT NAME',
+    'CLIENT NAME (EMAIL SHEET)', 'EMAIL 1', 'EMAIL 2', 'MOBILE', 'NATIONALITY', 'EID/PASSPORT/NATIONAL CARD',
     'UNIT', 'FIRST PAYOUT',
     'MONTHLY RENT', 'DEDUCTION', 'ADDITION', 'RENTAL DUE',
     'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'DEDUCTION REMAINING', 'NOTES',
@@ -233,6 +246,7 @@ function exportPayout() {
 
   const rows = results.map(r => [
     r.clientType || '', r.clientName,
+    r.emailSheetClientName || '', r.email1 || '', r.email2 || '', r.mobile || '', r.nationality || '', r.eid || '',
     r.containers.length,
     r.firstPayoutDisplay || '',
     r.totalReturn,
