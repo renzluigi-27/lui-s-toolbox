@@ -14,25 +14,25 @@ const Notes = {
 
   // ── shared.js — per-client flags (calcPayeeDeductions) ──
   noContractOrContainer: () =>
-    '⚑ No container or contract number — manual check required',
+    '⚑ No container or contract number',
 
   contractEndPassed: () =>
-    '⚑ Contract end date has passed — verify',
+    '⚑ Contract end date has passed',
 
   yearlyOrQuarterlyPayout: (freq) =>
-    `⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`,
+    `⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout`,
 
   yearlyPayoutStartUnconfirmed: () =>
-    '⚑ Yearly payout — start date not yet confirmed, verify with accounts',
+    '⚑ Yearly payout',
 
   sharedGroupSplit: (groupId, splitLabel) =>
     `⚑ Shared group ${groupId} — deduction split ${splitLabel}`,
 
   allContainersTerminated: () =>
-    '⚑ All containers marked for termination — no payout this cycle',
+    '⚑ All containers marked for termination',
 
   partialContainersTerminated: (terminatedCount, totalCount) =>
-    `⚑ ${terminatedCount} of ${totalCount} container(s) marked for termination — excluded from this payout`,
+    `⚑ ${terminatedCount} of ${totalCount} container(s) marked for termination`,
 
   // shared.js's own deduction note (uncapped totals) — used by the IP
   // Deduction tool's Notes column, via g.note.
@@ -41,16 +41,16 @@ const Notes = {
 
   // ── payout.js — Payout Generator's own split/carryover notes ──
   splitDeductedFullyCollected: (pay, label, container, installmentLabel) =>
-    `${pay.toLocaleString()} AED deducted for ${label} -${container} (${installmentLabel}) — fully collected`,
+    `${pay.toLocaleString()} AED deducted for ${label} -${container} (${installmentLabel})`,
 
   splitDeductedRemaining: (pay, label, container, installmentLabel, remaining) =>
-    `${pay.toLocaleString()} AED deducted for ${label} -${container} (${installmentLabel}) — ${remaining.toLocaleString()} AED remaining, continue next cycle`,
+    `${pay.toLocaleString()} AED deducted for ${label} -${container} (${installmentLabel}) — ${remaining.toLocaleString()} AED remaining`,
 
   consolidatedDeduction: (amount, label, containers) =>
     `${amount.toLocaleString()} AED deduction for ${label} | ${containers.join(', ')}`,
 
   rentalInUSD: () =>
-    '⚑ Rental amount is in USD — verify AED conversion',
+    '⚑ Rental amount is in USD',
 
   // File-level summary lines, shown once above the export (not per-client)
   sharedGroupsSummary: (count, names) =>
