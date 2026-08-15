@@ -6,6 +6,47 @@
 // ─────────────────────────────────────────────────────────────────
 // DATE UTILITIES
 // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// DEDUCTION LABEL HELPERS — reuse the same Y2/Y3-aware year data this
+// file already builds (byContainerYear, below) so payout.js's Notes
+// column can show the same labels as the IP Deduction tool, instead of
+// a flat generic "IP"/"HC"/"IP & HC" with no year info.
+// ─────────────────────────────────────────────────────────────────
+function buildYearLabel(yearMap) {
+  if (!yearMap) return 'IP & HC';
+  const parts = Object.entries(yearMap)
+    .filter(([, amt]) => amt.ip > 0 || amt.hc > 0)
+    .map(([year, amt]) => {
+      const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
+      return year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
+    });
+  return parts.join(' + ') || 'IP & HC';
+}
+
+function buildYearLabelCode(yearMap) {
+  if (!yearMap) return 'BOTH';
+  const parts = Object.entries(yearMap)
+    .filter(([, amt]) => amt.ip > 0 || amt.hc > 0)
+    .map(([year, amt]) => {
+      const kind = amt.ip > 0 && amt.hc > 0 ? 'BOTH' : (amt.hc > 0 ? 'HC' : 'IP');
+      return year === 'Y1' ? kind : `${year}_${kind}`;
+    });
+  return parts.join('+') || 'BOTH';
+}
+
+// Converts a stored labelCode (current year-aware format, or the older
+// IP/HC/BOTH-only format) back into a display label, for continuing
+// carryover installments read from a previous cycle's export.
+function yearLabelCodeToDisplay(code) {
+  if (!code) return 'IP & HC';
+  return code.split('+').map(part => {
+    if (part === 'BOTH') return 'IP & HC';
+    if (part === 'IP' || part === 'HC') return part;
+    const [year, kind] = part.split('_');
+    return `${year} ${kind === 'BOTH' ? 'IP & HC' : kind}`;
+  }).join(' + ');
+}
+
 function parseDate(val) {
   if (!val) return null;
   if (typeof val === 'number') {
@@ -597,6 +638,10 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     // carry any remainder forward per container — shared.js itself stays
     // rent-agnostic (IP Deduction tool uses the uncapped totals below).
     g.dedByContainer = byContainer;
+    // Exposed so payout.js's Notes column can show the same Y2/Y3-aware
+    // labels this file already builds for the IP Deduction tool below,
+    // instead of the flat generic "IP"/"HC"/"IP & HC" it had before.
+    g.dedByContainerYear = byContainerYear;
 
     const labelGroups = {};
     Object.entries(byContainerYear).forEach(([container, years]) => {

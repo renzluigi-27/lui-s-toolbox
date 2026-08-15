@@ -87,6 +87,9 @@ const SHARED_CONTAINERS = {
   'LMCU2024977': ['Karuna Mansukhani', 'Sapna Mansukhani'],
   'LMCU2069509': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Sunju John Mavely Thomas John'],
   'LMCU20242249': ['Deepika Jeevan Jeppu', 'Imdad Ali Abdul Shaikh'],
+  'LGMU2278332': ['Muhammad Faizan Mazhar Mazhar Iqbal Joieya', 'Raees Backer Sulaiman Mithoor Sulaiman'], // TODO: confirm split ratio — not plain 50/50 per prior note
+  'LGMU2288768': ['Ali Hussain Ali Ahmed Almarzooqi', 'Omar Hussain Ali Ahmed Almarzooqi'],
+  'LGMU2288789': ['Ahmed Yaqoob Yousef Ali Alhammadi', 'Abdalla Mohamed Abdalla Ahmed Alhammadi'],
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -709,6 +712,7 @@ function parseDeductionCarryover(rows) {
   const headers = rows[0].map(h => h ? String(h).toLowerCase().trim() : '');
   const ibanCol = headers.findIndex(h => h.includes('iban'));
   const accCol  = headers.findIndex(h => h.includes('account no'));
+  const nameCol = headers.findIndex(h => h.includes('client name'));
   const remCol  = headers.findIndex(h => h.includes('deduction remaining'));
   if (remCol === -1) return map; // older reference file — nothing to carry
 
@@ -719,7 +723,9 @@ function parseDeductionCarryover(rows) {
     if (!remRaw) continue;
     const iban = ibanCol !== -1 && r[ibanCol] ? String(r[ibanCol]).replace(/\s/g, '') : '';
     const acc  = accCol  !== -1 && r[accCol]  ? String(r[accCol]).trim() : '';
-    const key  = iban || acc;
+    const name = nameCol !== -1 && r[nameCol] ? String(r[nameCol]).trim() : '';
+    const ibanValid = iban && /^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/.test(iban);
+    const key = (ibanValid ? iban : acc) || name;
     if (!key) continue;
 
     const entry = {};
