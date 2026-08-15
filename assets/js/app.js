@@ -87,7 +87,7 @@ const SHARED_CONTAINERS = {
   'LMCU2024977': ['Karuna Mansukhani', 'Sapna Mansukhani'],
   'LMCU2069509': ['Mohamed Abul Faiz Valan Kaja Mohideen Syed Ahamed Syed', 'Sunju John Mavely Thomas John'],
   'LMCU20242249': ['Deepika Jeevan Jeppu', 'Imdad Ali Abdul Shaikh'],
-  'LGMU2278332': ['Muhammad Faizan Mazhar Mazhar Iqbal Joieya', 'Raees Backer Sulaiman Mithoor Sulaiman'], // TODO: confirm split ratio — not plain 50/50 per prior note
+  'LGMU2278332': ['Muhammad Faizan Mazhar Mazhar Iqbal Joieya', 'Raees Backer Sulaiman Mithoor Sulaiman'],
   'LGMU2288768': ['Ali Hussain Ali Ahmed Almarzooqi', 'Omar Hussain Ali Ahmed Almarzooqi'],
   'LGMU2288789': ['Ahmed Yaqoob Yousef Ali Alhammadi', 'Abdalla Mohamed Abdalla Ahmed Alhammadi'],
 };
