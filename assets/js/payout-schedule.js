@@ -689,11 +689,18 @@ window.PayoutSchedule = (function () {
       const firstPayoutStr = document.getElementById('ps-firstPayout').value;
       const totalMonths = parseInt(document.getElementById('ps-totalMonths').value) || 0;
       const rent = parseFloat(document.getElementById('ps-rent').value) || 0;
-      const insurance = parseFloat(document.getElementById('ps-insurance').value) || 0;
+      let insurance = parseFloat(document.getElementById('ps-insurance').value) || 0;
       const hcEnabled = document.getElementById('ps-hcToggle').checked;
-      const hcAmount = hcEnabled ? (parseFloat(document.getElementById('ps-hcAmount').value) || 0) : 0;
+      let hcAmount = hcEnabled ? (parseFloat(document.getElementById('ps-hcAmount').value) || 0) : 0;
       const containers = document.getElementById('ps-containers').value
         .split('\n').map(s => s.trim()).filter(Boolean);
+
+      // Insurance/HC amounts are entered as the per-container rate (e.g.
+      // 1500 insurance, 1000 HC) — multiply by however many containers
+      // this client has, same way Monthly Rent already does at autofill.
+      const containerCount = containers.length || 1;
+      insurance = insurance * containerCount;
+      hcAmount  = hcAmount  * containerCount;
 
       if (!clientName) { showMsg('ps-genError', 'Client name is required.', 'error'); return; }
       if (!firstPayoutStr) { showMsg('ps-genError', 'First payout date is required.', 'error'); return; }
@@ -746,7 +753,6 @@ window.PayoutSchedule = (function () {
         const gapNote = document.getElementById('ps-gapNote').value.trim();
         if (!origStart) { showMsg('ps-genError', 'Original First Payout Date not found for this client.', 'error'); return; }
         if (!payoutsMade) { showMsg('ps-genError', 'Payouts Made Before Reroute is required.', 'error'); return; }
-        const containerCount = containers.length || 1;
         const origRent = (selectedGroup.row.returnAmt || 0) * containerCount;
         const preRows = buildPreRerouteRows({
           origStart, origRent, restartDate: startDate, payoutsMade, gapNote, containers,
