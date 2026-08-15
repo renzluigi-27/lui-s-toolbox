@@ -260,30 +260,18 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 
-              <strong>Version 2.0.19</strong> — Deduction carryover key matching fix<br>
+              <strong>Version 2.0.17</strong> — Email Sheet upload removed<br>
               <div style="padding-left:1rem;">
-                • Reading a reference file back in now uses the same strict IBAN validation as generation — IBAN if it passes the format check, else Account No., else Client Name<br>
-                • Previously the carryover reader always preferred IBAN even if invalid, which could silently miss a match when generation had fallen back to Account No.<br>
+                • Removed the optional "Email Sheet" upload card from Payout Generator and IP Deduction — client name/email/mobile/nationality/EID matching now lives only in Email Matcher<br>
+                • Export columns CLIENT NAME (EMAIL SHEET), EMAIL 1, EMAIL 2, MOBILE, NATIONALITY, EID/PASSPORT/NATIONAL CARD removed from both exports<br>
+                • Payout Schedule's own email upload (for autofilling a client's email on the PDF) is unaffected<br>
               </div><br>
 
-              <strong>Version 2.0.18</strong> — Deduction note labels rework<br>
+              <strong>Version 2.0.16</strong> — Deduction notes show year + type breakdown<br>
               <div style="padding-left:1rem;">
-                • Notes now show Y2/Y3 when that's the year firing (Y1 stays unlabeled — every client hits it, not worth flagging)<br>
-                • Type suffix (IP / HC / IP & HC) still always shown, e.g. "Y2 IP & HC"<br>
-                • Consolidated deduction lines now show the per-container amount instead of a combined total — containers only share a line if they match on both label and amount<br>
-                • Added a space between the amount and "AED" throughout (Payout Generator and IP Deduction notes)<br>
-              </div><br>
-
-              <strong>Version 2.0.17</strong> — Shared container additions<br>
-              <div style="padding-left:1rem;">
-                • Added 3 newly identified shared containers to the hardcoded split map: LGMU2278332, LGMU2288768, LGMU2288789<br>
-              </div><br>
-
-              <strong>Version 2.0.16</strong> — Payout Schedule: no-contract-number grouping fix<br>
-              <div style="padding-left:1rem;">
-                • Clients with no contract number ("No Number") are now grouped by name + rental amount instead of name + container — same name and same rent merges all containers into one contract; different rent for the same name stays separate<br>
-                • Previously each container for a no-number client became its own group, splitting one client into several duplicate entries<br>
-                • Post-reroute schedule rows no longer repeat container numbers already shown in the pre-reroute section — was only blanking the first row, now blanks all of them<br>
+                • Deduction notes now specify which year triggered — Y1 stays plain "IP" (Y1 is always insurance-only), Y2/Y3 show as "Y2 IP", "Y3 HC", "Y2 IP &amp; HC", etc.<br>
+                • Grouped per container so multi-container clients get a clear line-by-line breakdown instead of one merged total<br>
+                • Applies wherever shared.js's deduction engine runs: Payout Generator, IP Deduction, Payout Auditor, and Payout Schedule (all inside the AIO tool)<br>
               </div><br>
 
               <strong>Version 2.0.15</strong> — Termination no longer fully skipped<br>
