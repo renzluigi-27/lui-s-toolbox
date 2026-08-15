@@ -592,7 +592,7 @@ function parsePaymentSheet(raw) {
     const SKIP_CLOSED = ['duplicate entry', 'closed', 'yes', 'contract closed'];
     if (closedRaw && SKIP_CLOSED.some(s => closedRaw.includes(s))) continue;
     const contractClosedFlag = closedRaw && !SKIP_CLOSED.some(s => closedRaw.includes(s))
-      ? `⚑ Contract Closed field: "${r[C.contractClosed]}" — review` : '';
+      ? Notes.contractClosedFlag(r[C.contractClosed]) : '';
 
     const settlementRaw = (C.forSettlement !== -1 && r[C.forSettlement])
       ? String(r[C.forSettlement]).toLowerCase().trim() : '';

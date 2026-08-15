@@ -552,22 +552,22 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     if (r.isRerouted && r.restartDate) g.rerouteDates.push(fmtDate(r.restartDate));
 
     if (r.contractClosedFlag) g.deductionNotes.push(r.contractClosedFlag);
-    if (r.groupId === '__MANUAL_CHECK__') g.deductionNotes.push('⚑ No container or contract number — manual check required');
+    if (r.groupId === '__MANUAL_CHECK__') g.deductionNotes.push(Notes.noContractOrContainer());
 
     const isCommission = r.container && r.container.toLowerCase() === 'commission';
     if (!isCommission) {
       const effectiveContractEnd = (r.isRerouted && r.newContractEnd) ? r.newContractEnd : r.contractEnd;
       if (effectiveContractEnd && effectiveContractEnd < new Date()) {
-        g.deductionNotes.push('⚑ Contract end date has passed — verify');
+        g.deductionNotes.push(Notes.contractEndPassed());
       }
     }
 
     const freq = normalizeFrequency(r.frequency);
     if (freq === 'quarterly' || freq === 'yearly') {
-      g.deductionNotes.push(`⚑ ${freq === 'yearly' ? 'Yearly' : 'Quarterly'} payout — verify rental amount with accounts`);
+      g.deductionNotes.push(Notes.yearlyOrQuarterlyPayout(freq));
     }
     if (r.isYearlyPending) {
-      g.deductionNotes.push('⚑ Yearly payout — start date not yet confirmed, verify with accounts');
+      g.deductionNotes.push(Notes.yearlyPayoutStartUnconfirmed());
     }
 
     const dedBasis = r.isRerouted
@@ -590,7 +590,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       const splitItems  = sg.deductionItems.map(it => ({ ...it, amount: it.amount * clientShare }));
       g.totalDeduction += sg.deductionAmount * clientShare;
       g.deductionItems.push(...splitItems);
-      if (sg.deductionAmount > 0) g.deductionNotes.push(`⚑ Shared group ${r.groupId} — deduction split ${splitLabel}`);
+      if (sg.deductionAmount > 0) g.deductionNotes.push(Notes.sharedGroupSplit(r.groupId, splitLabel));
     } else {
       const ded = calcDeduction(payoutDate, dedBasis, r.insuranceYearsCovered, isHcEligible, yr, mo, r.containerType, r.isRerouted);
       ded.items.forEach(it => { it.container = r.container; });
@@ -602,9 +602,9 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
   Object.values(groups).forEach(g => {
     g.allTerminated = g.totalContainerCount > 0 && g.terminatedContainerCount === g.totalContainerCount;
     if (g.allTerminated) {
-      g.deductionNotes.push('⚑ All containers marked for termination — no payout this cycle');
+      g.deductionNotes.push(Notes.allContainersTerminated());
     } else if (g.terminatedContainerCount) {
-      g.deductionNotes.push(`⚑ ${g.terminatedContainerCount} of ${g.totalContainerCount} container(s) marked for termination — excluded from this payout`);
+      g.deductionNotes.push(Notes.partialContainersTerminated(g.terminatedContainerCount, g.totalContainerCount));
     }
 
     const roundedDeduction = Math.round(g.totalDeduction);
@@ -656,7 +656,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
     });
 
     const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
-      `${lg.total.toLocaleString()}AED total deduction for ${label} | ${lg.containers.join(', ')}`
+      Notes.dedNoteTotal(lg.total, label, lg.containers)
     );
 
     const agentArr = [...g.agents];

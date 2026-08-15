@@ -82,15 +82,15 @@ function computeDeductionSplit(g, rent, carryover) {
     const installmentLabel = `${thisInstallmentNum}/${totalInstallments}`;
 
     if (remaining <= 0) {
-      noteLines.push(`${payRounded.toLocaleString()} AED deducted for ${label} -${c} (${installmentLabel}) — fully collected`);
+      noteLines.push(Notes.splitDeductedFullyCollected(payRounded, label, c, installmentLabel));
     } else {
-      noteLines.push(`${payRounded.toLocaleString()} AED deducted for ${label} -${c} (${installmentLabel}) — ${remaining.toLocaleString()} AED remaining, continue next cycle`);
+      noteLines.push(Notes.splitDeductedRemaining(payRounded, label, c, installmentLabel, remaining));
       remainingExport.push(`${c}:${remaining}:${thisInstallmentNum + 1}/${totalInstallments}:${labelCode}`);
     }
   });
 
   const consolidatedParts = Object.values(cleanContainers).map(grp =>
-    `${grp.amount.toLocaleString()} AED deduction for ${grp.label} | ${grp.containers.join(', ')}`
+    Notes.consolidatedDeduction(grp.amount, grp.label, grp.containers)
   );
 
   return {
@@ -129,7 +129,7 @@ function runPayout(yr, mo, cycle) {
     if (!totalCostByKey[key]) totalCostByKey[key] = 0;
     totalCostByKey[key] += r.totalCost || 0;
 
-    if (r.returnInUSD) groups[key].deductionNotes.push('⚑ Rental amount is in USD — verify AED conversion');
+    if (r.returnInUSD) groups[key].deductionNotes.push(Notes.rentalInUSD());
 
     if (r.balanceNote) {
       const fp = r.firstPayout;
@@ -190,14 +190,14 @@ function runPayout(yr, mo, cycle) {
   const sharedCount = Object.keys(sharedGroups).length;
   if (sharedCount > 0) {
     const names = Object.entries(sharedGroups).map(([gid, meta]) => `${gid} (${[...meta.clients].join(' / ')})`).join('; ');
-    flagLines.push(`⚑ ${sharedCount} shared group(s) — deduction split: ${names}`);
+    flagLines.push(Notes.sharedGroupsSummary(sharedCount, names));
   }
   mismatchFlags.forEach(f => {
-    flagLines.push(`🔴 Duplicate container mismatch: ${f.container} — contracts ${f.contractNos.join(' / ')} — clients: ${f.clientNames.join(' / ')} — manual check required`);
+    flagLines.push(Notes.duplicateContainerMismatch(f.container, f.contractNos, f.clientNames));
   });
   const carriedCount = results.filter(r => r.deductionRemainingExport).length;
   if (carriedCount > 0) {
-    flagLines.push(`⚑ ${carriedCount} payee(s) with a deduction carried to next cycle — upload this export as next cycle's reference file to continue collecting`);
+    flagLines.push(Notes.carriedToNextCycleSummary(carriedCount));
   }
   renderFlags(flagLines);
 
