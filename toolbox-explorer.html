@@ -59,23 +59,26 @@
   .hero-actions {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 10px;
     flex-wrap: wrap;
   }
 
   .hero-actions a.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-decoration: none !important;
-  }
-  .hero-actions a.btn-primary:focus-visible {
-    outline: 2px solid rgba(140,110,255,0.6);
-    outline-offset: 2px;
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   .btn-secondary {
-    padding: 0 20px;
-    height: 42px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    padding: 0 20px;
+    height: 42px;
     font-size: 14px;
     font-weight: 500;
     font-family: var(--font-sans);
