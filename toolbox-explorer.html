@@ -109,6 +109,76 @@
     color: var(--liq-text) !important;
   }
 
+  /* ── Nav ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 14px 0;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--liq-border);
+    background: rgba(13, 12, 24, 0.6);
+  }
+  nav .inner {
+    max-width: 1150px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-logo {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--liq-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-logo span { font-size: 18px; }
+  .nav-back {
+    font-size: 12px;
+    color: var(--liq-text-hint);
+    text-decoration: none;
+    margin-right: 10px;
+  }
+  .nav-links { display: flex; gap: 20px; align-items: center; }
+  .nav-links a {
+    font-size: 13px;
+    color: var(--liq-text-muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--liq-text); }
+  @media (max-width: 480px) {
+    .nav-links { gap: 14px; }
+    .nav-links a { font-size: 12px; }
+  }
+
+  /* ── Donation ── */
+  .donation-section { padding: 3rem 0 0.5rem; text-align: center; }
+  .donation-card {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 2.2rem 1.8rem;
+    text-align: center;
+  }
+  .donation-card h2 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--liq-text);
+    margin-bottom: 12px;
+  }
+  .donation-card p {
+    font-size: 13px;
+    color: var(--liq-text-muted);
+    max-width: 440px;
+    margin: 0 auto 22px;
+    line-height: 1.6;
+  }
+
   /* ── Section heading ── */
   .section-heading {
     text-align: center;
@@ -236,6 +306,20 @@
 </style>
 </head>
 <body>
+<nav>
+  <div class="inner">
+    <div class="nav-logo">
+      <a href="https://renzluigi.pages.dev" class="nav-back">← Toolbox</a>
+      <span>🗂️</span> ToolBox Explorer
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="https://ko-fi.com/renzluigi" target="_blank">Support ☕</a>
+    </div>
+  </div>
+</nav>
+
 <div class="bg-orbs">
   <div class="bg-orb bg-orb-1"></div>
   <div class="bg-orb bg-orb-2"></div>
@@ -244,8 +328,6 @@
 
 <div class="page-container">
   <div class="content">
-
-    <a href="https://renzluigi.pages.dev" class="back-link">← Toolbox</a>
 
     <div class="hero">
       <div class="hero-badge">🪟 Windows · Portable .exe</div>
@@ -262,7 +344,7 @@
 
     <div class="container">
 
-      <div class="section-heading">
+      <div class="section-heading" id="features">
         <div class="eyebrow">What it does</div>
         <h2>Everything you need, nothing you don't.</h2>
       </div>
@@ -300,7 +382,7 @@
         </div>
       </div>
 
-      <div class="section-heading">
+      <div class="section-heading" id="how">
         <div class="eyebrow">How it works</div>
         <h2>Simple as 1, 2, 3.</h2>
       </div>
@@ -354,6 +436,14 @@
           ToolBox Explorer runs entirely on your machine. The search index is stored locally
           on your computer — nothing is uploaded, nothing is sent to any server.
         </p>
+      </div>
+
+      <div class="donation-section">
+        <div class="card donation-card">
+          <h2>Free forever. Always. ☕</h2>
+          <p>This tool is free, and always will be. If it saved you time, a small coffee means the world. Thank you. 🙏</p>
+          <a href="https://ko-fi.com/renzluigi" target="_blank" class="btn-download">☕ Support on Ko-fi</a>
+        </div>
       </div>
 
     </div>
