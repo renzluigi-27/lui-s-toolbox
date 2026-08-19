@@ -179,6 +179,47 @@
     line-height: 1.6;
   }
 
+  .social-card {
+    max-width: 560px;
+    margin: 0.75rem auto 0;
+    text-align: center;
+    padding: 1.4rem;
+  }
+  .social-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--liq-text);
+    margin-bottom: 12px;
+  }
+  .social-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .social-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 0.5px solid var(--liq-border);
+    color: var(--liq-text) !important;
+    text-decoration: none !important;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .social-pill:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: var(--liq-border-hover);
+  }
+  .social-pill .handle {
+    color: var(--liq-text-hint);
+    font-weight: 400;
+  }
+
   /* ── Section heading ── */
   .section-heading {
     text-align: center;
@@ -315,7 +356,6 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#how">How it works</a>
-      <a href="https://ko-fi.com/renzluigi" target="_blank">Support ☕</a>
     </div>
   </div>
 </nav>
@@ -338,13 +378,28 @@
       </p>
       <div class="hero-actions">
         <a href="https://github.com/renzluigi-27/toolbox-explorer/releases" class="btn-download">⬇ Download for Windows</a>
-        <a href="https://github.com/renzluigi-27/toolbox-explorer" class="btn-secondary">View on GitHub</a>
       </div>
     </div>
 
     <div class="container">
 
       <div class="section-heading" id="features">
+        <div class="eyebrow">Why this exists</div>
+        <h2>Windows Explorer++ or Windows Search — why not both?</h2>
+      </div>
+
+      <div class="card" style="max-width: 640px; margin: 0 auto 2.5rem;">
+        <p style="font-size: 13px; color: var(--liq-text-muted); line-height: 1.7;">
+          Windows' built-in Explorer is fast for browsing but only searches filenames. Windows'
+          native Search can search file content too, but it's slower to set up per-folder and
+          isn't portable. ToolBox Explorer combines both: a fast, lightweight browser, plus a real
+          search index — filenames <em style="color: var(--liq-text); font-style: normal;">and</em>
+          content inside <kbd>.xlsx</kbd>, <kbd>.docx</kbd>, and <kbd>.pdf</kbd> files — all in a
+          single portable <kbd>.exe</kbd>, no installation required.
+        </p>
+      </div>
+
+      <div class="section-heading">
         <div class="eyebrow">What it does</div>
         <h2>Everything you need, nothing you don't.</h2>
       </div>
@@ -353,12 +408,12 @@
         <div class="card feature-card">
           <span class="feature-icon">🔎</span>
           <h3>Search inside files</h3>
-          <p>Finds text inside .xlsx, .docx, and .pdf files — not just filenames, like Windows Search.</p>
+          <p>Finds text inside .xlsx, .xlsm, .docx, and .pdf files — not just filenames, like Windows Search.</p>
         </div>
         <div class="card feature-card">
           <span class="feature-icon">📋</span>
           <h3>Details view browsing</h3>
-          <p>Clean list view with Name, Date modified, Type, and Size — grouped and sortable.</p>
+          <p>Clean list view with Name, Date modified, Type, and Size — grouped and sortable, with a folder tree.</p>
         </div>
         <div class="card feature-card">
           <span class="feature-icon">✂️</span>
@@ -374,6 +429,11 @@
           <span class="feature-icon">📦</span>
           <h3>Portable</h3>
           <p>Single .exe file. No installer, no registry changes. Run it from anywhere, even a USB stick.</p>
+        </div>
+        <div class="card feature-card">
+          <span class="feature-icon">🪶</span>
+          <h3>Lightweight</h3>
+          <p>No thumbnails, no real-time file watching, no background services running.</p>
         </div>
         <div class="card feature-card">
           <span class="feature-icon">♾️</span>
@@ -392,14 +452,14 @@
           <div class="step-num">1</div>
           <div>
             <h3>Download &amp; run</h3>
-            <p>Grab the .exe from GitHub Releases and run it — no installation needed.</p>
+            <p>Grab the .exe from GitHub Releases and run it — no installation needed. Browse mode works immediately.</p>
           </div>
         </div>
         <div class="card step-card">
           <div class="step-num">2</div>
           <div>
             <h3>Pick a folder &amp; re-index</h3>
-            <p>Browse to any folder, switch to Search mode, and click Re-index. A progress bar shows how far along it is.</p>
+            <p>Before using Search for the first time: select a folder, switch to Search mode, then click Re-index. A progress bar shows how far along it is.</p>
           </div>
         </div>
         <div class="card step-card">
@@ -409,6 +469,13 @@
             <p>Search by filename or by what's actually written inside your Excel, Word, and PDF files.</p>
           </div>
         </div>
+      </div>
+
+      <div class="card" style="max-width: 640px; margin: 1rem auto 0; border-color: rgba(255,176,32,0.3);">
+        <p style="font-size: 12.5px; color: var(--liq-text-muted); line-height: 1.6;">
+          ⚠️ Search only works after indexing — searching a folder before you've indexed it returns no
+          results. Re-index again any time files in that folder change; the index doesn't update automatically.
+        </p>
       </div>
 
       <div class="section-heading">
@@ -434,7 +501,9 @@
         <h2>Your files never leave your PC.</h2>
         <p>
           ToolBox Explorer runs entirely on your machine. The search index is stored locally
-          on your computer — nothing is uploaded, nothing is sent to any server.
+          at <kbd>%USERPROFILE%\.toolbox_finder\</kbd> — separate from the app itself, so
+          rebuilding the .exe never affects your existing index. Nothing is uploaded, nothing is
+          sent to any server.
         </p>
       </div>
 
@@ -444,6 +513,15 @@
           <p>This tool is free, and always will be. If it saved you time, a small coffee means the world. Thank you. 🙏</p>
           <a href="https://ko-fi.com/renzluigi" target="_blank" class="btn-download">☕ Support on Ko-fi</a>
         </div>
+
+        <div class="card social-card">
+          <h3>Follow Renz Luigi</h3>
+          <div class="social-row">
+            <a class="social-pill" href="https://instagram.com/renzluigi09" target="_blank" rel="noopener">📸 Instagram <span class="handle">@renzluigi09</span></a>
+            <a class="social-pill" href="https://threads.net/@renzluigi09" target="_blank" rel="noopener">🧵 Threads <span class="handle">@renzluigi09</span></a>
+            <a class="social-pill" href="https://x.com/renzluigi09" target="_blank" rel="noopener">✕ Twitter/X <span class="handle">@renzluigi09</span></a>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -451,9 +529,7 @@
 
   <div id="footer">
     <footer>
-      Built with ❤️ by <a href="https://ko-fi.com/renzluigi" style="color:inherit;">Renz Luigi</a>
-      · <a href="https://github.com/renzluigi-27/toolbox-explorer" style="color:inherit;">GitHub</a>
-      · <a href="https://ko-fi.com/renzluigi" style="color:inherit;">Support ☕</a><br>
+      Toolbox by Renz Luigi · <a href="https://github.com/renzluigi-27/toolbox-explorer/releases" style="color:inherit;">GitHub</a><br>
       Free &amp; open for personal use
     </footer>
   </div>
