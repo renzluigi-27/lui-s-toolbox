@@ -27,6 +27,7 @@ window.EmailMatcherStandalone = (function () {
     'CLIENT NAME (EID/PASSPORT)',
     'EID/PASSPORT NO.',
     'NATIONALITY',
+    'PHONE NUMBER',
     'EMAIL 1',
     'EMAIL 2',
     'AGENT EMAIL',
@@ -123,6 +124,7 @@ window.EmailMatcherStandalone = (function () {
         clientEmailRaw: emailRaw,
         nationality: row[17] != null ? String(row[17]).trim() : '',
         eidPassportNo: row[18] != null ? String(row[18]).trim() : '',
+        phoneRaw: row[16] != null ? String(row[16]).trim() : '',
       };
 
       if (normName) grouped.set(normName, record);
@@ -235,7 +237,7 @@ window.EmailMatcherStandalone = (function () {
     return emailRecords.find(r => r.normName === alt || r.normParen === alt) || null;
   }
 
-  const BLANK_MATCH = { emailSheetClientName: '', eidPassportName: '', eidPassportNo: '', nationality: '', email1: '', email2: '', isMatched: false };
+  const BLANK_MATCH = { emailSheetClientName: '', eidPassportName: '', eidPassportNo: '', nationality: '', phone: '', email1: '', email2: '', isMatched: false };
 
   // Resolves a File 1 client name to Email Sheet data. Tries a direct match,
   // then the Payment Info Sheet paren/outer bridge, then — for joint names
@@ -251,6 +253,7 @@ window.EmailMatcherStandalone = (function () {
         eidPassportName: direct.emailSheetClientNameNoPrefix,
         eidPassportNo: direct.eidPassportNo,
         nationality: direct.nationality,
+        phone: direct.phoneRaw,
         email1: e1, email2: e2,
         isMatched: true,
       };
@@ -269,6 +272,7 @@ window.EmailMatcherStandalone = (function () {
             eidPassportName: [m1 && m1.emailSheetClientNameNoPrefix, m2 && m2.emailSheetClientNameNoPrefix].filter(Boolean).join(' & '),
             eidPassportNo: [m1 && m1.eidPassportNo, m2 && m2.eidPassportNo].filter(Boolean).join(' / '),
             nationality: [m1 && m1.nationality, m2 && m2.nationality].filter(Boolean).join(' / '),
+            phone: [m1 && m1.phoneRaw, m2 && m2.phoneRaw].filter(Boolean).join(' / '),
             email1: e1, email2: e2,
             isMatched: true,
           };
@@ -417,6 +421,7 @@ window.EmailMatcherStandalone = (function () {
           eidPassportName: match.eidPassportName,
           eidPassportNo: match.eidPassportNo,
           nationality: match.nationality,
+          phone: match.phone,
           deduction,
           email1: match.email1, email2: match.email2, agentEmail,
           paymentClientType,
@@ -497,6 +502,7 @@ window.EmailMatcherStandalone = (function () {
         'CLIENT NAME (EID/PASSPORT)':   r.eidPassportName,
         'EID/PASSPORT NO.':             r.eidPassportNo,
         'NATIONALITY':                  r.nationality,
+        'PHONE NUMBER':                 r.phone,
         'EMAIL 1':                      r.email1,
         'EMAIL 2':                      r.email2,
         'AGENT EMAIL':                  r.agentEmail,
