@@ -224,11 +224,21 @@ function runPayout(yr, mo, cycle) {
   renderMoreRows(results.length);
 }
 
-function exportPayout() {
-  const yr    = parseInt(document.getElementById('selYear').value);
-  const mo    = parseInt(document.getElementById('selMonth').value);
-  const cycle = document.getElementById('selCycle').value;
+// ─────────────────────────────────────────────────────────────────
+// CLIENT TYPE CLASSIFICATION — same "Local vs everything else" rule
+// used in payout-audit.js: anything not clearly "Local" (including
+// blank/unclassified) goes into the International sheet.
+// ─────────────────────────────────────────────────────────────────
+function classifyLocalIntl(clientType) {
+  const s = (clientType || '').toLowerCase();
+  if (s.indexOf('local') > -1) return 'Local';
+  return 'International';
+}
 
+// ─────────────────────────────────────────────────────────────────
+// EXPORT TO EXCEL — now writes two sheets: "Local" and "International"
+// ─────────────────────────────────────────────────────────────────
+function buildPayoutSheet(rowsArr) {
   const headers = [
     'CLIENT TYPE', 'CLIENT NAME',
     'UNIT', 'FIRST PAYOUT',
@@ -236,7 +246,7 @@ function exportPayout() {
     'ACCOUNT NO.', 'IBAN NO.', 'SWIFT CODE', 'BANK NAME', 'AGENT NAME', 'DEDUCTION REMAINING', 'NOTES',
   ];
 
-  const rows = results.map(r => [
+  const rows = rowsArr.map(r => [
     r.clientType || '', r.clientName,
     r.containers.length,
     r.firstPayoutDisplay || '',
@@ -248,19 +258,34 @@ function exportPayout() {
     r.note || '',
   ]);
 
-  const totReturn   = results.reduce((s,r) => s + r.totalReturn, 0);
-  const totDeduct   = results.reduce((s,r) => s + r.totalDeduction, 0);
-  const totDue      = results.reduce((s,r) => s + (r.rentalDue || 0), 0);
-  rows.push(['','TOTAL','','','','','','','','', totReturn, totDeduct,'', totDue,'','','','','','','']);
+  const totReturn = rowsArr.reduce((s,r) => s + r.totalReturn, 0);
+  const totDeduct = rowsArr.reduce((s,r) => s + r.totalDeduction, 0);
+  const totDue    = rowsArr.reduce((s,r) => s + (r.rentalDue || 0), 0);
+  // Aligned to the 15-column header (previous version had 21 values here,
+  // which pushed totals into the wrong columns).
+  rows.push(['', 'TOTAL', '', '', totReturn, totDeduct, '', totDue, '', '', '', '', '', '', '']);
 
-  const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = [
-    {wch:14},{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},
-    {wch:8},{wch:14},
-    {wch:14},{wch:12},{wch:12},{wch:14},
-    {wch:22},{wch:30},{wch:18},{wch:28},{wch:20},{wch:30},{wch:50},
+    { wch: 14 }, { wch: 30 }, { wch: 8 }, { wch: 16 },
+    { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 14 },
+    { wch: 22 }, { wch: 30 }, { wch: 14 }, { wch: 28 },
+    { wch: 18 }, { wch: 20 }, { wch: 50 },
   ];
-  XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} - ${cycle === '15' ? '15th' : 'EOM'}`.substring(0, 31));
+  return ws;
+}
+
+function exportPayout() {
+  const yr    = parseInt(document.getElementById('selYear').value);
+  const mo    = parseInt(document.getElementById('selMonth').value);
+  const cycle = document.getElementById('selCycle').value;
+
+  const localRows = results.filter(r => classifyLocalIntl(r.clientType) === 'Local');
+  const intlRows  = results.filter(r => classifyLocalIntl(r.clientType) !== 'Local');
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildPayoutSheet(localRows), 'Local');
+  XLSX.utils.book_append_sheet(wb, buildPayoutSheet(intlRows), 'International');
+
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }
