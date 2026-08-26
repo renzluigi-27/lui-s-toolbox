@@ -431,7 +431,7 @@
         }
       }
       g.rawRows.push(r);
-      if (filteredKeys[r.index]) {
+      if (filteredKeys[r.index] && !r.isTerminated) {
         var val = r.isRerouted ? r.revisedRental : r.returnAmt;
         g.rental += toNum(val);
       }
