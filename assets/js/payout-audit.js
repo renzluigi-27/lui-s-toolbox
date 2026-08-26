@@ -659,8 +659,12 @@
     ]).then(function (res) {
       var genWb = res[0], accWb = res[1], piRawRows = res[2];
 
-      var genSheetName = genWb.SheetNames[0];
-      var genPayees = aggregate(parseSheet(genWb.Sheets[genSheetName], genSheetName));
+      // Read every sheet in the Gen workbook (Local + International), not
+      // just SheetNames[0] — otherwise all Gen International rows are
+      // silently skipped and every International Accounts client shows
+      // up as a false "genuine gap" in Missing Clients. parseAccounts()
+      // already loops all sheets generically, so it's reused here too.
+      var genPayees = aggregate(parseAccounts(genWb));
       var accPayees = aggregate(parseAccounts(accWb));
 
       var period = derivePeriod(files.gen.name, genWb);
