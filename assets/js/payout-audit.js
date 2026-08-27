@@ -1265,7 +1265,6 @@
       '</div>' +
       '<div class="card action-card">' +
         '<button class="btn-primary" id="pa-run" disabled>Run audit</button>' +
-        '<button class="btn-primary" id="pa-dl" disabled>Download audit file</button>' +
         '<div class="msg" id="pa-msg"></div>' +
       '</div>' +
       '<div id="pa-results"></div>';
@@ -1275,7 +1274,6 @@
     bindUpload('pa-info', 'info');
 
     document.getElementById('pa-run').addEventListener('click', onRun);
-    document.getElementById('pa-dl').addEventListener('click', onDownload);
   }
 
   function bindUpload(id, key) {
@@ -1316,7 +1314,6 @@
     document.getElementById('pa-run').disabled = true;
     runAudit().then(function (res) {
       renderResults(res);
-      document.getElementById('pa-dl').disabled = false;
       showMsg('Done. ' + lastFilename + ' ready to download.', 'info');
       document.getElementById('pa-run').disabled = false;
     }).catch(function (err) {
@@ -1421,7 +1418,15 @@
 
   function renderResults(res) {
     var sm = res.summary;
-    var html = '<div class="card"><div class="stats-grid">' +
+    var html = '<div class="card">' +
+      '<div class="results-header">' +
+        '<div>' +
+          '<div class="section-label" style="margin-bottom:2px;">Results</div>' +
+          '<div class="results-title">' + esc2(lastFilename) + '</div>' +
+        '</div>' +
+        '<button class="btn-primary" id="pa-dl">&#8595; Export to Excel</button>' +
+      '</div>' +
+      '<div class="stats-grid">' +
       statBox(sm.matched, 'Matched') +
       statBox(sm.local, 'Local') +
       statBox(sm.intl, 'International') +
@@ -1444,6 +1449,7 @@
     html += renderMissingTable(res.mineNotInAcc, res.accNotInMine);
 
     document.getElementById('pa-results').innerHTML = html;
+    document.getElementById('pa-dl').addEventListener('click', onDownload);
   }
 
   /* ── public ── */

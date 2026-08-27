@@ -207,7 +207,7 @@ window.EmlToPdf = (() => {
       dlBtn.addEventListener('click', () => downloadSingle(item));
       const rmBtn = document.createElement('button');
       rmBtn.className = 'btn-secondary';
-      rmBtn.textContent = 'Remove';
+      rmBtn.textContent = 'Clear';
       rmBtn.addEventListener('click', () => removeItem(item.id));
       actions.appendChild(dlBtn);
       actions.appendChild(rmBtn);
