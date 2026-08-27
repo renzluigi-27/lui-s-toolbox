@@ -11,6 +11,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 </head>
 <body>
@@ -38,6 +39,7 @@
           <button class="mode-tab" data-mode="audit">Payout Auditor</button>
           <button class="mode-tab" data-mode="schedule">Payout Schedule</button>
           <button class="mode-tab" data-mode="clientOrg">Client Organizer</button>
+          <button class="mode-tab" data-mode="emlToPdf">EML to PDF</button>
           <button class="mode-tab" data-mode="trip">Trip Updater</button>
         </div>
 
@@ -46,6 +48,7 @@
         <div id="tripMount" style="display:none;"></div>
         <div id="emailMatcherMount" style="display:none;"></div>
         <div id="clientOrgMount" style="display:none;"></div>
+        <div id="emlToPdfMount" style="display:none;"></div>
         <div id="scheduleMount" style="display:none;"></div>
 
         <!-- Upload Files: Payment Info / Accounts Payout List -->
@@ -187,6 +190,7 @@
   <script src="/assets/js/container-trip-updater.js"></script>
   <script src="/assets/js/payout-audit.js"></script>
   <script src="/assets/js/client-organizer.js"></script>
+  <script src="/assets/js/eml-to-pdf.js"></script>
   <script src="/assets/js/payout-schedule.js"></script>
   <script src="/assets/js/security.js"></script>
 

@@ -179,6 +179,7 @@ function updateTabUI() {
   const isTrip     = activeMode === 'trip';
   const isEmail    = activeMode === 'email';
   const isClientOrg = activeMode === 'clientOrg';
+  const isEmlToPdf  = activeMode === 'emlToPdf';
   const isSchedule  = activeMode === 'schedule';
 
   const genCards = [
@@ -187,7 +188,7 @@ function updateTabUI() {
     document.getElementById('refUploadZone').closest('.card'),
     document.getElementById('generateBtn').closest('.card'),
   ];
-  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail || isClientOrg || isSchedule) ? 'none' : ''; });
+  genCards.forEach(el => { if (el) el.style.display = (isAudit || isTrip || isEmail || isClientOrg || isEmlToPdf || isSchedule) ? 'none' : ''; });
 
   const auditMount = document.getElementById('auditMount');
   if (auditMount) {
@@ -216,6 +217,15 @@ function updateTabUI() {
     if (isClientOrg && window.ClientOrganizer && !clientOrgMount.dataset.inited) {
       ClientOrganizer.init('clientOrgMount');
       clientOrgMount.dataset.inited = '1';
+    }
+  }
+
+  const emlToPdfMount = document.getElementById('emlToPdfMount');
+  if (emlToPdfMount) {
+    emlToPdfMount.style.display = isEmlToPdf ? 'block' : 'none';
+    if (isEmlToPdf && window.EmlToPdf && !emlToPdfMount.dataset.inited) {
+      EmlToPdf.init('emlToPdfMount');
+      emlToPdfMount.dataset.inited = '1';
     }
   }
 
