@@ -317,13 +317,31 @@ window.EmlToPdf = (() => {
     return BOUNDARY_TEXT_PATTERNS.some(re => re.test(t));
   }
 
+  // Narrower check used only for the node right after an <hr>: a plain
+  // signature divider (e.g. before "Kind Regards,") should NOT force a
+  // page break, but an <hr> that precedes a quoted-reply header block
+  // (From:/Sent:/To:/Cc:/Date:/Subject: or "On ... wrote:") still should.
+  const QUOTED_HEADER_AFTER_HR_PATTERNS = BOUNDARY_TEXT_PATTERNS.concat([
+    /^Sent:\s/i,
+    /^To:\s/i,
+    /^Cc:\s/i,
+    /^Date:\s/i,
+    /^Subject:\s/i
+  ]);
+
+  function looksLikeQuotedHeader(text) {
+    const t = (text || '').trim();
+    if (!t) return false;
+    return QUOTED_HEADER_AFTER_HR_PATTERNS.some(re => re.test(t));
+  }
+
   function markBoundariesPre(root) {
     root.querySelectorAll('blockquote, #divRplyFwdMsg').forEach(el => el.setAttribute('data-msg-boundary', '1'));
   }
 
   function applyPostFlattenMarks(nodes) {
     for (let i = 0; i < nodes.length - 1; i++) {
-      if (nodes[i].tagName === 'HR' && nodes[i + 1].setAttribute) {
+      if (nodes[i].tagName === 'HR' && nodes[i + 1].setAttribute && looksLikeQuotedHeader(nodes[i + 1].textContent)) {
         nodes[i + 1].setAttribute('data-msg-boundary', '1');
       }
     }
