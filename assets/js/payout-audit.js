@@ -175,6 +175,14 @@
     if (!swA || !swB) return false;
     return swA !== swB;
   }
+  function bankNameDiffers(a, b) {
+    var bnA = a && a.bankName ? String(a.bankName).toLowerCase().trim() : '';
+    var bnB = b && b.bankName ? String(b.bankName).toLowerCase().trim() : '';
+    // Only flag when both sides actually have a value — avoids false
+    // positives when one file simply doesn't capture Bank Name.
+    if (!bnA || !bnB) return false;
+    return bnA !== bnB;
+  }
 
   /* ── grouping key: IBAN first, then account no., then name — matches how
      the Payout Generator itself groups payees, so clients sharing one bank
@@ -277,6 +285,7 @@
     account:    ['account no', 'account number', 'account', 'acc no'],
     iban:       ['iban no', 'iban', 'iban number'],
     swift:      ['swift code', 'swift'],
+    bankName:   ['bank name', 'bank'],
     clientType: ['client type'],
     notes:      ['notes', 'note'],
     remarks:    ['remarks - deepa', 'remarks', 'remark']
@@ -319,6 +328,7 @@
         account: idString(g('account')),
         iban: idString(g('iban')),
         swift: idString(g('swift')),
+        bankName: g('bankName'),
         clientType: g('clientType'),
         notes: g('notes'),
         remarks: g('remarks'),
@@ -354,7 +364,7 @@
       if (!map[key]) {
         map[key] = {
           name: disp, rent: 0, deduction: 0, addition: 0, rentalDue: 0,
-          account: null, iban: null, swift: null,
+          account: null, iban: null, swift: null, bankName: null,
           notes: [], remarks: [], clientType: null, sheetName: null, rowOrder: null,
           _keys: nameKeys(r.name), _norm: nameKey, _names: {}
         };
@@ -384,6 +394,7 @@
       if (g.account == null && r.account != null && String(r.account).trim() !== '') g.account = r.account;
       if (g.iban == null && r.iban != null && String(r.iban).trim() !== '') g.iban = r.iban;
       if (g.swift == null && r.swift != null && String(r.swift).trim() !== '') g.swift = r.swift;
+      if (g.bankName == null && r.bankName != null && String(r.bankName).trim() !== '') g.bankName = r.bankName;
       if (r.notes != null && String(r.notes).trim() !== '' && g.notes.indexOf(String(r.notes).trim()) === -1) {
         g.notes.push(String(r.notes).trim());
       }
@@ -431,7 +442,7 @@
         }
       }
       g.rawRows.push(r);
-      if (filteredKeys[r.index] && !r.isTerminated) {
+      if (filteredKeys[r.index]) {
         var val = r.isRerouted ? r.revisedRental : r.returnAmt;
         g.rental += toNum(val);
       }
@@ -609,12 +620,16 @@
     var accDiff = isMulti ? false : accountDiffers(g, a);
     var ibanDiff = isMulti ? false : ibanFieldDiffers(g, a);
     var swiftDiff = isMulti ? false : swiftDiffers(g, a);
+    var bankNameDiff = isMulti ? false : bankNameDiffers(g, a);
     var genAccountDisplay = isMulti
       ? g._multiAccount.map(function (x) { return x.account || '—'; }).join(' / ')
       : g.account;
     var genIbanDisplay = isMulti
       ? g._multiAccount.map(function (x) { return x.iban || '—'; }).join(' / ')
       : g.iban;
+    var genBankNameDisplay = isMulti
+      ? g._multiAccount.map(function (x) { return x.bankName || '—'; }).join(' / ')
+      : g.bankName;
 
     var genMath = mathCheck(g.rent, g.deduction, g.addition, g.rentalDue);
     var acctMath = mathCheck(a.rent, a.deduction, a.addition, a.rentalDue);
@@ -632,10 +647,11 @@
       genAccount: genAccountDisplay, acctAccount: a.account,
       genIban: genIbanDisplay, acctIban: a.iban,
       genSwift: isMulti ? null : g.swift, acctSwift: a.swift,
+      genBankName: genBankNameDisplay, acctBankName: a.bankName,
       genMath: genMath, acctMath: acctMath,
       diff: {
         rental: rentalDiff, ded: dedDiff, add: addDiff, due: dueDiff,
-        account: accDiff, iban: ibanDiff, swift: swiftDiff
+        account: accDiff, iban: ibanDiff, swift: swiftDiff, bankName: bankNameDiff
       }
     };
   }
@@ -795,7 +811,7 @@
             mergedG = {
               name: uniqueNames.join(' / '),
               rent: 0, deduction: 0, addition: 0, rentalDue: 0,
-              account: null, iban: null, swift: null,
+              account: null, iban: null, swift: null, bankName: null,
               clientType: gens[0].clientType,
               notes: [], _multiAccount: []
             };
@@ -809,7 +825,7 @@
                   if (mergedG.notes.indexOf(n) === -1) mergedG.notes.push(n);
                 });
               }
-              mergedG._multiAccount.push({ account: g.account, iban: g.iban, rent: g.rent });
+              mergedG._multiAccount.push({ account: g.account, iban: g.iban, bankName: g.bankName, rent: g.rent });
             });
             // If every account came out to zero, there's no real split to
             // explain — it's just the client's whole file being terminated
@@ -919,17 +935,19 @@
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
         }
-        if (v.diff.account || v.diff.iban || v.diff.swift || v.isMultiAccount) {
+        if (v.diff.account || v.diff.iban || v.diff.swift || v.diff.bankName || v.isMultiAccount) {
           var tags = [];
           if (v.diff.account) tags.push('Account No.');
           if (v.diff.iban) tags.push('IBAN');
           if (v.diff.swift) tags.push('SWIFT');
+          if (v.diff.bankName) tags.push('Bank Name');
           if (!tags.length && v.isMultiAccount) tags.push('Multi-Account (OK)');
           bankRows.push({
             client: v.client,
             genAccount: v.genAccount, acctAccount: v.acctAccount,
             genIban: v.genIban, acctIban: v.acctIban,
             genSwift: v.genSwift, acctSwift: v.acctSwift,
+            genBankName: v.genBankName, acctBankName: v.acctBankName,
             diffFields: tags.join(', '),
             acctRemarks: v.acctRemarks, genNotes: v.genNotes
           });
@@ -949,6 +967,7 @@
         if (v.diff.account) tags.push('Account No.');
         if (v.diff.iban) tags.push('IBAN');
         if (v.diff.swift) tags.push('SWIFT');
+        if (v.diff.bankName) tags.push('Bank Name');
         if (!tags.length && v.isMultiAccount) tags.push('Multi-Account (OK)');
         if (!tags.length) tags.push('OK');
         return {
@@ -960,6 +979,7 @@
           genAccount: v.genAccount, acctAccount: v.acctAccount,
           genIban: v.genIban, acctIban: v.acctIban,
           genSwift: v.genSwift, acctSwift: v.acctSwift,
+          genBankName: v.genBankName, acctBankName: v.acctBankName,
           diffFields: tags.join(', '),
           acctRemarks: v.acctRemarks, genNotes: v.genNotes
         };
@@ -1112,20 +1132,22 @@
     var ws = wb.addWorksheet('Bank Details');
     ws.columns = [
       { width: 34 }, { width: 20 }, { width: 20 }, { width: 26 }, { width: 26 },
-      { width: 14 }, { width: 14 }, { width: 24 }, { width: 20 }, { width: 45 }
+      { width: 14 }, { width: 14 }, { width: 22 }, { width: 22 },
+      { width: 24 }, { width: 20 }, { width: 45 }
     ];
     headerRow(ws, ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN',
-      'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
+      'Gen SWIFT', 'Acct SWIFT', 'Gen Bank Name', 'Acct Bank Name', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
       ws.getRow(rn).values = [
         r.client, r.genAccount, r.acctAccount, r.genIban, r.acctIban,
-        r.genSwift, r.acctSwift, r.diffFields, r.acctRemarks, r.genNotes
+        r.genSwift, r.acctSwift, r.genBankName, r.acctBankName, r.diffFields, r.acctRemarks, r.genNotes
       ];
-      borderRow(ws, rn, 10);
+      borderRow(ws, rn, 12);
       if (r.diffFields.indexOf('Account No.') > -1) highlightCells(ws, rn, [2, 3]);
       if (r.diffFields.indexOf('IBAN') > -1) highlightCells(ws, rn, [4, 5]);
       if (r.diffFields.indexOf('SWIFT') > -1) highlightCells(ws, rn, [6, 7]);
+      if (r.diffFields.indexOf('Bank Name') > -1) highlightCells(ws, rn, [8, 9]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -1141,13 +1163,15 @@
       { width: 12 }, { width: 12 }, { width: 11 }, { width: 11 },
       { width: 10 }, { width: 10 },
       { width: 18 }, { width: 18 }, { width: 24 }, { width: 24 },
-      { width: 13 }, { width: 13 }, { width: 22 }, { width: 20 }, { width: 45 }
+      { width: 13 }, { width: 13 }, { width: 22 }, { width: 22 },
+      { width: 22 }, { width: 20 }, { width: 45 }
     ];
     headerRow(ws, ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental',
       'Gen Deduction', 'Acct Deduction', 'Gen Addition', 'Acct Addition',
       'Gen Due', 'Acct Due',
       'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN',
-      'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
+      'Gen SWIFT', 'Acct SWIFT', 'Gen Bank Name', 'Acct Bank Name',
+      'Diff Fields', 'Accounts Remarks', 'Gen Notes']);
     rows.forEach(function (r, i) {
       var rn = i + 2;
       ws.getRow(rn).values = [
@@ -1155,9 +1179,10 @@
         r.genDed, r.acctDed, r.genAdd, r.acctAdd,
         r.genDue, r.acctDue,
         r.genAccount, r.acctAccount, r.genIban, r.acctIban,
-        r.genSwift, r.acctSwift, r.diffFields, r.acctRemarks, r.genNotes
+        r.genSwift, r.acctSwift, r.genBankName, r.acctBankName,
+        r.diffFields, r.acctRemarks, r.genNotes
       ];
-      borderRow(ws, rn, 19);
+      borderRow(ws, rn, 21);
       var tags = r.diffFields;
       if (tags.indexOf('Rental') > -1) highlightCells(ws, rn, [3, 4]);
       if (tags.indexOf('Ded') > -1) highlightCells(ws, rn, [5, 6]);
@@ -1166,6 +1191,7 @@
       if (tags.indexOf('Account No.') > -1) highlightCells(ws, rn, [11, 12]);
       if (tags.indexOf('IBAN') > -1) highlightCells(ws, rn, [13, 14]);
       if (tags.indexOf('SWIFT') > -1) highlightCells(ws, rn, [15, 16]);
+      if (tags.indexOf('Bank Name') > -1) highlightCells(ws, rn, [17, 18]);
     });
     ws.views = [{ state: 'frozen', ySplit: 1, xSplit: 1 }];
     return ws;
@@ -1346,24 +1372,26 @@
       }), [4, 8]);
   }
   function renderBankTable(rows) {
-    return simpleTable('Bank Details', ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN', 'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
+    return simpleTable('Bank Details', ['Client', 'Gen Account No.', 'Acct Account No.', 'Gen IBAN', 'Acct IBAN', 'Gen SWIFT', 'Acct SWIFT', 'Gen Bank Name', 'Acct Bank Name', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
       rows.map(function (r) {
         return [esc2(r.client), esc2(r.genAccount || '—'), esc2(r.acctAccount || '—'), esc2(r.genIban || '—'), esc2(r.acctIban || '—'),
-          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
-      }), [1, 2, 3, 4, 5, 6]);
+          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.genBankName || '—'), esc2(r.acctBankName || '—'),
+          esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
+      }), [1, 2, 3, 4, 5, 6, 7, 8]);
   }
 
   function renderClassTable(title, rows) {
     return simpleTable(title,
       ['Client', 'PI Rental', 'Gen Rental', 'Acct Rental', 'Gen Ded', 'Acct Ded', 'Gen Add', 'Acct Add',
         'Gen Due', 'Acct Due', 'Gen Account', 'Acct Account', 'Gen IBAN', 'Acct IBAN',
-        'Gen SWIFT', 'Acct SWIFT', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
+        'Gen SWIFT', 'Acct SWIFT', 'Gen Bank Name', 'Acct Bank Name', 'Diff Fields', 'Accounts Remarks', 'Gen Notes'],
       rows.map(function (r) {
         return [esc2(r.client), fmt2(r.piRent), fmt2(r.genRent), fmt2(r.acctRent),
           fmt2(r.genDed), fmt2(r.acctDed), fmt2(r.genAdd), fmt2(r.acctAdd),
           fmt2(r.genDue), fmt2(r.acctDue),
           esc2(r.genAccount || '—'), esc2(r.acctAccount || '—'), esc2(r.genIban || '—'), esc2(r.acctIban || '—'),
-          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
+          esc2(r.genSwift || '—'), esc2(r.acctSwift || '—'), esc2(r.genBankName || '—'), esc2(r.acctBankName || '—'),
+          esc2(r.diffFields), esc2(r.acctRemarks), esc2(r.genNotes)];
       }), [2, 3, 4, 5, 6, 7, 8, 9, 10]);
   }
 
