@@ -284,6 +284,37 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3</strong> — EML to PDF added; uniform export buttons; Insurance Paid-based deduction logic<br>
+              <div style="padding-left:1rem;">
+                • New "EML to PDF" tool inside AIO Tool (between Client Organizer and Trip Updater) — parses .eml files and renders each as a PDF using the real LMC letterhead, with a client-name field per email and batch ZIP download<br>
+                • Payout Auditor's "Download audit file" button moved out of the action card into the results header as "↓ Export to Excel" — now matches the same placement and label used by Payout Generator, IP Deduction, Email Matcher, and Client Organizer<br>
+                • Insurance "years already covered" detection (from the Insurance Paid column) now scales to the client's actual insurance rate — 20ft/40ft/specialty container pricing and the Jun 30, 2026 price change — instead of one fixed set of thresholds for everyone; applies to Payout Generator, IP Deduction, and Payout Auditor<br>
+                • Payout Schedule: Insurance Premium field now shows the container-multiplied total immediately on autofill, matching how Monthly Rent already works<br>
+                • Payout Schedule: rerouted clients now read the Insurance Paid column directly to decide which insurance year(s) are still owed, instead of estimating from elapsed months<br>
+                • Payout Schedule: if Year 1 insurance was never paid, it now correctly shows as a deduction on the client's true original Trip 1/first payout date — previously it was being folded into the post-restart anniversary schedule along with Y2/Y3, producing three deductions instead of the correct number<br>
+              </div><br>
+
+              <strong>Version 2.2.4</strong> — Payout Auditor: International Gen rows + terminated containers<br>
+              <div style="padding-left:1rem;">
+                • Gen workbook is now read across all its sheets (Local + International), not just the first one — International Gen clients were being silently skipped, showing up as false "missing client" gaps against the Accounts list<br>
+                • Terminated container rows are now excluded from Payment Info rental totals during audit, matching the same exclusion already used by the Payout Generator<br>
+              </div><br>
+
+              <strong>Version 2.2.3</strong> — Email Matcher: phone number export<br>
+              <div style="padding-left:1rem;">
+                • Added PHONE NUMBER to the Email Matcher's exported output (from the Email Sheet), placed before EMAIL 1<br>
+              </div><br>
+
+              <strong>Version 2.2.2</strong> — Email Matcher: EID/Passport number export<br>
+              <div style="padding-left:1rem;">
+                • Added EID/PASSPORT NO. to the Email Matcher's exported output and preview table<br>
+              </div><br>
+
+              <strong>Version 2.2.1</strong> — Payout Auditor: IBAN validation fix<br>
+              <div style="padding-left:1rem;">
+                • IBAN field is now validated against a real IBAN format before being used as a grouping key — previously, US routing-number text in that field (e.g. "Routing No: 021000021") was treated as a unique identifier, causing different clients who share the same routing number to be incorrectly merged together during audit<br>
+              </div><br>
+
               <strong>Version 2.2</strong> — TB AutoReply updated to v1.2.0 (early access); site-wide cleanup<br>
               <div style="padding-left:1rem;">
                 • TB AutoReply: Office Hours message is now per-account instead of one shared message for every enrolled account<br>
