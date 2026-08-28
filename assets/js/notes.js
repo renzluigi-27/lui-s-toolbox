@@ -36,8 +36,8 @@ const Notes = {
 
   // shared.js's own deduction note (uncapped totals) — used by the IP
   // Deduction tool's Notes column, via g.note.
-  dedNoteTotal: (total, label, containers) =>
-    `${total.toLocaleString()}AED total deduction for ${label} | ${containers.join(', ')}`,
+  dedNoteEach: (amount, label, containers) =>
+    `${amount.toLocaleString()}AED each for ${label} | ${containers.join(', ')}`,
 
   // ── payout.js — Payout Generator's own split/carryover notes ──
   splitDeductedFullyCollected: (pay, label, container, installmentLabel) =>

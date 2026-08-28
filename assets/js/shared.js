@@ -650,14 +650,15 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
         if (amt.ip <= 0 && amt.hc <= 0) return;
         const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
         const label = year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
-        if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
-        labelGroups[label].total += Math.round(amt.ip + amt.hc);
-        labelGroups[label].containers.push(container);
+        const amount = Math.round(amt.ip + amt.hc);
+        const key = `${label}|${amount}`;
+        if (!labelGroups[key]) labelGroups[key] = { label, amount, containers: [] };
+        labelGroups[key].containers.push(container);
       });
     });
 
-    const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
-      Notes.dedNoteTotal(lg.total, label, lg.containers)
+    const dedNotes = Object.values(labelGroups).map(lg =>
+      Notes.dedNoteEach(lg.amount, lg.label, lg.containers)
     );
 
     const agentArr = [...g.agents];

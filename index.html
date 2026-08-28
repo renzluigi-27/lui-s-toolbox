@@ -284,6 +284,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3.1</strong> — IP Deduction: export cleanup, per-container notes<br>
+              <div style="padding-left:1rem;">
+                • IBAN and Account Number columns removed from the export — no longer needed there<br>
+                • Units column now counts containers that actually have a deduction this cycle, not the client's total container count<br>
+                • Notes now show the per-container deduction amount instead of a combined total — e.g. 3 containers at 1,500 AED each now shows "1,500AED each for IP | ...", not "4,500AED total deduction for IP | ..."; containers under the same label only share a line if their per-container amount also matches<br>
+              </div><br>
+
               <strong>Version 2.3</strong> — EML to PDF added; uniform export buttons; Insurance Paid-based deduction logic<br>
               <div style="padding-left:1rem;">
                 • New "EML to PDF" tool inside AIO Tool (between Client Organizer and Trip Updater) — parses .eml files and renders each as a PDF using the real LMC letterhead, with a client-name field per email and batch ZIP download<br>
