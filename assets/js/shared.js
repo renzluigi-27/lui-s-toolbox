@@ -155,16 +155,17 @@ function parseNumber(val) {
   return parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
 }
 
-function parseInsuranceYears(val) {
+function parseInsuranceYears(val, containerType, firstPayout, isRerouted) {
   if (val === null || val === undefined || val === '') return 0;
   const s = String(val).toLowerCase().replace(/\s/g, '');
   if (s === '0' || s === '') return 0;
   const numStr = s.replace(/[^0-9.]/g, '');
   const n = parseFloat(numStr);
   if (isNaN(n) || n === 0) { if (s.includes('paid')) return 1; return 0; }
-  if (n >= 4000) return 3;
-  if (n >= 2500) return 2;
-  if (n >= 1000) return 1;
+  const rate = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
+  if (n >= rate * 3) return 3;
+  if (n >= rate * 2) return 2;
+  if (n >= rate * 1) return 1;
   return 0;
 }
 
