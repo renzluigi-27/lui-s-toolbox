@@ -645,7 +645,7 @@ function parsePaymentSheet(raw) {
     const totalCost = parseNumber(r[C.totalCost]);
 
     const insuranceRaw          = r[C.insurance];
-    const insuranceYearsCovered = parseInsuranceYears(insuranceRaw);
+    const insuranceYearsCovered = parseInsuranceYears(insuranceRaw, containerType, firstPayout, isRerouted);
     const rawAgent              = r[C.agent] ? String(r[C.agent]).trim() : '';
     const balanceNote           = (C.balance !== -1 && r[C.balance]) ? String(r[C.balance]).trim() : '';
 

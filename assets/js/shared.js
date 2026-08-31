@@ -155,16 +155,17 @@ function parseNumber(val) {
   return parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
 }
 
-function parseInsuranceYears(val) {
+function parseInsuranceYears(val, containerType, firstPayout, isRerouted) {
   if (val === null || val === undefined || val === '') return 0;
   const s = String(val).toLowerCase().replace(/\s/g, '');
   if (s === '0' || s === '') return 0;
   const numStr = s.replace(/[^0-9.]/g, '');
   const n = parseFloat(numStr);
   if (isNaN(n) || n === 0) { if (s.includes('paid')) return 1; return 0; }
-  if (n >= 4000) return 3;
-  if (n >= 2500) return 2;
-  if (n >= 1000) return 1;
+  const rate = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
+  if (n >= rate * 3) return 3;
+  if (n >= rate * 2) return 2;
+  if (n >= rate * 1) return 1;
   return 0;
 }
 
@@ -649,14 +650,15 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
         if (amt.ip <= 0 && amt.hc <= 0) return;
         const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
         const label = year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
-        if (!labelGroups[label]) labelGroups[label] = { total: 0, containers: [] };
-        labelGroups[label].total += Math.round(amt.ip + amt.hc);
-        labelGroups[label].containers.push(container);
+        const amount = Math.round(amt.ip + amt.hc);
+        const key = `${label}|${amount}`;
+        if (!labelGroups[key]) labelGroups[key] = { label, amount, containers: [] };
+        labelGroups[key].containers.push(container);
       });
     });
 
-    const dedNotes = Object.entries(labelGroups).map(([label, lg]) =>
-      Notes.dedNoteTotal(lg.total, label, lg.containers)
+    const dedNotes = Object.values(labelGroups).map(lg =>
+      Notes.dedNoteEach(lg.amount, lg.label, lg.containers)
     );
 
     const agentArr = [...g.agents];

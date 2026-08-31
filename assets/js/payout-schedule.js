@@ -456,7 +456,7 @@ window.PayoutSchedule = (function () {
     document.getElementById('ps-totalMonths').value = totalMonths || 36;
     const containerCount = g.containers.length || 1;
     document.getElementById('ps-rent').value = (effRent || 0) * containerCount;
-    document.getElementById('ps-insurance').value = insurance;
+    document.getElementById('ps-insurance').value = (insurance || 0) * containerCount;
     document.getElementById('ps-hcToggle').checked = false;
     document.getElementById('ps-hcAmount').value = '';
     document.getElementById('ps-hcAmount').disabled = true;
@@ -526,7 +526,7 @@ window.PayoutSchedule = (function () {
   // number and no amount. The gap note appears once, on the first unpaid
   // row. Container name shown once, on the very first row only.
   function buildPreRerouteRows(opts) {
-    const { origStart, origRent, restartDate, payoutsMade, gapNote, containers } = opts;
+    const { origStart, origRent, restartDate, payoutsMade, gapNote, containers, y1InsuranceAmount } = opts;
     const origCycle = origStart.getDate() <= 15 ? '15' : 'eom';
     const totalMonths = monthsBetween(origStart, restartDate);
     if (totalMonths <= 0) return [];
@@ -536,13 +536,14 @@ window.PayoutSchedule = (function () {
     return dates.map((date, i) => {
       const isPaid = i < payoutsMade;
       const container = containerCursor < containers.length ? containers[containerCursor++] : '';
+      const y1Deduction = (i === 0 && y1InsuranceAmount > 0) ? y1InsuranceAmount : 0;
       return {
         tripNumber: isPaid ? i + 1 : null,
         container,
         date,
-        monthlyPayment: isPaid ? origRent : null,
-        deductionAmount: 0,
-        deductionLabel: (!isPaid && i === payoutsMade) ? gapNote : '',
+        monthlyPayment: isPaid ? (origRent - y1Deduction) : null,
+        deductionAmount: y1Deduction,
+        deductionLabel: y1Deduction ? 'IP' : ((!isPaid && i === payoutsMade) ? gapNote : ''),
         isGap: !isPaid,
       };
     });
@@ -689,18 +690,18 @@ window.PayoutSchedule = (function () {
       const firstPayoutStr = document.getElementById('ps-firstPayout').value;
       const totalMonths = parseInt(document.getElementById('ps-totalMonths').value) || 0;
       const rent = parseFloat(document.getElementById('ps-rent').value) || 0;
-      let insurance = parseFloat(document.getElementById('ps-insurance').value) || 0;
+      const insurance = parseFloat(document.getElementById('ps-insurance').value) || 0;
       const hcEnabled = document.getElementById('ps-hcToggle').checked;
       let hcAmount = hcEnabled ? (parseFloat(document.getElementById('ps-hcAmount').value) || 0) : 0;
       const containers = document.getElementById('ps-containers').value
         .split('\n').map(s => s.trim()).filter(Boolean);
 
-      // Insurance/HC amounts are entered as the per-container rate (e.g.
-      // 1500 insurance, 1000 HC) — multiply by however many containers
-      // this client has, same way Monthly Rent already does at autofill.
+      // Rent and Insurance are already shown as totals in their fields
+      // (multiplied by container count at autofill). HC is still entered
+      // as a per-container rate and is not autofilled, so it still needs
+      // multiplying here at export time.
       const containerCount = containers.length || 1;
-      insurance = insurance * containerCount;
-      hcAmount  = hcAmount  * containerCount;
+      hcAmount = hcAmount * containerCount;
 
       if (!clientName) { showMsg('ps-genError', 'Client name is required.', 'error'); return; }
       if (!firstPayoutStr) { showMsg('ps-genError', 'First payout date is required.', 'error'); return; }
@@ -716,29 +717,36 @@ window.PayoutSchedule = (function () {
       const cycle = startDate.getDate() <= 15 ? '15' : 'eom';
       const rerouted = selectedGroup ? !isNonReroutedClient(selectedGroup.row) : false;
 
-      // Y1/Y2/Y3 anniversary basis for rerouted clients: same engine
-      // shared.js uses for the live Payout Generator / IP Deduction
-      // (rerouteAnniversaryBasis + LAST_PAYOUT cutoff), so this PDF always
-      // matches what actually gets deducted. tiersRemaining accounts for
-      // insurance years already covered before the reroute gap (e.g. 12
-      // months paid = Y1 already covered = only Y2/Y3 remain).
+      // Y1/Y2/Y3 for rerouted clients: which tiers are still owed now comes
+      // from the Insurance Paid column (col J, via insuranceYearsCovered) —
+      // the real payment record — not a months-elapsed time estimate. If Y1
+      // was never paid, it belongs at the true original Trip 1/first payout
+      // date (same as non-rerouted clients), not shoved into the post-restart
+      // anniversary schedule. Y2/Y3, if still owed, keep using the existing
+      // reroute-anniversary placement — that part already varies correctly
+      // per client and is unchanged.
       let dedBasis = startDate;
       let tiersRemaining = 3;
+      let y1Unpaid = false;
       if (rerouted && selectedGroup) {
         const origFirstPayout = selectedGroup.row.firstPayout;
         const restart = selectedGroup.row.restartDate;
         const oldCycle = selectedGroup.row.payoutCycle;
+        const yearsCovered = selectedGroup.row.insuranceYearsCovered || 0;
         if (origFirstPayout && isNeverPaidDate(origFirstPayout)) {
           dedBasis = restart || startDate;
-          tiersRemaining = 3;
-        } else if (origFirstPayout && restart) {
-          const cutoff = String(oldCycle || '').replace(/\s/g, '').startsWith('15') ? LAST_PAYOUT_15TH : LAST_PAYOUT_EOM;
-          const monthsPaid = Math.max(0, monthsBetween(origFirstPayout, cutoff) + 1);
-          const yearsCovered = Math.min(3, Math.floor(monthsPaid / 12));
           tiersRemaining = 3 - yearsCovered;
+        } else if (origFirstPayout && restart) {
           dedBasis = rerouteAnniversaryBasis(origFirstPayout, restart, oldCycle);
+          if (yearsCovered === 0) {
+            y1Unpaid = true;
+            tiersRemaining = 2; // Y2, Y3 remain, anchored at dedBasis
+          } else {
+            tiersRemaining = 3 - yearsCovered;
+          }
         } else {
           dedBasis = origFirstPayout || startDate;
+          tiersRemaining = 3 - yearsCovered;
         }
       }
 
@@ -756,11 +764,20 @@ window.PayoutSchedule = (function () {
         const origRent = (selectedGroup.row.returnAmt || 0) * containerCount;
         const preRows = buildPreRerouteRows({
           origStart, origRent, restartDate: startDate, payoutsMade, gapNote, containers,
+          y1InsuranceAmount: y1Unpaid ? insurance : 0,
         });
         // All containers were already introduced in preRows — blank them out
         // of the post-reroute rows too, so they're not printed twice.
         for (let i = 0; i < containers.length && i < rows.length; i++) rows[i].container = '';
         rows = preRows.concat(rows);
+      } else if (y1Unpaid && rows.length) {
+        // Pre-reroute history isn't being printed, so the true original Trip
+        // 1 never appears in this PDF — Y1's unpaid deduction shows on the
+        // first row of the printed (post-restart) schedule instead, so it's
+        // never silently missing from the export either way.
+        rows[0].deductionAmount = (rows[0].deductionAmount || 0) + insurance;
+        rows[0].monthlyPayment = rent - rows[0].deductionAmount;
+        rows[0].deductionLabel = rows[0].deductionLabel ? (rows[0].deductionLabel + ' + IP') : 'IP';
       }
 
       const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });

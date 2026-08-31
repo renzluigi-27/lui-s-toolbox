@@ -52,7 +52,7 @@ function runIPDeduction(yr, mo, cycle) {
     return `<tr>
       <td class="td-hint">${i+1}</td>
       <td class="td-name">${esc(r.clientName)}</td>
-      <td class="td-center td-mono">${r.containers.length}</td>
+      <td class="td-center td-mono">${new Set(r.deductionItems.map(it => it.container)).size}</td>
       <td class="td-mono">${fp}</td>
       <td class="td-deduct">${fmt(r.totalDeduction)}</td>
       <td class="td-note">${renderNote(r.note)}</td>
@@ -66,19 +66,19 @@ function exportIPDeduction() {
   const yr  = parseInt(document.getElementById('selYear').value);
   const mo  = parseInt(document.getElementById('selMonth').value);
 
-  const headers = ['CLIENT NAME', 'IBAN','ACCOUNT NUMBER','UNITS','DEDUCTION (AED)','NOTES'];
+  const headers = ['CLIENT NAME', 'UNITS','DEDUCTION (AED)','NOTES'];
   const rows = results.map(r => [
     r.clientName,
-    r.iban || '', r.accountNo || '',
-    r.containers.length, r.totalDeduction, r.note || '',
+    new Set(r.deductionItems.map(it => it.container)).size,
+    r.totalDeduction, r.note || '',
   ]);
 
   const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
-  rows.push(['TOTAL','','','',totDeduct,'']);
+  rows.push(['TOTAL','',totDeduct,'']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  ws['!cols'] = [{wch:45},{wch:45},{wch:30},{wch:30},{wch:16},{wch:16},{wch:24},{wch:30},{wch:22},{wch:8},{wch:16},{wch:60}];
+  ws['!cols'] = [{wch:45},{wch:12},{wch:16},{wch:60}];
   XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} IP Deduction`.substring(0, 31));
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }
