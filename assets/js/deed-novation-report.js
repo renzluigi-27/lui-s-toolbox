@@ -369,10 +369,9 @@ function copyReport() {
   const r = lastReport;
   let text = 'Deed of Novation Report\n';
   text += '------------------------------\n';
-  text += `Received: ${r.totalReceived}\n`;
-  text += `Rejected: ${r.totalRejected}\n`;
+  text += `Received (per contract/client): ${r.totalReceived}\n`;
+  text += `Rejected (per client): ${r.totalRejected}\n`;
   text += `Pending: ${r.totalPending}\n`;
-  text += `Total Deeds: ${r.totalDeeds}\n`;
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
