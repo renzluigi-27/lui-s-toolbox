@@ -1,5 +1,7 @@
 // Deed of Novation Report — client-side only
-// Excludes: Sabeerali Karuparamban (Contract Ended)
+// Excludes: Sabeerali Karuparamban, and any "Contract Ended" status entirely
+// Identifier rule: Contract No. when present; when "No Number", grouped by
+// Client Name + Agreement Start Date (multiple containers, same date = 1 deed).
 
 const EXCLUDED_CLIENTS = new Set(['Sabeerali Karuparamban']);
 
@@ -38,10 +40,11 @@ prevFileInput.addEventListener('change', (e) => {
   if (e.target.files.length) handlePrevFile(e.target.files[0]);
 });
 
-let lastReport = null;          // holds computed report for copy/export buttons
-let lastIdentifierMap = null;   // Map identifier -> { clientName, status } for current upload
+let lastReport = null;            // computed report (groups + totals)
+let lastIdentifierMap = null;     // Map identifier -> { clientName, status } for current upload
 let previousIdentifierMap = null; // Map identifier -> { clientName, status } from previous exported report
-let previousGeneratedAt = null; // string label of when the previous report was generated
+let previousGeneratedAt = null;   // label of when the previous report was generated
+let changesMap = null;            // Map clientName -> change tally (only when previous report loaded)
 
 function showError(msg) {
   errorMsg.textContent = msg;
@@ -77,9 +80,9 @@ function handleFile(file) {
       const { report, identifierMap } = buildReport(rows);
       lastReport = report;
       lastIdentifierMap = identifierMap;
-      renderReport(report);
+      changesMap = previousIdentifierMap ? computeChanges(identifierMap, previousIdentifierMap) : null;
+      renderReport(report, changesMap);
       resultArea.style.display = 'block';
-      maybeRenderDiff();
     } catch (err) {
       showError('Could not read this file. Make sure it is a valid .xlsx export of the Non_Termination_List.');
       console.error(err);
@@ -101,7 +104,7 @@ function handlePrevFile(file) {
       if (!workbook.Sheets['RawData']) {
         showPrevError('This file has no "RawData" sheet — please upload a report that was exported from this tool.');
         previousIdentifierMap = null;
-        maybeRenderDiff();
+        if (lastReport) { changesMap = null; renderReport(lastReport, null); }
         return;
       }
 
@@ -116,17 +119,19 @@ function handlePrevFile(file) {
       }
       previousIdentifierMap = map;
 
-      // pull generated-at label if present in Summary sheet
       previousGeneratedAt = null;
-      if (workbook.Sheets['Deed of Novation Report']) {
-        const summaryWs = workbook.Sheets['Deed of Novation Report'];
+      if (workbook.Sheets['Summary']) {
+        const summaryWs = workbook.Sheets['Summary'];
         const summaryRows = XLSX.utils.sheet_to_json(summaryWs, { header: 1, defval: null, raw: false });
         for (const r of summaryRows) {
           if (r && r[0] === 'Generated At') { previousGeneratedAt = r[1]; break; }
         }
       }
 
-      maybeRenderDiff();
+      if (lastReport && lastIdentifierMap) {
+        changesMap = computeChanges(lastIdentifierMap, previousIdentifierMap);
+        renderReport(lastReport, changesMap);
+      }
     } catch (err) {
       showPrevError('Could not read this file.');
       console.error(err);
@@ -135,10 +140,10 @@ function handlePrevFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
+// ── Core report builder ──────────────────────────────────────────────
 function buildReport(rows) {
-  // rows[0] = header row, skip it
-  const clientOrder = [];       // preserves first-seen sheet order
-  const clientMap = new Map();  // name -> { received:Set, rejected:Set, pending:Set }
+  const clientOrder = [];        // preserves first-seen sheet order
+  const clientMap = new Map();   // name -> { received:Set, rejected:Set, pending:Set, rejectedContainers:Set }
   const identifierMap = new Map(); // identifier -> { clientName, status }
 
   for (let i = 1; i < rows.length; i++) {
@@ -148,6 +153,7 @@ function buildReport(rows) {
     const contractNoRaw = row[0];
     const clientNameRaw = row[1];
     const containerNoRaw = row[2];
+    const agreementDateRaw = row[3];
     const statusRaw = row[7];
 
     if (!clientNameRaw) continue;
@@ -159,96 +165,81 @@ function buildReport(rows) {
     const contractNo = contractNoRaw ? String(contractNoRaw).trim() : '';
     const containerNo = containerNoRaw ? String(containerNoRaw).trim() : '';
 
-    // Skip Contract Ended entirely (out of scope for this report)
     if (status === 'Contract Ended') continue;
 
-    // Identifier: real contract no, or grouped-per-client when "No Number"
-    const identifier = (contractNo === 'No Number')
-      ? `NN|${clientName}`
-      : `CN|${contractNo || containerNo}`;
+    let identifier;
+    if (contractNo === 'No Number') {
+      const dateKey = normalizeDate(agreementDateRaw);
+      identifier = `NN|${clientName}|${dateKey}`;
+    } else {
+      identifier = `CN|${contractNo || containerNo}`;
+    }
 
     if (!clientMap.has(clientName)) {
-      clientMap.set(clientName, { received: new Set(), rejected: new Set(), pending: new Set() });
+      clientMap.set(clientName, { received: new Set(), rejected: new Set(), pending: new Set(), rejectedContainers: new Set() });
       clientOrder.push(clientName);
     }
     const g = clientMap.get(clientName);
     const effectiveStatus = status || 'Pending';
 
-    if (status === 'Received') g.received.add(identifier);
-    else if (status === 'Rejected') g.rejected.add(identifier);
-    else g.pending.add(identifier);
+    if (status === 'Received') {
+      g.received.add(identifier);
+    } else if (status === 'Rejected') {
+      g.rejected.add(identifier);
+      if (containerNo) g.rejectedContainers.add(containerNo);
+    } else {
+      g.pending.add(identifier);
+    }
 
     identifierMap.set(identifier, { clientName, status: effectiveStatus });
   }
 
   let totalReceived = 0, totalRejected = 0, totalPending = 0;
-  const activeRows = [];
-  const pendingRows = [];
+  const completed = [];
+  const pending = [];
+  const rejected = [];
 
   for (const name of clientOrder) {
     const g = clientMap.get(name);
     const totalUnique = new Set([...g.received, ...g.rejected, ...g.pending]);
     const x = g.received.size;
     const y = totalUnique.size;
-    const isRejected = g.rejected.size > 0;
 
     totalReceived += g.received.size;
     totalRejected += g.rejected.size;
     totalPending += g.pending.size;
 
-    if (x === 0 && !isRejected) {
-      pendingRows.push({ name, x, y });
+    if (g.rejected.size > 0) {
+      rejected.push({ name, containerCount: g.rejectedContainers.size });
+    } else if (x === y && y > 0) {
+      completed.push({ name, x, y });
     } else {
-      activeRows.push({ name, x, y, rejected: isRejected });
+      pending.push({ name, x, y });
     }
   }
 
-  const totalUniqueDeeds = totalReceived + totalRejected + totalPending;
+  const totalDeeds = totalReceived + totalRejected + totalPending;
 
   const report = {
-    totalReceived, totalRejected, totalPending, totalUniqueDeeds,
-    activeRows, pendingRows
+    totalReceived, totalRejected, totalPending, totalDeeds,
+    completed, pending, rejected
   };
 
   return { report, identifierMap };
 }
 
-function renderReport(report) {
-  const summaryGrid = document.getElementById('summaryGrid');
-  summaryGrid.innerHTML = `
-    <div class="stat-box"><div class="num">${report.totalReceived}</div><div class="label">Received</div></div>
-    <div class="stat-box"><div class="num">${report.totalRejected}</div><div class="label">Rejected</div></div>
-    <div class="stat-box"><div class="num">${report.totalPending}</div><div class="label">Pending</div></div>
-    <div class="stat-box total"><div class="num">${report.totalUniqueDeeds}</div><div class="label">Total Unique</div></div>
-  `;
-
-  const activeBody = document.getElementById('activeTableBody');
-  activeBody.innerHTML = report.activeRows.map(r => `
-    <tr class="${r.rejected ? 'rejected-row' : ''}">
-      <td>${escapeHtml(r.name)}</td>
-      <td>${r.x}/${r.y}</td>
-      <td>${r.rejected ? '<span class="badge-rej">Rejected</span>' : ''}</td>
-    </tr>
-  `).join('');
-
-  const pendingBody = document.getElementById('pendingTableBody');
-  pendingBody.innerHTML = report.pendingRows.map(r => `
-    <tr><td>${escapeHtml(r.name)}</td><td>${r.x}/${r.y}</td></tr>
-  `).join('');
+function normalizeDate(raw) {
+  if (!raw) return '';
+  // raw comes through SheetJS as a formatted string (raw:false), keep as-is
+  return String(raw).trim();
 }
 
-function maybeRenderDiff() {
-  const card = document.getElementById('newSinceCard');
-  if (!lastIdentifierMap || !previousIdentifierMap) {
-    card.style.display = 'none';
-    return;
-  }
+// ── Diff against previous report ─────────────────────────────────────
+function computeChanges(currentMap, previousMap) {
+  const changes = new Map(); // clientName -> { newlyReceived, newlyRejected, newEntries, statusChanged }
 
-  // per-client change tallies
-  const changes = new Map(); // clientName -> { newlyReceived, newlyRejected, newEntries }
-
-  for (const [identifier, cur] of lastIdentifierMap) {
-    const old = previousIdentifierMap.get(identifier);
+  for (const [identifier, cur] of currentMap) {
+    const old = previousMap.get(identifier);
     let changeType = null;
 
     if (!old) {
@@ -271,29 +262,99 @@ function maybeRenderDiff() {
     else if (changeType === 'status_changed') c.statusChanged++;
   }
 
-  const body = document.getElementById('newSinceTableBody');
-  const emptyMsg = document.getElementById('newSinceEmpty');
-  const dateLabel = document.getElementById('prevDateLabel');
-  dateLabel.textContent = previousGeneratedAt ? `(vs ${previousGeneratedAt})` : '';
+  return changes;
+}
 
-  if (changes.size === 0) {
-    body.innerHTML = '';
-    emptyMsg.style.display = 'block';
-  } else {
-    emptyMsg.style.display = 'none';
+function changeText(c) {
+  const parts = [];
+  if (c.newlyReceived) parts.push(`+${c.newlyReceived} Received`);
+  if (c.newlyRejected) parts.push(`+${c.newlyRejected} Rejected`);
+  if (c.newEntries) parts.push(`+${c.newEntries} New Entry`);
+  if (c.statusChanged) parts.push(`${c.statusChanged} Status Changed`);
+  return parts.join(', ');
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────
+function renderReport(report, changes) {
+  const summaryGrid = document.getElementById('summaryGrid');
+  summaryGrid.innerHTML = `
+    <div class="stat-box"><div class="num">${report.totalReceived}</div><div class="label">Received</div></div>
+    <div class="stat-box"><div class="num">${report.totalRejected}</div><div class="label">Rejected</div></div>
+    <div class="stat-box"><div class="num">${report.totalPending}</div><div class="label">Pending</div></div>
+    <div class="stat-box total"><div class="num">${report.totalDeeds}</div><div class="label">Total Deeds</div></div>
+  `;
+
+  const newCard = document.getElementById('newCard');
+  const newBody = document.getElementById('newTableBody');
+  const dateLabel = document.getElementById('prevDateLabel');
+
+  if (changes && changes.size > 0) {
+    dateLabel.textContent = previousGeneratedAt ? `(vs ${previousGeneratedAt})` : '';
     const rowsHtml = [];
-    for (const [name, c] of changes) {
-      const parts = [];
-      if (c.newlyReceived) parts.push(`+${c.newlyReceived} Received`);
-      if (c.newlyRejected) parts.push(`+${c.newlyRejected} Rejected`);
-      if (c.newEntries) parts.push(`+${c.newEntries} New Entry`);
-      if (c.statusChanged) parts.push(`${c.statusChanged} Status Changed`);
-      rowsHtml.push(`<tr><td>${escapeHtml(name)}</td><td>${parts.join(', ')}</td></tr>`);
+    // order aligned with sheet order across completed+pending+rejected
+    const allNames = [
+      ...report.completed.map(r => r.name),
+      ...report.pending.map(r => r.name),
+      ...report.rejected.map(r => r.name)
+    ];
+    const seen = new Set();
+    for (const name of allNames) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      if (!changes.has(name)) continue;
+      const statusLabel = statusLabelFor(report, name);
+      rowsHtml.push(`<tr><td>${escapeHtml(name)}</td><td>${changeText(changes.get(name))}</td><td>${statusBadge(statusLabel)}</td></tr>`);
     }
-    body.innerHTML = rowsHtml.join('');
+    newBody.innerHTML = rowsHtml.join('');
+    newCard.style.display = 'block';
+  } else {
+    newCard.style.display = 'none';
+    newBody.innerHTML = '';
   }
 
-  card.style.display = 'block';
+  renderGroupTable('completedTableBody', 'completedEmpty', report.completed, changes, (r) => `<td>${r.x}/${r.y}</td>`);
+  renderGroupTable('pendingTableBody', 'pendingEmpty', report.pending, changes, (r) => `<td>${r.x}/${r.y}</td>`);
+  renderGroupTable('rejectedTableBody', 'rejectedEmpty', report.rejected, changes, (r) => `<td>${r.containerCount}</td>`);
+}
+
+function statusLabelFor(report, name) {
+  if (report.rejected.some(r => r.name === name)) return 'rejected';
+  if (report.completed.some(r => r.name === name)) return 'completed';
+  return 'pending';
+}
+
+function statusBadge(label) {
+  if (label === 'completed') return '<span class="badge badge-completed">Completed</span>';
+  if (label === 'rejected') return '<span class="badge badge-rejected">Rejected</span>';
+  return '<span class="badge badge-pending">Pending</span>';
+}
+
+function renderGroupTable(bodyId, emptyId, list, changes, valueCellFn) {
+  const body = document.getElementById(bodyId);
+  const empty = document.getElementById(emptyId);
+
+  if (list.length === 0) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  // changed-first, preserving relative order within each partition
+  const changedRows = [];
+  const unchangedRows = [];
+  for (const r of list) {
+    if (changes && changes.has(r.name)) changedRows.push(r);
+    else unchangedRows.push(r);
+  }
+  const ordered = [...changedRows, ...unchangedRows];
+
+  body.innerHTML = ordered.map(r => `
+    <tr>
+      <td>${escapeHtml(r.name)}</td>
+      ${valueCellFn(r)}
+    </tr>
+  `).join('');
 }
 
 function escapeHtml(str) {
@@ -302,12 +363,36 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function exportReport() {
+// ── Copy (summary only) ─────────────────────────────────────────────
+function copyReport() {
+  if (!lastReport) return;
+  const r = lastReport;
+  let text = 'Deed of Novation Report\n';
+  text += '------------------------------\n';
+  text += `Received: ${r.totalReceived}\n`;
+  text += `Rejected: ${r.totalRejected}\n`;
+  text += `Pending: ${r.totalPending}\n`;
+  text += `Total Deeds: ${r.totalDeeds}\n`;
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    const label = document.getElementById('copyLabel');
+    btn.classList.add('copied');
+    label.textContent = 'Copied!';
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      label.textContent = 'Copy Report';
+    }, 1600);
+  });
+}
+
+// ── Export to Excel ──────────────────────────────────────────────────
+function exportExcel() {
   if (!lastReport || !lastIdentifierMap) return;
   const r = lastReport;
 
   const wb = new window.ExcelJS.Workbook();
-  const ws = wb.addWorksheet('Deed of Novation Report');
+  const ws = wb.addWorksheet('Summary');
 
   ws.columns = [{ width: 42 }, { width: 16 }, { width: 14 }];
 
@@ -315,19 +400,16 @@ function exportReport() {
   ws.getCell('A1').value = 'Deed of Novation Report';
   ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true };
 
-  ws.getCell('A3').value = 'Summary';
-  ws.getCell('A3').font = { name: 'Arial', bold: true };
-
   const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
 
   const summaryRows = [
     ['Received', r.totalReceived],
     ['Rejected', r.totalRejected],
     ['Pending', r.totalPending],
-    ['Total Unique Deeds', r.totalUniqueDeeds],
+    ['Total Deeds', r.totalDeeds],
     ['Generated At', generatedAt]
   ];
-  let row = 4;
+  let row = 3;
   summaryRows.forEach(([label, val]) => {
     ws.getCell(`A${row}`).value = label;
     ws.getCell(`A${row}`).font = { name: 'Arial' };
@@ -336,58 +418,38 @@ function exportReport() {
     row++;
   });
 
-  row += 1;
-  ws.getCell(`A${row}`).value = 'Deeds Received / Rejected';
-  ws.getCell(`A${row}`).font = { name: 'Arial', bold: true };
-  row++;
-
   const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
-  ['Client Name', 'Deed Count', 'Status'].forEach((h, i) => {
-    const cell = ws.getCell(row, i + 1);
-    cell.value = h;
-    cell.font = { name: 'Arial', bold: true };
-    cell.fill = headerFill;
-    cell.alignment = { horizontal: 'center' };
-  });
-  row++;
 
-  r.activeRows.forEach(item => {
-    ws.getCell(`A${row}`).value = item.name;
-    ws.getCell(`A${row}`).font = { name: 'Arial' };
-    ws.getCell(`B${row}`).value = `${item.x}/${item.y}`;
-    ws.getCell(`B${row}`).font = { name: 'Arial' };
-    ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
-    ws.getCell(`C${row}`).value = item.rejected ? 'Rejected' : '';
-    ws.getCell(`C${row}`).font = { name: 'Arial' };
+  function writeGroup(title, list, valueLabel, valueFn) {
+    row += 1;
+    ws.getCell(`A${row}`).value = title;
+    ws.getCell(`A${row}`).font = { name: 'Arial', bold: true };
     row++;
-  });
-
-  row += 1;
-  ws.getCell(`A${row}`).value = 'Pending (0 Received)';
-  ws.getCell(`A${row}`).font = { name: 'Arial', bold: true };
-  row++;
-
-  ['Client Name', 'Deed Count'].forEach((h, i) => {
-    const cell = ws.getCell(row, i + 1);
-    cell.value = h;
-    cell.font = { name: 'Arial', bold: true };
-    cell.fill = headerFill;
-    cell.alignment = { horizontal: 'center' };
-  });
-  row++;
-
-  r.pendingRows.forEach(item => {
-    ws.getCell(`A${row}`).value = item.name;
-    ws.getCell(`A${row}`).font = { name: 'Arial' };
-    ws.getCell(`B${row}`).value = `${item.x}/${item.y}`;
-    ws.getCell(`B${row}`).font = { name: 'Arial' };
-    ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
+    ['Client Name', valueLabel].forEach((h, i) => {
+      const cell = ws.getCell(row, i + 1);
+      cell.value = h;
+      cell.font = { name: 'Arial', bold: true };
+      cell.fill = headerFill;
+      cell.alignment = { horizontal: 'center' };
+    });
     row++;
-  });
+    list.forEach(item => {
+      ws.getCell(`A${row}`).value = item.name;
+      ws.getCell(`A${row}`).font = { name: 'Arial' };
+      ws.getCell(`B${row}`).value = valueFn(item);
+      ws.getCell(`B${row}`).font = { name: 'Arial' };
+      ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
+      row++;
+    });
+  }
+
+  writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Rejected', r.rejected, 'Container Count', (item) => item.containerCount);
 
   // ── RawData sheet — machine-readable snapshot for next-day comparison ──
   const rawWs = wb.addWorksheet('RawData');
-  rawWs.columns = [{ width: 42 }, { width: 30 }, { width: 14 }];
+  rawWs.columns = [{ width: 42 }, { width: 34 }, { width: 14 }];
   ['Client Name', 'Identifier', 'Status'].forEach((h, i) => {
     const cell = rawWs.getCell(1, i + 1);
     cell.value = h;
@@ -414,24 +476,190 @@ function exportReport() {
   });
 }
 
-function copyReport() {
+// ── PDF export modal ─────────────────────────────────────────────────
+function openPdfModal() {
+  if (!lastReport) return;
+  document.getElementById('pdfOverlay').classList.add('show');
+}
+function closePdfModal() {
+  document.getElementById('pdfOverlay').classList.remove('show');
+}
+
+async function exportPdf(mode) {
+  closePdfModal();
   if (!lastReport) return;
   const r = lastReport;
-  let text = 'Deed of Novation Report\n';
-  text += '------------------------------\n';
-  text += `Received: ${r.totalReceived}\n`;
-  text += `Rejected: ${r.totalRejected}\n`;
-  text += `Pending: ${r.totalPending}\n`;
-  text += `Total Unique Deeds: ${r.totalUniqueDeeds}\n`;
 
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById('copyBtn');
-    const label = document.getElementById('copyLabel');
-    btn.classList.add('copied');
-    label.textContent = 'Copied!';
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      label.textContent = 'Copy Report';
-    }, 1600);
+  const NAVY = PDFLib.rgb(0x1B/255, 0x4B/255, 0x7A/255);
+  const TEAL = PDFLib.rgb(0x5B/255, 0xA7/255, 0x9A/255);
+  const GREEN = PDFLib.rgb(0x2E/255, 0x7D/255, 0x32/255);
+  const AMBER = PDFLib.rgb(0xB9/255, 0x8A/255, 0x2E/255);
+  const RED = PDFLib.rgb(0xB0/255, 0x3A/255, 0x2E/255);
+  const LIGHT_ROW = PDFLib.rgb(0xEA/255, 0xF1/255, 0xF8/255);
+  const WHITE = PDFLib.rgb(1, 1, 1);
+  const GRAY_TXT = PDFLib.rgb(0x55/255, 0x55/255, 0x55/255);
+  const DARK_TXT = PDFLib.rgb(0.15, 0.15, 0.15);
+
+  const pdfDoc = await PDFLib.PDFDocument.create();
+  const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+  const logoBytes = Uint8Array.from(atob(LGMU_LOGO_B64), c => c.charCodeAt(0));
+  const logoImage = await pdfDoc.embedPng(logoBytes);
+  const logoDims = logoImage.scale(1);
+  const logoW = 110;
+  const logoH = logoW * (logoDims.height / logoDims.width);
+
+  const PAGE_W = 612, PAGE_H = 792;
+  const MARGIN = 54;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+
+  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let y = PAGE_H - MARGIN;
+
+  function newPage() {
+    page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    y = PAGE_H - MARGIN;
+    drawFooter();
+  }
+
+  function drawFooter() {
+    const pageNum = pdfDoc.getPageCount();
+    page.drawText('LGMU Container Trading — Deed of Novation Report', {
+      x: MARGIN, y: 36, size: 7.5, font, color: GRAY_TXT
+    });
+    page.drawText(`Page ${pageNum}`, {
+      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 36, size: 7.5, font, color: GRAY_TXT
+    });
+  }
+
+  function ensureSpace(neededHeight) {
+    if (y - neededHeight < 70) newPage();
+  }
+
+  // ── header ──
+  page.drawImage(logoImage, { x: MARGIN, y: y - logoH, width: logoW, height: logoH });
+  page.drawText('Deed of Novation Report', { x: MARGIN + logoW + 16, y: y - 22, size: 18, font: fontBold, color: NAVY });
+  const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  page.drawText(`Generated ${genDate}${mode === 'summary' ? ' — Summary' : ' — Full Report'}`, {
+    x: MARGIN + logoW + 16, y: y - 38, size: 9, font, color: GRAY_TXT
   });
+  y -= (logoH + 20);
+
+  // ── stat boxes ──
+  const boxW = (CONTENT_W - 20) / 3;
+  const boxH = 44;
+  const stats = [
+    ['RECEIVED', r.totalReceived, TEAL],
+    ['PENDING', r.totalPending, AMBER],
+    ['REJECTED', r.totalRejected, RED]
+  ];
+  stats.forEach(([label, val, color], i) => {
+    const bx = MARGIN + i * (boxW + 10);
+    page.drawRectangle({ x: bx, y: y - boxH, width: boxW, height: boxH, color });
+    const valStr = String(val);
+    page.drawText(valStr, { x: bx + boxW/2 - fontBold.widthOfTextAtSize(valStr, 16)/2, y: y - 20, size: 16, font: fontBold, color: WHITE });
+    page.drawText(label, { x: bx + boxW/2 - font.widthOfTextAtSize(label, 8)/2, y: y - 36, size: 8, font, color: WHITE });
+  });
+  y -= (boxH + 24);
+
+  drawFooter();
+
+  function sectionHeader(title, color) {
+    ensureSpace(30);
+    page.drawCircle({ x: MARGIN + 4, y: y - 4, size: 4, color });
+    page.drawText(title, { x: MARGIN + 14, y: y - 8, size: 12, font: fontBold, color: DARK_TXT });
+    y -= 22;
+  }
+
+  function drawTable(rows, headers, colWidths, headerColor) {
+    const rowH = 18;
+    ensureSpace(rowH * 2);
+    // header row
+    page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
+    let cx = MARGIN;
+    headers.forEach((h, i) => {
+      const w = colWidths[i];
+      const align = i === 0 ? 'left' : 'center';
+      const tw = fontBold.widthOfTextAtSize(h, 8.5);
+      const tx = align === 'left' ? cx + 6 : cx + w/2 - tw/2;
+      page.drawText(h, { x: tx, y: y - rowH + 5, size: 8.5, font: fontBold, color: WHITE });
+      cx += w;
+    });
+    y -= rowH;
+
+    rows.forEach((rowVals, idx) => {
+      ensureSpace(rowH);
+      if (y - rowH < 70) {
+        newPage();
+        // redraw header on new page
+        page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
+        let cx2 = MARGIN;
+        headers.forEach((h, i) => {
+          const w = colWidths[i];
+          const align = i === 0 ? 'left' : 'center';
+          const tw = fontBold.widthOfTextAtSize(h, 8.5);
+          const tx = align === 'left' ? cx2 + 6 : cx2 + w/2 - tw/2;
+          page.drawText(h, { x: tx, y: y - rowH + 5, size: 8.5, font: fontBold, color: WHITE });
+          cx2 += w;
+        });
+        y -= rowH;
+      }
+      if (idx % 2 === 1) {
+        page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: LIGHT_ROW });
+      }
+      let cx3 = MARGIN;
+      rowVals.forEach((val, i) => {
+        const w = colWidths[i];
+        const align = i === 0 ? 'left' : 'center';
+        const str = String(val);
+        const maxChars = Math.floor(w / 4.8);
+        const clipped = str.length > maxChars ? str.slice(0, maxChars - 1) + '…' : str;
+        const tw = font.widthOfTextAtSize(clipped, 8.5);
+        const tx = align === 'left' ? cx3 + 6 : cx3 + w/2 - tw/2;
+        page.drawText(clipped, { x: tx, y: y - rowH + 5, size: 8.5, font, color: DARK_TXT });
+        cx3 += w;
+      });
+      y -= rowH;
+      // separator line
+      page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_W, y }, thickness: 0.4, color: PDFLib.rgb(0.86,0.86,0.86) });
+    });
+    y -= 16;
+  }
+
+  const nameColW = CONTENT_W * 0.72;
+  const valColW = CONTENT_W - nameColW;
+
+  function renderSection(title, color, list, valueHeader, valueFn, limit) {
+    sectionHeader(`${title} (${list.length} client${list.length === 1 ? '' : 's'})`, color);
+    const items = limit ? list.slice(0, limit) : list;
+    if (items.length === 0) {
+      page.drawText('None.', { x: MARGIN, y: y - 4, size: 9, font, color: GRAY_TXT });
+      y -= 20;
+      return;
+    }
+    const rows = items.map(item => [item.name, valueFn(item)]);
+    drawTable(rows, ['Client Name', valueHeader], [nameColW, valColW], color);
+    if (limit && list.length > limit) {
+      ensureSpace(16);
+      page.drawText(`... and ${list.length - limit} more (summary truncated)`, { x: MARGIN, y: y - 4, size: 8, font, color: GRAY_TXT });
+      y -= 18;
+    }
+  }
+
+  const limit = mode === 'summary' ? 10 : null;
+  renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Deed_of_Novation_Report_${mode === 'summary' ? 'Summary' : 'Full'}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

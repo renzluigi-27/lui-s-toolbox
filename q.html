@@ -30,12 +30,13 @@
       padding: 2rem 1rem; text-align: center; cursor: pointer;
       transition: border-color 0.15s, background 0.15s;
     }
+    .upload-zone-sm { padding: 1.1rem 1rem; }
     .upload-zone:hover, .upload-zone.dragover {
       border-color: #8a6fe8; background: rgba(138,111,232,0.08);
     }
     .upload-zone p { font-size: 14px; color: var(--liq-text-muted); }
     .upload-zone .hint { font-size: 12px; color: var(--liq-text-hint); margin-top: 4px; }
-    #fileInput { display: none; }
+    input[type="file"] { display: none; }
     .file-name { font-size: 13px; color: var(--liq-text-muted); margin-top: 8px; }
     .error-msg {
       font-size: 13px; color: #F7C1C1; background: rgba(80,19,19,0.4);
@@ -55,21 +56,29 @@
     .stat-box.total { background: rgba(138,111,232,0.14); border-color: rgba(138,111,232,0.4); }
     .section-title {
       font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-      color: var(--liq-text-hint); margin: 1.4rem 0 0.6rem;
+      margin: 0 0 0.6rem;
+      display: flex; align-items: center; gap: 7px;
     }
-    .section-title.pending { color: #E8B84B; }
-    .section-title.new { color: #97C459; }
-    .upload-zone-sm { padding: 1.1rem 1rem; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot.new { background: #8a6fe8; }
+    .dot.completed { background: #97C459; }
+    .dot.pending { background: #E8B84B; }
+    .dot.rejected { background: #E8716B; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--liq-border); }
     th { color: var(--liq-text-hint); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
     td { color: var(--liq-text); }
-    tr.rejected-row td { color: #F7C1C1; }
-    .badge-rej {
-      display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
-      border-radius: 6px; background: rgba(80,19,19,0.5); color: #F7C1C1;
-    }
+    td:not(:first-child), th:not(:first-child) { text-align: center; }
     .table-scroll { max-height: 420px; overflow-y: auto; border-radius: 8px; }
+    .empty-msg { font-size: 13px; color: var(--liq-text-hint); padding: 10px 2px; }
+    .badge {
+      display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 6px;
+    }
+    .badge-completed { background: rgba(151,196,89,0.18); color: #B7DE8A; }
+    .badge-pending { background: rgba(232,184,75,0.18); color: #F0CE86; }
+    .badge-rejected { background: rgba(231,113,107,0.18); color: #F7A9A4; }
+
     .btn-row { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
     .copy-btn {
       padding: 0 18px; height: 38px; font-size: 13px; font-weight: 500;
@@ -80,8 +89,36 @@
     .copy-btn:hover { opacity: 0.85; }
     .copy-btn:active { transform: scale(0.97); }
     .copy-btn.copied { background: #97C459; }
-    #exportBtn { padding: 0 18px; height: 38px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    #exportExcelBtn, #exportPdfBtn { padding: 0 18px; height: 38px; font-size: 13px; font-weight: 500; cursor: pointer; }
+
     footer { margin-top: 3rem; text-align: center; font-size: 13px; color: var(--liq-text-hint); }
+
+    /* ── Modal ── */
+    .overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); backdrop-filter: blur(3px);
+      align-items: center; justify-content: center; z-index: 50;
+    }
+    .overlay.show { display: flex; }
+    .modal {
+      background: #1a1a20; border: 0.5px solid var(--liq-border);
+      border-radius: 14px; padding: 1.6rem; width: 320px; text-align: center;
+    }
+    .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--liq-text); }
+    .modal p { font-size: 13px; color: var(--liq-text-muted); margin-bottom: 1.2rem; }
+    .modal-options { display: flex; gap: 10px; }
+    .modal-btn {
+      flex: 1; padding: 12px 8px; border-radius: 10px; cursor: pointer;
+      border: 1px solid var(--liq-border); background: rgba(255,255,255,0.04);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .modal-btn:hover { border-color: #8a6fe8; background: rgba(138,111,232,0.1); }
+    .modal-btn .label { font-size: 13px; font-weight: 600; color: var(--liq-text); }
+    .modal-btn .hint { font-size: 11px; color: var(--liq-text-hint); margin-top: 3px; }
+    .modal-cancel {
+      margin-top: 12px; font-size: 12px; color: var(--liq-text-hint); background: none;
+      border: none; cursor: pointer; text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -112,7 +149,7 @@
 
         <div class="card">
           <div class="upload-zone upload-zone-sm" id="prevUploadZone">
-            <p>Optional: Click or drag your <strong>previous exported report</strong> here</p>
+            <p>Optional: Click or drag your <strong>previous exported Excel report</strong> here</p>
             <div class="hint">To see what's new since your last upload</div>
           </div>
           <input type="file" id="prevFileInput" accept=".xlsx" />
@@ -127,37 +164,52 @@
               <button class="copy-btn" id="copyBtn" onclick="copyReport()">
                 <span id="copyIcon">📋</span> <span id="copyLabel">Copy Report</span>
               </button>
-              <button class="btn-primary" id="exportBtn" onclick="exportReport()">&#8595; Export to Excel</button>
+              <button class="btn-primary" id="exportExcelBtn" onclick="exportExcel()">&#8595; Export to Excel</button>
+              <button class="btn-primary" id="exportPdfBtn" onclick="openPdfModal()">&#8595; Export to PDF</button>
             </div>
           </div>
 
-          <div class="card" id="newSinceCard" style="display:none;">
-            <div class="section-title new">New Since Last Upload <span id="prevDateLabel"></span></div>
+          <div class="card" id="newCard" style="display:none;">
+            <div class="section-title"><span class="dot new"></span>New Since Last Upload <span id="prevDateLabel" style="font-weight:400; text-transform:none; color:var(--liq-text-hint);"></span></div>
             <div class="table-scroll">
-              <table id="newSinceTable">
-                <thead><tr><th>Client Name</th><th>Change</th></tr></thead>
-                <tbody id="newSinceTableBody"></tbody>
+              <table>
+                <thead><tr><th>Client Name</th><th>Change</th><th>Status</th></tr></thead>
+                <tbody id="newTableBody"></tbody>
               </table>
             </div>
-            <div class="hint" id="newSinceEmpty" style="display:none; margin-top:8px;">No changes since your last upload.</div>
           </div>
 
           <div class="card">
-            <div class="section-title">Deeds Received / Rejected</div>
+            <div class="section-title"><span class="dot completed"></span>Completed</div>
             <div class="table-scroll">
-              <table id="activeTable">
-                <thead><tr><th>Client Name</th><th>Deed Count</th><th>Status</th></tr></thead>
-                <tbody id="activeTableBody"></tbody>
+              <table>
+                <thead><tr><th>Client Name</th><th>Deed Count</th></tr></thead>
+                <tbody id="completedTableBody"></tbody>
               </table>
             </div>
+            <div class="empty-msg" id="completedEmpty" style="display:none;">No completed clients yet.</div>
+          </div>
 
-            <div class="section-title pending">Pending (0 Received)</div>
+          <div class="card">
+            <div class="section-title"><span class="dot pending"></span>Pending</div>
             <div class="table-scroll">
-              <table id="pendingTable">
+              <table>
                 <thead><tr><th>Client Name</th><th>Deed Count</th></tr></thead>
                 <tbody id="pendingTableBody"></tbody>
               </table>
             </div>
+            <div class="empty-msg" id="pendingEmpty" style="display:none;">No pending clients.</div>
+          </div>
+
+          <div class="card">
+            <div class="section-title"><span class="dot rejected"></span>Rejected</div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Client Name</th><th>Container Count</th></tr></thead>
+                <tbody id="rejectedTableBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-msg" id="rejectedEmpty" style="display:none;">No rejected deeds.</div>
           </div>
         </div>
       </div>
@@ -166,8 +218,28 @@
     </div>
   </div>
 
+  <div class="overlay" id="pdfOverlay">
+    <div class="modal">
+      <h3>Export PDF Report</h3>
+      <p>Choose the report format</p>
+      <div class="modal-options">
+        <div class="modal-btn" onclick="exportPdf('summary')">
+          <div class="label">Summary</div>
+          <div class="hint">First 10 per group</div>
+        </div>
+        <div class="modal-btn" onclick="exportPdf('full')">
+          <div class="label">Full</div>
+          <div class="hint">All clients</div>
+        </div>
+      </div>
+      <button class="modal-cancel" onclick="closePdfModal()">Cancel</button>
+    </div>
+  </div>
+
   <script src="/assets/js/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <script src="/assets/js/deed-novation-logo.js"></script>
   <script src="/assets/js/deed-novation-report.js"></script>
   <script src="/assets/js/index.js"></script>
   <script src="/assets/js/security.js"></script>
