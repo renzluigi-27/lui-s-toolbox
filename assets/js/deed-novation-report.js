@@ -266,19 +266,7 @@ function copyReport() {
   text += `Received: ${r.totalReceived}\n`;
   text += `Rejected: ${r.totalRejected}\n`;
   text += `Pending: ${r.totalPending}\n`;
-  text += `Total Unique Deeds: ${r.totalUniqueDeeds}\n\n`;
-
-  text += 'Deeds Received / Rejected\n';
-  text += '------------------------------\n';
-  r.activeRows.forEach(row => {
-    text += `${row.name} — ${row.x}/${row.y}${row.rejected ? ' (Rejected)' : ''}\n`;
-  });
-
-  text += '\nPending (0 Received)\n';
-  text += '------------------------------\n';
-  r.pendingRows.forEach(row => {
-    text += `${row.name} — ${row.x}/${row.y}\n`;
-  });
+  text += `Total Unique Deeds: ${r.totalUniqueDeeds}\n`;
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
