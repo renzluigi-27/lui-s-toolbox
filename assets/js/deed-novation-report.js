@@ -1,4 +1,4 @@
-// Deed of Novation Report — client-side only, no upload/export
+// Deed of Novation Report — client-side only
 // Excludes: Sabeerali Karuparamban (Contract Ended)
 
 const EXCLUDED_CLIENTS = new Set(['Sabeerali Karuparamban']);
@@ -8,6 +8,11 @@ const fileInput = document.getElementById('fileInput');
 const fileNameEl = document.getElementById('fileName');
 const errorMsg = document.getElementById('errorMsg');
 const resultArea = document.getElementById('resultArea');
+
+const prevUploadZone = document.getElementById('prevUploadZone');
+const prevFileInput = document.getElementById('prevFileInput');
+const prevFileNameEl = document.getElementById('prevFileName');
+const prevErrorMsg = document.getElementById('prevErrorMsg');
 
 uploadZone.addEventListener('click', () => fileInput.click());
 uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); uploadZone.classList.add('dragover'); });
@@ -21,17 +26,35 @@ fileInput.addEventListener('change', (e) => {
   if (e.target.files.length) handleFile(e.target.files[0]);
 });
 
-let lastReport = null; // holds computed report for copy button
+prevUploadZone.addEventListener('click', () => prevFileInput.click());
+prevUploadZone.addEventListener('dragover', (e) => { e.preventDefault(); prevUploadZone.classList.add('dragover'); });
+prevUploadZone.addEventListener('dragleave', () => prevUploadZone.classList.remove('dragover'));
+prevUploadZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  prevUploadZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handlePrevFile(e.dataTransfer.files[0]);
+});
+prevFileInput.addEventListener('change', (e) => {
+  if (e.target.files.length) handlePrevFile(e.target.files[0]);
+});
+
+let lastReport = null;          // holds computed report for copy/export buttons
+let lastIdentifierMap = null;   // Map identifier -> { clientName, status } for current upload
+let previousIdentifierMap = null; // Map identifier -> { clientName, status } from previous exported report
+let previousGeneratedAt = null; // string label of when the previous report was generated
 
 function showError(msg) {
   errorMsg.textContent = msg;
   errorMsg.style.display = 'block';
   resultArea.style.display = 'none';
 }
+function clearError() { errorMsg.style.display = 'none'; }
 
-function clearError() {
-  errorMsg.style.display = 'none';
+function showPrevError(msg) {
+  prevErrorMsg.textContent = msg;
+  prevErrorMsg.style.display = 'block';
 }
+function clearPrevError() { prevErrorMsg.style.display = 'none'; }
 
 function handleFile(file) {
   clearError();
@@ -51,12 +74,61 @@ function handleFile(file) {
       const ws = workbook.Sheets['Final List'];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
 
-      const report = buildReport(rows);
+      const { report, identifierMap } = buildReport(rows);
       lastReport = report;
+      lastIdentifierMap = identifierMap;
       renderReport(report);
       resultArea.style.display = 'block';
+      maybeRenderDiff();
     } catch (err) {
       showError('Could not read this file. Make sure it is a valid .xlsx export of the Non_Termination_List.');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function handlePrevFile(file) {
+  clearPrevError();
+  prevFileNameEl.textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      if (!workbook.Sheets['RawData']) {
+        showPrevError('This file has no "RawData" sheet — please upload a report that was exported from this tool.');
+        previousIdentifierMap = null;
+        maybeRenderDiff();
+        return;
+      }
+
+      const ws = workbook.Sheets['RawData'];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
+
+      const map = new Map();
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[1]) continue;
+        map.set(String(row[1]), { clientName: String(row[0] || ''), status: String(row[2] || '') });
+      }
+      previousIdentifierMap = map;
+
+      // pull generated-at label if present in Summary sheet
+      previousGeneratedAt = null;
+      if (workbook.Sheets['Deed of Novation Report']) {
+        const summaryWs = workbook.Sheets['Deed of Novation Report'];
+        const summaryRows = XLSX.utils.sheet_to_json(summaryWs, { header: 1, defval: null, raw: false });
+        for (const r of summaryRows) {
+          if (r && r[0] === 'Generated At') { previousGeneratedAt = r[1]; break; }
+        }
+      }
+
+      maybeRenderDiff();
+    } catch (err) {
+      showPrevError('Could not read this file.');
       console.error(err);
     }
   };
@@ -67,6 +139,7 @@ function buildReport(rows) {
   // rows[0] = header row, skip it
   const clientOrder = [];       // preserves first-seen sheet order
   const clientMap = new Map();  // name -> { received:Set, rejected:Set, pending:Set }
+  const identifierMap = new Map(); // identifier -> { clientName, status }
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -99,10 +172,13 @@ function buildReport(rows) {
       clientOrder.push(clientName);
     }
     const g = clientMap.get(clientName);
+    const effectiveStatus = status || 'Pending';
 
     if (status === 'Received') g.received.add(identifier);
     else if (status === 'Rejected') g.rejected.add(identifier);
     else g.pending.add(identifier);
+
+    identifierMap.set(identifier, { clientName, status: effectiveStatus });
   }
 
   let totalReceived = 0, totalRejected = 0, totalPending = 0;
@@ -129,10 +205,12 @@ function buildReport(rows) {
 
   const totalUniqueDeeds = totalReceived + totalRejected + totalPending;
 
-  return {
+  const report = {
     totalReceived, totalRejected, totalPending, totalUniqueDeeds,
     activeRows, pendingRows
   };
+
+  return { report, identifierMap };
 }
 
 function renderReport(report) {
@@ -159,6 +237,65 @@ function renderReport(report) {
   `).join('');
 }
 
+function maybeRenderDiff() {
+  const card = document.getElementById('newSinceCard');
+  if (!lastIdentifierMap || !previousIdentifierMap) {
+    card.style.display = 'none';
+    return;
+  }
+
+  // per-client change tallies
+  const changes = new Map(); // clientName -> { newlyReceived, newlyRejected, newEntries }
+
+  for (const [identifier, cur] of lastIdentifierMap) {
+    const old = previousIdentifierMap.get(identifier);
+    let changeType = null;
+
+    if (!old) {
+      changeType = 'new_entry';
+    } else if (old.status !== cur.status) {
+      if (cur.status === 'Received') changeType = 'newly_received';
+      else if (cur.status === 'Rejected') changeType = 'newly_rejected';
+      else changeType = 'status_changed';
+    }
+
+    if (!changeType) continue;
+
+    if (!changes.has(cur.clientName)) {
+      changes.set(cur.clientName, { newlyReceived: 0, newlyRejected: 0, newEntries: 0, statusChanged: 0 });
+    }
+    const c = changes.get(cur.clientName);
+    if (changeType === 'newly_received') c.newlyReceived++;
+    else if (changeType === 'newly_rejected') c.newlyRejected++;
+    else if (changeType === 'new_entry') c.newEntries++;
+    else if (changeType === 'status_changed') c.statusChanged++;
+  }
+
+  const body = document.getElementById('newSinceTableBody');
+  const emptyMsg = document.getElementById('newSinceEmpty');
+  const dateLabel = document.getElementById('prevDateLabel');
+  dateLabel.textContent = previousGeneratedAt ? `(vs ${previousGeneratedAt})` : '';
+
+  if (changes.size === 0) {
+    body.innerHTML = '';
+    emptyMsg.style.display = 'block';
+  } else {
+    emptyMsg.style.display = 'none';
+    const rowsHtml = [];
+    for (const [name, c] of changes) {
+      const parts = [];
+      if (c.newlyReceived) parts.push(`+${c.newlyReceived} Received`);
+      if (c.newlyRejected) parts.push(`+${c.newlyRejected} Rejected`);
+      if (c.newEntries) parts.push(`+${c.newEntries} New Entry`);
+      if (c.statusChanged) parts.push(`${c.statusChanged} Status Changed`);
+      rowsHtml.push(`<tr><td>${escapeHtml(name)}</td><td>${parts.join(', ')}</td></tr>`);
+    }
+    body.innerHTML = rowsHtml.join('');
+  }
+
+  card.style.display = 'block';
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -166,7 +303,7 @@ function escapeHtml(str) {
 }
 
 function exportReport() {
-  if (!lastReport) return;
+  if (!lastReport || !lastIdentifierMap) return;
   const r = lastReport;
 
   const wb = new window.ExcelJS.Workbook();
@@ -181,11 +318,14 @@ function exportReport() {
   ws.getCell('A3').value = 'Summary';
   ws.getCell('A3').font = { name: 'Arial', bold: true };
 
+  const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
   const summaryRows = [
     ['Received', r.totalReceived],
     ['Rejected', r.totalRejected],
     ['Pending', r.totalPending],
-    ['Total Unique Deeds', r.totalUniqueDeeds]
+    ['Total Unique Deeds', r.totalUniqueDeeds],
+    ['Generated At', generatedAt]
   ];
   let row = 4;
   summaryRows.forEach(([label, val]) => {
@@ -244,6 +384,22 @@ function exportReport() {
     ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
     row++;
   });
+
+  // ── RawData sheet — machine-readable snapshot for next-day comparison ──
+  const rawWs = wb.addWorksheet('RawData');
+  rawWs.columns = [{ width: 42 }, { width: 30 }, { width: 14 }];
+  ['Client Name', 'Identifier', 'Status'].forEach((h, i) => {
+    const cell = rawWs.getCell(1, i + 1);
+    cell.value = h;
+    cell.font = { name: 'Arial', bold: true };
+  });
+  let rawRow = 2;
+  for (const [identifier, info] of lastIdentifierMap) {
+    rawWs.getCell(`A${rawRow}`).value = info.clientName;
+    rawWs.getCell(`B${rawRow}`).value = identifier;
+    rawWs.getCell(`C${rawRow}`).value = info.status;
+    rawRow++;
+  }
 
   wb.xlsx.writeBuffer().then(buffer => {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

@@ -58,6 +58,8 @@
       color: var(--liq-text-hint); margin: 1.4rem 0 0.6rem;
     }
     .section-title.pending { color: #E8B84B; }
+    .section-title.new { color: #97C459; }
+    .upload-zone-sm { padding: 1.1rem 1rem; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--liq-border); }
     th { color: var(--liq-text-hint); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -108,6 +110,16 @@
           <div class="error-msg" id="errorMsg"></div>
         </div>
 
+        <div class="card">
+          <div class="upload-zone upload-zone-sm" id="prevUploadZone">
+            <p>Optional: Click or drag your <strong>previous exported report</strong> here</p>
+            <div class="hint">To see what's new since your last upload</div>
+          </div>
+          <input type="file" id="prevFileInput" accept=".xlsx" />
+          <div class="file-name" id="prevFileName"></div>
+          <div class="error-msg" id="prevErrorMsg"></div>
+        </div>
+
         <div id="resultArea">
           <div class="card">
             <div class="summary-grid" id="summaryGrid"></div>
@@ -117,6 +129,17 @@
               </button>
               <button class="btn-primary" id="exportBtn" onclick="exportReport()">&#8595; Export to Excel</button>
             </div>
+          </div>
+
+          <div class="card" id="newSinceCard" style="display:none;">
+            <div class="section-title new">New Since Last Upload <span id="prevDateLabel"></span></div>
+            <div class="table-scroll">
+              <table id="newSinceTable">
+                <thead><tr><th>Client Name</th><th>Change</th></tr></thead>
+                <tbody id="newSinceTableBody"></tbody>
+              </table>
+            </div>
+            <div class="hint" id="newSinceEmpty" style="display:none; margin-top:8px;">No changes since your last upload.</div>
           </div>
 
           <div class="card">
