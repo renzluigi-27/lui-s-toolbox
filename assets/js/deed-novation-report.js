@@ -727,7 +727,7 @@ async function exportPdf(mode) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Deed_of_Novation_Report_${mode === 'summary' ? 'Summary' : 'Full'}.pdf`;
+  a.download = `Deed_of_Novation_Report_${mode === 'summary' ? 'Summary' : 'Full'}_${timestampTag()}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
