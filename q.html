@@ -44,9 +44,9 @@
     }
     #resultArea { display: none; }
     .summary-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 0.5rem;
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 0.5rem;
     }
-    @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 700px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
     .stat-box {
       background: rgba(255,255,255,0.04); border: 0.5px solid var(--liq-border);
       border-radius: 10px; padding: 0.85rem; text-align: center;
@@ -64,6 +64,7 @@
     .dot.completed { background: #97C459; }
     .dot.pending { background: #E8B84B; }
     .dot.rejected { background: #E8716B; }
+    .dot.legal { background: #5B9BD5; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--liq-border); }
     th { color: var(--liq-text-hint); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -78,6 +79,7 @@
     .badge-completed { background: rgba(151,196,89,0.18); color: #B7DE8A; }
     .badge-pending { background: rgba(232,184,75,0.18); color: #F0CE86; }
     .badge-rejected { background: rgba(231,113,107,0.18); color: #F7A9A4; }
+    .badge-legal { background: rgba(91,155,213,0.18); color: #9CC7EB; }
 
     .btn-row { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
     .copy-btn {
@@ -211,6 +213,17 @@
             </div>
             <div class="empty-msg" id="rejectedEmpty" style="display:none;">No rejected deeds.</div>
           </div>
+
+          <div class="card">
+            <div class="section-title"><span class="dot legal"></span>Legal</div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Client Name</th><th>Container Count</th></tr></thead>
+                <tbody id="legalTableBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-msg" id="legalEmpty" style="display:none;">No clients under legal review.</div>
+          </div>
         </div>
       </div>
 
@@ -239,7 +252,6 @@
   <script src="/assets/js/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
   <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-  <script src="/assets/js/deed-novation-logo.js"></script>
   <script src="/assets/js/deed-novation-report.js"></script>
   <script src="/assets/js/index.js"></script>
   <script src="/assets/js/security.js"></script>

@@ -107,6 +107,17 @@ window.PayoutSchedule = (function () {
       </div>
 
       <div class="card action-card" id="ps-genCard" style="display:none;">
+        <div class="selector-group" style="margin-bottom:0.75rem;">
+          <label>Letterhead</label>
+          <div class="ps-checkbox-label" style="gap:1rem;">
+            <label style="display:inline-flex; align-items:center; gap:0.35rem;">
+              <input type="radio" name="ps-letterhead" value="lmc" checked /> LMC
+            </label>
+            <label style="display:inline-flex; align-items:center; gap:0.35rem;">
+              <input type="radio" name="ps-letterhead" value="lgmu" /> LGMU
+            </label>
+          </div>
+        </div>
         <button class="btn-primary" id="ps-generateBtn">Generate PDF</button>
         <div class="msg" id="ps-genError"></div>
       </div>
@@ -685,6 +696,7 @@ window.PayoutSchedule = (function () {
     const btn = document.getElementById('ps-generateBtn');
     try {
       const clientName = document.getElementById('ps-clientName').value.trim();
+      const letterheadChoice = (document.querySelector('input[name="ps-letterhead"]:checked') || {}).value || 'lmc';
       const clientEmail = document.getElementById('ps-clientEmail').value.trim();
       const contractRef = document.getElementById('ps-contractRef').value.trim() || clientName;
       const firstPayoutStr = document.getElementById('ps-firstPayout').value;
@@ -780,7 +792,7 @@ window.PayoutSchedule = (function () {
         rows[0].deductionLabel = rows[0].deductionLabel ? (rows[0].deductionLabel + ' + IP') : 'IP';
       }
 
-      const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted });
+      const pdfBytes = await buildPDF({ clientName, rows, blocks, rerouted, letterhead: letterheadChoice });
       downloadPDF(pdfBytes, `Payout_Schedule_${clientName.replace(/[^a-z0-9]/gi, '_')}_${contractRef.replace(/[^a-z0-9]/gi, '_')}_${timestampTag()}.pdf`);
     } catch (ex) {
       showMsg('ps-genError', 'Error generating PDF: ' + ex.message, 'error');
@@ -808,7 +820,8 @@ window.PayoutSchedule = (function () {
   const BLACK = () => PDFLib.rgb(0, 0, 0);
   const LIGHT_BORDER = () => PDFLib.rgb(0, 0, 0);
 
-  const LETTERHEAD_URL = '/assets/lmc_letterhead.pdf';
+  const LETTERHEAD_URL_LMC = '/assets/lmc_letterhead.pdf';
+  const LETTERHEAD_URL_LGMU = '/assets/lgmu_letterhead.pdf';
 
   const MARGIN_L = 60, MARGIN_R = 20;
   const COL_CONTAINER = 105, COL_TRIP = 42, COL_DATE = 70, COL_PAYMENT = 95, COL_DEDUCT_AMT = 55, COL_NOTES = 90;
@@ -824,13 +837,15 @@ window.PayoutSchedule = (function () {
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  async function buildPDF({ clientName, rows, blocks, rerouted }) {
+  async function buildPDF({ clientName, rows, blocks, rerouted, letterhead }) {
     const pdfDoc = await PDFLib.PDFDocument.create();
     const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
     const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
-    // Use the real LMC letterhead PDF as the background template on every page
-    const letterheadBytes = await fetchBytes(LETTERHEAD_URL);
+    // Use the real letterhead PDF as the background template on every page
+    // — LMC (default) or LGMU, per the selector.
+    const letterheadUrl = letterhead === 'lgmu' ? LETTERHEAD_URL_LGMU : LETTERHEAD_URL_LMC;
+    const letterheadBytes = await fetchBytes(letterheadUrl);
     const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
     const PAGE_W = letterheadPage.width;
     const PAGE_H = letterheadPage.height;

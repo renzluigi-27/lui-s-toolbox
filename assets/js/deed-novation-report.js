@@ -179,10 +179,11 @@ function buildReport(rows) {
     }
 
     if (!clientMap.has(clientName)) {
-      clientMap.set(clientName, { received: new Set(), rejected: new Set(), pending: new Set(), rejectedContainers: new Set() });
+      clientMap.set(clientName, { received: new Set(), rejected: new Set(), pending: new Set(), legal: new Set(), rejectedContainers: new Set(), legalContainers: new Set() });
       clientOrder.push(clientName);
     }
     const g = clientMap.get(clientName);
+    const isLegal = status.toLowerCase() === 'legal';
     const effectiveStatus = status || 'Pending';
 
     if (status === 'Received') {
@@ -190,6 +191,9 @@ function buildReport(rows) {
     } else if (status === 'Rejected') {
       g.rejected.add(identifier);
       if (containerNo) g.rejectedContainers.add(containerNo);
+    } else if (isLegal) {
+      g.legal.add(identifier);
+      if (containerNo) g.legalContainers.add(containerNo);
     } else {
       g.pending.add(identifier);
     }
@@ -197,23 +201,27 @@ function buildReport(rows) {
     identifierMap.set(identifier, { clientName, status: effectiveStatus });
   }
 
-  let totalReceived = 0, totalRejected = 0, totalPending = 0;
+  let totalReceived = 0, totalRejected = 0, totalPending = 0, totalLegal = 0;
   const completed = [];
   const pending = [];
   const rejected = [];
+  const legal = [];
 
   for (const name of clientOrder) {
     const g = clientMap.get(name);
-    const totalUnique = new Set([...g.received, ...g.rejected, ...g.pending]);
+    const totalUnique = new Set([...g.received, ...g.rejected, ...g.pending, ...g.legal]);
     const x = g.received.size;
     const y = totalUnique.size;
 
     totalReceived += g.received.size;
     totalRejected += g.rejected.size;
     totalPending += g.pending.size;
+    totalLegal += g.legal.size;
 
     if (g.rejected.size > 0) {
       rejected.push({ name, containerCount: g.rejectedContainers.size });
+    } else if (g.legal.size > 0) {
+      legal.push({ name, containerCount: g.legalContainers.size });
     } else if (x === y && y > 0) {
       completed.push({ name, x, y });
     } else {
@@ -221,11 +229,11 @@ function buildReport(rows) {
     }
   }
 
-  const totalDeeds = totalReceived + totalRejected + totalPending;
+  const totalDeeds = totalReceived + totalRejected + totalPending + totalLegal;
 
   const report = {
-    totalReceived, totalRejected, totalPending, totalDeeds, totalReceivedContainers,
-    completed, pending, rejected
+    totalReceived, totalRejected, totalPending, totalLegal, totalDeeds, totalReceivedContainers,
+    completed, pending, rejected, legal
   };
 
   return { report, identifierMap };
@@ -250,17 +258,19 @@ function computeChanges(currentMap, previousMap) {
     } else if (old.status !== cur.status) {
       if (cur.status === 'Received') changeType = 'newly_received';
       else if (cur.status === 'Rejected') changeType = 'newly_rejected';
+      else if (cur.status.toLowerCase() === 'legal') changeType = 'newly_legal';
       else changeType = 'status_changed';
     }
 
     if (!changeType) continue;
 
     if (!changes.has(cur.clientName)) {
-      changes.set(cur.clientName, { newlyReceived: 0, newlyRejected: 0, newEntries: 0, statusChanged: 0 });
+      changes.set(cur.clientName, { newlyReceived: 0, newlyRejected: 0, newlyLegal: 0, newEntries: 0, statusChanged: 0 });
     }
     const c = changes.get(cur.clientName);
     if (changeType === 'newly_received') c.newlyReceived++;
     else if (changeType === 'newly_rejected') c.newlyRejected++;
+    else if (changeType === 'newly_legal') c.newlyLegal++;
     else if (changeType === 'new_entry') c.newEntries++;
     else if (changeType === 'status_changed') c.statusChanged++;
   }
@@ -272,6 +282,7 @@ function changeText(c) {
   const parts = [];
   if (c.newlyReceived) parts.push(`+${c.newlyReceived} Received`);
   if (c.newlyRejected) parts.push(`+${c.newlyRejected} Rejected`);
+  if (c.newlyLegal) parts.push(`+${c.newlyLegal} Legal`);
   if (c.newEntries) parts.push(`+${c.newEntries} New Entry`);
   if (c.statusChanged) parts.push(`${c.statusChanged} Status Changed`);
   return parts.join(', ');
@@ -282,8 +293,9 @@ function renderReport(report, changes) {
   const summaryGrid = document.getElementById('summaryGrid');
   summaryGrid.innerHTML = `
     <div class="stat-box"><div class="num">${report.totalReceived}</div><div class="label">Received</div></div>
-    <div class="stat-box"><div class="num">${report.totalRejected}</div><div class="label">Rejected</div></div>
     <div class="stat-box"><div class="num">${report.totalPending}</div><div class="label">Pending</div></div>
+    <div class="stat-box"><div class="num">${report.totalRejected}</div><div class="label">Rejected</div></div>
+    <div class="stat-box"><div class="num">${report.totalLegal}</div><div class="label">Legal</div></div>
     <div class="stat-box total"><div class="num">${report.totalDeeds}</div><div class="label">Total Deeds</div></div>
   `;
 
@@ -294,11 +306,12 @@ function renderReport(report, changes) {
   if (changes && changes.size > 0) {
     dateLabel.textContent = previousGeneratedAt ? `(vs ${previousGeneratedAt})` : '';
     const rowsHtml = [];
-    // order aligned with sheet order across completed+pending+rejected
+    // order aligned with sheet order across completed+pending+rejected+legal
     const allNames = [
       ...report.completed.map(r => r.name),
       ...report.pending.map(r => r.name),
-      ...report.rejected.map(r => r.name)
+      ...report.rejected.map(r => r.name),
+      ...report.legal.map(r => r.name)
     ];
     const seen = new Set();
     for (const name of allNames) {
@@ -318,10 +331,12 @@ function renderReport(report, changes) {
   renderGroupTable('completedTableBody', 'completedEmpty', report.completed, changes, (r) => `<td>${r.x}/${r.y}</td>`);
   renderGroupTable('pendingTableBody', 'pendingEmpty', report.pending, changes, (r) => `<td>${r.x}/${r.y}</td>`);
   renderGroupTable('rejectedTableBody', 'rejectedEmpty', report.rejected, changes, (r) => `<td>${r.containerCount}</td>`);
+  renderGroupTable('legalTableBody', 'legalEmpty', report.legal, changes, (r) => `<td>${r.containerCount}</td>`);
 }
 
 function statusLabelFor(report, name) {
   if (report.rejected.some(r => r.name === name)) return 'rejected';
+  if (report.legal.some(r => r.name === name)) return 'legal';
   if (report.completed.some(r => r.name === name)) return 'completed';
   return 'pending';
 }
@@ -329,6 +344,7 @@ function statusLabelFor(report, name) {
 function statusBadge(label) {
   if (label === 'completed') return '<span class="badge badge-completed">Completed</span>';
   if (label === 'rejected') return '<span class="badge badge-rejected">Rejected</span>';
+  if (label === 'legal') return '<span class="badge badge-legal">Legal</span>';
   return '<span class="badge badge-pending">Pending</span>';
 }
 
@@ -374,6 +390,7 @@ function copyReport() {
   text += '------------------------------\n';
   text += `Received (per contract/client): ${r.totalReceived}\n`;
   text += `Rejected (per client): ${r.totalRejected}\n`;
+  text += `Legal (per client): ${r.totalLegal}\n`;
   text += `Container Count: ${r.totalReceivedContainers}\n`;
 
   navigator.clipboard.writeText(text).then(() => {
@@ -406,8 +423,9 @@ function exportExcel() {
 
   const summaryRows = [
     ['Received', r.totalReceived],
-    ['Rejected', r.totalRejected],
     ['Pending', r.totalPending],
+    ['Rejected', r.totalRejected],
+    ['Legal', r.totalLegal],
     ['Total Deeds', r.totalDeeds],
     ['Generated At', generatedAt]
   ];
@@ -448,6 +466,7 @@ function exportExcel() {
   writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
   writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
   writeGroup('Rejected', r.rejected, 'Container Count', (item) => item.containerCount);
+  writeGroup('Legal', r.legal, 'Container Count', (item) => item.containerCount);
 
   // ── RawData sheet — machine-readable snapshot for next-day comparison ──
   const rawWs = wb.addWorksheet('RawData');
@@ -492,130 +511,134 @@ async function exportPdf(mode) {
   if (!lastReport) return;
   const r = lastReport;
 
-  const NAVY = PDFLib.rgb(0x1B/255, 0x4B/255, 0x7A/255);
-  const TEAL = PDFLib.rgb(0x5B/255, 0xA7/255, 0x9A/255);
   const GREEN = PDFLib.rgb(0x2E/255, 0x7D/255, 0x32/255);
   const AMBER = PDFLib.rgb(0xB9/255, 0x8A/255, 0x2E/255);
   const RED = PDFLib.rgb(0xB0/255, 0x3A/255, 0x2E/255);
+  const BLUE = PDFLib.rgb(0x5B/255, 0x9B/255, 0xD5/255);
+  const NAVY = PDFLib.rgb(0x1B/255, 0x4B/255, 0x7A/255);
   const LIGHT_ROW = PDFLib.rgb(0xEA/255, 0xF1/255, 0xF8/255);
   const WHITE = PDFLib.rgb(1, 1, 1);
   const GRAY_TXT = PDFLib.rgb(0x55/255, 0x55/255, 0x55/255);
   const DARK_TXT = PDFLib.rgb(0.15, 0.15, 0.15);
 
+  const LETTERHEAD_URL = '/assets/lgmu_letterhead.pdf';
+
+  async function fetchBytes(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
   const pdfDoc = await PDFLib.PDFDocument.create();
   const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
-  const logoBytes = Uint8Array.from(atob(LGMU_LOGO_B64), c => c.charCodeAt(0));
-  const logoImage = await pdfDoc.embedPng(logoBytes);
-  const logoDims = logoImage.scale(1);
-  const logoW = 110;
-  const logoH = logoW * (logoDims.height / logoDims.width);
+  // Real LGMU letterhead PDF as the full-page background template — same
+  // embedPdf/drawPage pattern used by Payout Schedule's LMC letterhead.
+  const letterheadBytes = await fetchBytes(LETTERHEAD_URL);
+  const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
+  const PAGE_W = letterheadPage.width;
+  const PAGE_H = letterheadPage.height;
 
-  const PAGE_W = 612, PAGE_H = 792;
-  const MARGIN = 54;
+  const MARGIN = 50;
   const CONTENT_W = PAGE_W - MARGIN * 2;
+  const CONTENT_TOP = PAGE_H - 175; // just below the letterhead's logo/accent line
 
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-  let y = PAGE_H - MARGIN;
+  let y = CONTENT_TOP;
+
+  function drawLetterhead(p) {
+    p.drawPage(letterheadPage, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
+  }
 
   function newPage() {
     page = pdfDoc.addPage([PAGE_W, PAGE_H]);
-    y = PAGE_H - MARGIN;
-    drawMiniHeader();
-    drawFooter();
-  }
-
-  function drawMiniHeader() {
-    const miniLogoW = 60;
-    const miniLogoH = miniLogoW * (logoDims.height / logoDims.width);
-    page.drawImage(logoImage, { x: MARGIN, y: y - miniLogoH, width: miniLogoW, height: miniLogoH });
-    page.drawText('Deed of Novation Report', {
-      x: MARGIN + miniLogoW + 12, y: y - miniLogoH/2 - 4, size: 12, font: fontBold, color: NAVY
+    drawLetterhead(page);
+    y = CONTENT_TOP;
+    page.drawText('Deed of Novation Report (cont\u2019d)', {
+      x: MARGIN, y: y + 6, size: 10, font: fontBold, color: NAVY
     });
-    y -= (miniLogoH + 14);
-    page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_W, y }, thickness: 0.6, color: PDFLib.rgb(0.85,0.85,0.85) });
     y -= 14;
+    drawFooter();
   }
 
   function drawFooter() {
     const pageNum = pdfDoc.getPageCount();
-    page.drawText('LGMU Container Trading — Deed of Novation Report', {
-      x: MARGIN, y: 36, size: 7.5, font, color: GRAY_TXT
+    page.drawText('LGMU Container Trading \u2014 Deed of Novation Report', {
+      x: MARGIN, y: 30, size: 7.5, font, color: GRAY_TXT
     });
     page.drawText(`Page ${pageNum}`, {
-      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 36, size: 7.5, font, color: GRAY_TXT
+      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 30, size: 7.5, font, color: GRAY_TXT
     });
   }
 
   function ensureSpace(neededHeight) {
-    if (y - neededHeight < 70) newPage();
+    if (y - neededHeight < 60) newPage();
   }
 
-  // ── header ──
-  page.drawImage(logoImage, { x: MARGIN, y: y - logoH, width: logoW, height: logoH });
-  page.drawText('Deed of Novation Report', { x: MARGIN + logoW + 16, y: y - 22, size: 18, font: fontBold, color: NAVY });
-  const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  page.drawText(`Generated ${genDate}${mode === 'summary' ? ' — Summary' : ' — Full Report'}`, {
-    x: MARGIN + logoW + 16, y: y - 38, size: 9, font, color: GRAY_TXT
-  });
-  y -= (logoH + 20);
+  // ── page 1: letterhead + title + stat boxes ──
+  drawLetterhead(page);
 
-  // ── stat boxes ──
-  const boxW = (CONTENT_W - 20) / 3;
-  const boxH = 44;
+  const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
+  page.drawText(`Generated ${genDate}${mode === 'summary' ? ' \u2014 Summary' : ' \u2014 Full Report'}`, {
+    x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
+  });
+  y -= 42;
+
+  const boxW = (CONTENT_W - 30) / 4;
+  const boxH = 40;
+  const teal = PDFLib.rgb(0x5B/255, 0xA7/255, 0x9A/255);
   const stats = [
-    ['RECEIVED', r.totalReceived, TEAL],
+    ['RECEIVED', r.totalReceived, teal],
     ['PENDING', r.totalPending, AMBER],
-    ['REJECTED', r.totalRejected, RED]
+    ['REJECTED', r.totalRejected, RED],
+    ['LEGAL', r.totalLegal, BLUE]
   ];
   stats.forEach(([label, val, color], i) => {
     const bx = MARGIN + i * (boxW + 10);
     page.drawRectangle({ x: bx, y: y - boxH, width: boxW, height: boxH, color });
     const valStr = String(val);
-    page.drawText(valStr, { x: bx + boxW/2 - fontBold.widthOfTextAtSize(valStr, 16)/2, y: y - 20, size: 16, font: fontBold, color: WHITE });
-    page.drawText(label, { x: bx + boxW/2 - font.widthOfTextAtSize(label, 8)/2, y: y - 36, size: 8, font, color: WHITE });
+    page.drawText(valStr, { x: bx + boxW/2 - fontBold.widthOfTextAtSize(valStr, 15)/2, y: y - 18, size: 15, font: fontBold, color: WHITE });
+    page.drawText(label, { x: bx + boxW/2 - font.widthOfTextAtSize(label, 7.5)/2, y: y - 33, size: 7.5, font, color: WHITE });
   });
-  y -= (boxH + 24);
+  y -= (boxH + 22);
 
   drawFooter();
 
   function sectionHeader(title, color) {
-    ensureSpace(30);
+    ensureSpace(28);
     page.drawCircle({ x: MARGIN + 4, y: y - 4, size: 4, color });
-    page.drawText(title, { x: MARGIN + 14, y: y - 8, size: 12, font: fontBold, color: DARK_TXT });
-    y -= 22;
+    page.drawText(title, { x: MARGIN + 14, y: y - 8, size: 11.5, font: fontBold, color: DARK_TXT });
+    y -= 20;
   }
 
   function drawTable(rows, headers, colWidths, headerColor) {
-    const rowH = 18;
+    const rowH = 17;
     ensureSpace(rowH * 2);
-    // header row
     page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
     let cx = MARGIN;
     headers.forEach((h, i) => {
       const w = colWidths[i];
       const align = i === 0 ? 'left' : 'center';
-      const tw = fontBold.widthOfTextAtSize(h, 8.5);
+      const tw = fontBold.widthOfTextAtSize(h, 8);
       const tx = align === 'left' ? cx + 6 : cx + w/2 - tw/2;
-      page.drawText(h, { x: tx, y: y - rowH + 5, size: 8.5, font: fontBold, color: WHITE });
+      page.drawText(h, { x: tx, y: y - rowH + 5, size: 8, font: fontBold, color: WHITE });
       cx += w;
     });
     y -= rowH;
 
     rows.forEach((rowVals, idx) => {
-      ensureSpace(rowH);
-      if (y - rowH < 70) {
+      if (y - rowH < 60) {
         newPage();
-        // redraw header on new page
         page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
         let cx2 = MARGIN;
         headers.forEach((h, i) => {
           const w = colWidths[i];
           const align = i === 0 ? 'left' : 'center';
-          const tw = fontBold.widthOfTextAtSize(h, 8.5);
+          const tw = fontBold.widthOfTextAtSize(h, 8);
           const tx = align === 'left' ? cx2 + 6 : cx2 + w/2 - tw/2;
-          page.drawText(h, { x: tx, y: y - rowH + 5, size: 8.5, font: fontBold, color: WHITE });
+          page.drawText(h, { x: tx, y: y - rowH + 5, size: 8, font: fontBold, color: WHITE });
           cx2 += w;
         });
         y -= rowH;
@@ -628,18 +651,17 @@ async function exportPdf(mode) {
         const w = colWidths[i];
         const align = i === 0 ? 'left' : 'center';
         const str = String(val);
-        const maxChars = Math.floor(w / 4.8);
-        const clipped = str.length > maxChars ? str.slice(0, maxChars - 1) + '…' : str;
-        const tw = font.widthOfTextAtSize(clipped, 8.5);
+        const maxChars = Math.floor(w / 4.6);
+        const clipped = str.length > maxChars ? str.slice(0, maxChars - 1) + '\u2026' : str;
+        const tw = font.widthOfTextAtSize(clipped, 8);
         const tx = align === 'left' ? cx3 + 6 : cx3 + w/2 - tw/2;
-        page.drawText(clipped, { x: tx, y: y - rowH + 5, size: 8.5, font, color: DARK_TXT });
+        page.drawText(clipped, { x: tx, y: y - rowH + 5, size: 8, font, color: DARK_TXT });
         cx3 += w;
       });
       y -= rowH;
-      // separator line
       page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_W, y }, thickness: 0.4, color: PDFLib.rgb(0.86,0.86,0.86) });
     });
-    y -= 16;
+    y -= 14;
   }
 
   const nameColW = CONTENT_W * 0.72;
@@ -650,7 +672,7 @@ async function exportPdf(mode) {
     const items = limit ? list.slice(0, limit) : list;
     if (items.length === 0) {
       page.drawText('None.', { x: MARGIN, y: y - 4, size: 9, font, color: GRAY_TXT });
-      y -= 20;
+      y -= 18;
       return;
     }
     const rows = items.map(item => [item.name, valueFn(item)]);
@@ -658,7 +680,7 @@ async function exportPdf(mode) {
     if (limit && list.length > limit) {
       ensureSpace(16);
       page.drawText(`... and ${list.length - limit} more (summary truncated)`, { x: MARGIN, y: y - 4, size: 8, font, color: GRAY_TXT });
-      y -= 18;
+      y -= 16;
     }
   }
 
@@ -666,6 +688,7 @@ async function exportPdf(mode) {
   renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
   renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
   renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
+  renderSection('Legal', BLUE, r.legal, 'Container Count', (item) => item.containerCount, limit);
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
