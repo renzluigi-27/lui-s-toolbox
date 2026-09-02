@@ -411,6 +411,18 @@ function copyReport() {
   });
 }
 
+function timestampTag() {
+  const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mmm = MONTHS[d.getMonth()];
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${dd}${mmm}${yyyy}_${hh}${min}${ss}`;
+}
+
 // ── Export to Excel ──────────────────────────────────────────────────
 function exportExcel() {
   if (!lastReport || !lastIdentifierMap) return;
@@ -495,7 +507,7 @@ function exportExcel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Deed_of_Novation_Report.xlsx';
+    a.download = `Deed_of_Novation_Report_${timestampTag()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
