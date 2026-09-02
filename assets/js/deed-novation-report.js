@@ -201,7 +201,7 @@ function buildReport(rows) {
     identifierMap.set(identifier, { clientName, status: effectiveStatus });
   }
 
-  let totalReceived = 0, totalRejected = 0, totalPending = 0, totalLegal = 0;
+  let totalReceived = 0, totalRejectedDeeds = 0, totalPending = 0, totalLegalDeeds = 0;
   const completed = [];
   const pending = [];
   const rejected = [];
@@ -214,9 +214,9 @@ function buildReport(rows) {
     const y = totalUnique.size;
 
     totalReceived += g.received.size;
-    totalRejected += g.rejected.size;
+    totalRejectedDeeds += g.rejected.size;
     totalPending += g.pending.size;
-    totalLegal += g.legal.size;
+    totalLegalDeeds += g.legal.size;
 
     if (g.rejected.size > 0) {
       rejected.push({ name, containerCount: g.rejectedContainers.size });
@@ -229,7 +229,13 @@ function buildReport(rows) {
     }
   }
 
-  const totalDeeds = totalReceived + totalRejected + totalPending + totalLegal;
+  // Rejected/Legal are tracked by CLIENT (a client with even one rejected/legal
+  // deed moves entirely into that group) — so their displayed counts are
+  // client counts, not deed/container counts. Total Deeds still sums actual
+  // unique deeds across every status.
+  const totalRejected = rejected.length;
+  const totalLegal = legal.length;
+  const totalDeeds = totalReceived + totalRejectedDeeds + totalPending + totalLegalDeeds;
 
   const report = {
     totalReceived, totalRejected, totalPending, totalLegal, totalDeeds, totalReceivedContainers,
@@ -668,8 +674,23 @@ async function exportPdf(mode) {
   const valColW = CONTENT_W - nameColW;
 
   function renderSection(title, color, list, valueHeader, valueFn, limit) {
-    sectionHeader(`${title} (${list.length} client${list.length === 1 ? '' : 's'})`, color);
     const items = limit ? list.slice(0, limit) : list;
+    const willTruncate = limit && list.length > limit;
+
+    // In summary mode (limit set), reserve room for the WHOLE block —
+    // header + up to `limit` rows + the "and X more" caption — so the
+    // section never splits across pages. Full mode (no limit) keeps the
+    // normal per-row pagination since a section can legitimately span
+    // many pages there.
+    if (limit) {
+      const rowH = 17;
+      const bodyHeight = items.length > 0 ? (17 + items.length * rowH) : 14;
+      const captionHeight = willTruncate ? 16 : 0;
+      const totalNeeded = 20 + bodyHeight + captionHeight; // section title advance + table (header row + rows, or "None.") + caption
+      ensureSpace(totalNeeded);
+    }
+
+    sectionHeader(`${title} (${list.length} client${list.length === 1 ? '' : 's'})`, color);
     if (items.length === 0) {
       page.drawText('None.', { x: MARGIN, y: y - 4, size: 9, font, color: GRAY_TXT });
       y -= 18;
@@ -677,8 +698,7 @@ async function exportPdf(mode) {
     }
     const rows = items.map(item => [item.name, valueFn(item)]);
     drawTable(rows, ['Client Name', valueHeader], [nameColW, valColW], color);
-    if (limit && list.length > limit) {
-      ensureSpace(16);
+    if (willTruncate) {
       page.drawText(`... and ${list.length - limit} more (summary truncated)`, { x: MARGIN, y: y - 4, size: 8, font, color: GRAY_TXT });
       y -= 16;
     }
