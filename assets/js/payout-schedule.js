@@ -831,6 +831,13 @@ window.PayoutSchedule = (function () {
   const TABLE_TOP_OTHER_PAGE_OFFSET = 130;
   const BOTTOM_MARGIN = 90;
 
+  // LGMU letterhead has its accent line lower on the (larger, A4) page than
+  // the LMC template — title sits below the line with a gap, table below
+  // the title with another gap, so nothing overlaps the letterhead artwork.
+  const LGMU_TITLE_OFFSET = 168;             // distance from top to title baseline
+  const LGMU_TABLE_TOP_FIRST_PAGE_OFFSET = 196;
+  const LGMU_TABLE_TOP_OTHER_PAGE_OFFSET = 176; // continuation pages: no title, table sits just under the line
+
   async function fetchBytes(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
@@ -866,8 +873,8 @@ window.PayoutSchedule = (function () {
     const TABLE_LEFT = MARGIN_L + Math.max(0, (availableWidth - blockWidth) / 2);
     const LABEL_X = TABLE_LEFT + BORDERED_WIDTH + 8;
     const FULL_BAR_WIDTH = (PAGE_W - MARGIN_R) - TABLE_LEFT;
-    const TABLE_TOP_FIRST_PAGE = PAGE_H - TABLE_TOP_FIRST_PAGE_OFFSET;
-    const TABLE_TOP_OTHER_PAGE = PAGE_H - TABLE_TOP_OTHER_PAGE_OFFSET;
+    const TABLE_TOP_FIRST_PAGE = PAGE_H - (letterhead === 'lgmu' ? LGMU_TABLE_TOP_FIRST_PAGE_OFFSET : TABLE_TOP_FIRST_PAGE_OFFSET);
+    const TABLE_TOP_OTHER_PAGE = PAGE_H - (letterhead === 'lgmu' ? LGMU_TABLE_TOP_OTHER_PAGE_OFFSET : TABLE_TOP_OTHER_PAGE_OFFSET);
 
     let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
     let y = 0;
@@ -880,10 +887,18 @@ window.PayoutSchedule = (function () {
       const title = `Payout Schedule for ${clientName}`;
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
-      const tx = (PAGE_W - tw) / 2;
-      const ty = PAGE_H - 124;
-      p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
-      p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
+      if (letterhead === 'lgmu') {
+        // Below the letterhead's accent line, left-aligned under the logo.
+        const tx = MARGIN_L;
+        const ty = PAGE_H - LGMU_TITLE_OFFSET;
+        p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
+        p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
+      } else {
+        const tx = (PAGE_W - tw) / 2;
+        const ty = PAGE_H - 124;
+        p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
+        p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
+      }
     }
 
     function drawTableHeader(p, topY) {
