@@ -145,6 +145,7 @@ function buildReport(rows) {
   const clientOrder = [];        // preserves first-seen sheet order
   const clientMap = new Map();   // name -> { received:Set, rejected:Set, pending:Set, rejectedContainers:Set }
   const identifierMap = new Map(); // identifier -> { clientName, status }
+  let totalReceivedContainers = 0; // raw row count with status="Received" (no dedup) — Copy Report only
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
@@ -166,6 +167,8 @@ function buildReport(rows) {
     const containerNo = containerNoRaw ? String(containerNoRaw).trim() : '';
 
     if (status === 'Contract Ended') continue;
+
+    if (status === 'Received') totalReceivedContainers++;
 
     let identifier;
     if (contractNo === 'No Number') {
@@ -221,7 +224,7 @@ function buildReport(rows) {
   const totalDeeds = totalReceived + totalRejected + totalPending;
 
   const report = {
-    totalReceived, totalRejected, totalPending, totalDeeds,
+    totalReceived, totalRejected, totalPending, totalDeeds, totalReceivedContainers,
     completed, pending, rejected
   };
 
@@ -371,7 +374,7 @@ function copyReport() {
   text += '------------------------------\n';
   text += `Received (per contract/client): ${r.totalReceived}\n`;
   text += `Rejected (per client): ${r.totalRejected}\n`;
-  text += `Pending: ${r.totalPending}\n`;
+  text += `Container Count: ${r.totalReceivedContainers}\n`;
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('copyBtn');
