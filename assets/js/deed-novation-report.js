@@ -522,7 +522,20 @@ async function exportPdf(mode) {
   function newPage() {
     page = pdfDoc.addPage([PAGE_W, PAGE_H]);
     y = PAGE_H - MARGIN;
+    drawMiniHeader();
     drawFooter();
+  }
+
+  function drawMiniHeader() {
+    const miniLogoW = 60;
+    const miniLogoH = miniLogoW * (logoDims.height / logoDims.width);
+    page.drawImage(logoImage, { x: MARGIN, y: y - miniLogoH, width: miniLogoW, height: miniLogoH });
+    page.drawText('Deed of Novation Report', {
+      x: MARGIN + miniLogoW + 12, y: y - miniLogoH/2 - 4, size: 12, font: fontBold, color: NAVY
+    });
+    y -= (miniLogoH + 14);
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_W, y }, thickness: 0.6, color: PDFLib.rgb(0.85,0.85,0.85) });
+    y -= 14;
   }
 
   function drawFooter() {
