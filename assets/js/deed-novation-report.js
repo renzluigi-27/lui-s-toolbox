@@ -565,15 +565,15 @@ async function exportPdf(mode) {
   function drawFooter() {
     const pageNum = pdfDoc.getPageCount();
     page.drawText('LGMU Container Trading \u2014 Deed of Novation Report', {
-      x: MARGIN, y: 30, size: 7.5, font, color: GRAY_TXT
+      x: MARGIN, y: 85, size: 7.5, font, color: GRAY_TXT
     });
     page.drawText(`Page ${pageNum}`, {
-      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 30, size: 7.5, font, color: GRAY_TXT
+      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 85, size: 7.5, font, color: GRAY_TXT
     });
   }
 
   function ensureSpace(neededHeight) {
-    if (y - neededHeight < 60) newPage();
+    if (y - neededHeight < 95) newPage();
   }
 
   // ── page 1: letterhead + title + stat boxes ──
@@ -607,7 +607,7 @@ async function exportPdf(mode) {
   drawFooter();
 
   function sectionHeader(title, color) {
-    ensureSpace(28);
+    ensureSpace(28 + 17 + 17); // header line + table header row + at least 1 data row — avoids an orphaned header at the bottom of a page
     page.drawCircle({ x: MARGIN + 4, y: y - 4, size: 4, color });
     page.drawText(title, { x: MARGIN + 14, y: y - 8, size: 11.5, font: fontBold, color: DARK_TXT });
     y -= 20;
@@ -629,7 +629,7 @@ async function exportPdf(mode) {
     y -= rowH;
 
     rows.forEach((rowVals, idx) => {
-      if (y - rowH < 60) {
+      if (y - rowH < 95) {
         newPage();
         page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
         let cx2 = MARGIN;

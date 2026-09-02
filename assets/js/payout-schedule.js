@@ -888,8 +888,9 @@ window.PayoutSchedule = (function () {
       const size = 13;
       const tw = fontBold.widthOfTextAtSize(title, size);
       if (letterhead === 'lgmu') {
-        // Below the letterhead's accent line, left-aligned under the logo.
-        const tx = MARGIN_L;
+        // Below the letterhead's accent line, centered to match the table's
+        // own centering — keeps title and table left edges visually aligned.
+        const tx = (PAGE_W - tw) / 2;
         const ty = PAGE_H - LGMU_TITLE_OFFSET;
         p.drawText(title, { x: tx, y: ty, size, font: fontBold, color: BLACK() });
         p.drawLine({ start: { x: tx, y: ty - 4 }, end: { x: tx + tw, y: ty - 4 }, thickness: 0.75, color: BLACK() });
