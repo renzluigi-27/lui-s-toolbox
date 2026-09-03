@@ -530,8 +530,38 @@ function closePdfModal() {
   document.getElementById('pdfOverlay').classList.remove('show');
 }
 
-async function exportPdf(mode) {
+function openCategoryModal() {
+  if (!lastReport) return;
   closePdfModal();
+
+  const categoryOrder = [];
+  const seen = new Set();
+  for (const cat of lastReport.categoryMap.values()) {
+    if (!seen.has(cat)) { seen.add(cat); categoryOrder.push(cat); }
+  }
+
+  const container = document.getElementById('categoryModalOptions');
+  let html = categoryOrder.map(cat => `
+    <div class="modal-btn" onclick='exportPdf("category", ${JSON.stringify(cat)})'>
+      <div class="label">${escapeHtml(cat)}</div>
+    </div>
+  `).join('');
+  html += `
+    <div class="modal-btn" onclick="exportPdf('category', 'all')">
+      <div class="label">All</div>
+      <div class="hint">Both agents</div>
+    </div>
+  `;
+  container.innerHTML = html;
+  document.getElementById('categoryOverlay').classList.add('show');
+}
+function closeCategoryModal() {
+  document.getElementById('categoryOverlay').classList.remove('show');
+}
+
+async function exportPdf(mode, categoryFilter) {
+  closePdfModal();
+  closeCategoryModal();
   if (!lastReport) return;
   const r = lastReport;
 
@@ -604,7 +634,8 @@ async function exportPdf(mode) {
   drawLetterhead(page);
 
   const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const modeLabel = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full Report' : 'By Category';
+  const modeLabel = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full Report'
+    : (categoryFilter && categoryFilter !== 'all' ? `By Category \u2014 ${categoryFilter}` : 'By Category \u2014 All');
   page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
   page.drawText(`Generated ${genDate} \u2014 ${modeLabel}`, {
     x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
@@ -731,10 +762,13 @@ async function exportPdf(mode) {
   }
 
   function buildCategoryBreakdown() {
-    const categoryOrder = [];
+    let categoryOrder = [];
     const seen = new Set();
     for (const cat of r.categoryMap.values()) {
       if (!seen.has(cat)) { seen.add(cat); categoryOrder.push(cat); }
+    }
+    if (categoryFilter && categoryFilter !== 'all') {
+      categoryOrder = categoryOrder.filter(cat => cat === categoryFilter);
     }
     return categoryOrder.map(cat => {
       const inCat = (name) => r.categoryMap.get(name) === cat;
@@ -773,7 +807,8 @@ async function exportPdf(mode) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const modeFileTag = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full' : 'By_Category';
+  const modeFileTag = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full'
+    : `By_Category_${(categoryFilter && categoryFilter !== 'all') ? categoryFilter.replace(/[^a-z0-9]/gi, '_') : 'All'}`;
   a.download = `Deed_of_Novation_Report_${modeFileTag}_${timestampTag()}.pdf`;
   document.body.appendChild(a);
   a.click();
