@@ -104,7 +104,7 @@
     .overlay.show { display: flex; }
     .modal {
       background: #1a1a20; border: 0.5px solid var(--liq-border);
-      border-radius: 14px; padding: 1.6rem; width: 320px; text-align: center;
+      border-radius: 14px; padding: 1.6rem; width: 420px; text-align: center;
     }
     .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--liq-text); }
     .modal p { font-size: 13px; color: var(--liq-text-muted); margin-bottom: 1.2rem; }
@@ -243,6 +243,10 @@
         <div class="modal-btn" onclick="exportPdf('full')">
           <div class="label">Full</div>
           <div class="hint">All clients</div>
+        </div>
+        <div class="modal-btn" onclick="exportPdf('category')">
+          <div class="label">By Category</div>
+          <div class="hint">Per agent, Complete/Partial/Zero</div>
         </div>
       </div>
       <button class="modal-cancel" onclick="closePdfModal()">Cancel</button>

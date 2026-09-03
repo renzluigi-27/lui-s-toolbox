@@ -145,6 +145,7 @@ function buildReport(rows) {
   const clientOrder = [];        // preserves first-seen sheet order
   const clientMap = new Map();   // name -> { received:Set, rejected:Set, pending:Set, rejectedContainers:Set }
   const identifierMap = new Map(); // identifier -> { clientName, status }
+  const categoryMap = new Map(); // clientName -> Client Category (column J), first value seen
   let totalReceivedContainers = 0; // raw row count with status="Received" (no dedup) — Copy Report only
 
   for (let i = 1; i < rows.length; i++) {
@@ -156,6 +157,7 @@ function buildReport(rows) {
     const containerNoRaw = row[2];
     const agreementDateRaw = row[3];
     const statusRaw = row[7];
+    const categoryRaw = row[9];
 
     if (!clientNameRaw) continue;
     const clientName = String(clientNameRaw).trim();
@@ -167,6 +169,10 @@ function buildReport(rows) {
     const containerNo = containerNoRaw ? String(containerNoRaw).trim() : '';
 
     if (status === 'Contract Ended') continue;
+
+    if (!categoryMap.has(clientName)) {
+      categoryMap.set(clientName, categoryRaw ? String(categoryRaw).trim() : 'Uncategorized');
+    }
 
     if (status === 'Received') totalReceivedContainers++;
 
@@ -239,7 +245,7 @@ function buildReport(rows) {
 
   const report = {
     totalReceived, totalRejected, totalPending, totalLegal, totalDeeds, totalReceivedContainers,
-    completed, pending, rejected, legal
+    completed, pending, rejected, legal, categoryMap
   };
 
   return { report, identifierMap };
@@ -598,8 +604,9 @@ async function exportPdf(mode) {
   drawLetterhead(page);
 
   const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const modeLabel = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full Report' : 'By Category';
   page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
-  page.drawText(`Generated ${genDate}${mode === 'summary' ? ' \u2014 Summary' : ' \u2014 Full Report'}`, {
+  page.drawText(`Generated ${genDate} \u2014 ${modeLabel}`, {
     x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
   });
   y -= 42;
@@ -716,18 +723,58 @@ async function exportPdf(mode) {
     }
   }
 
-  const limit = mode === 'summary' ? 10 : null;
-  renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
-  renderSection('Legal', BLUE, r.legal, 'Container Count', (item) => item.containerCount, limit);
+  function categoryTitle(text) {
+    ensureSpace(30);
+    page.drawRectangle({ x: MARGIN, y: y - 22, width: CONTENT_W, height: 22, color: NAVY });
+    page.drawText(text, { x: MARGIN + 8, y: y - 16, size: 12, font: fontBold, color: WHITE });
+    y -= 30;
+  }
+
+  function buildCategoryBreakdown() {
+    const categoryOrder = [];
+    const seen = new Set();
+    for (const cat of r.categoryMap.values()) {
+      if (!seen.has(cat)) { seen.add(cat); categoryOrder.push(cat); }
+    }
+    return categoryOrder.map(cat => {
+      const inCat = (name) => r.categoryMap.get(name) === cat;
+      const complete = r.completed.filter(item => inCat(item.name));
+      const pendingInCat = r.pending.filter(item => inCat(item.name));
+      const partial = pendingInCat.filter(item => item.x > 0);
+      const zero = pendingInCat.filter(item => item.x === 0);
+      const rejectedInCat = r.rejected.filter(item => inCat(item.name));
+      const legalInCat = r.legal.filter(item => inCat(item.name));
+      const totalClients = complete.length + pendingInCat.length + rejectedInCat.length + legalInCat.length;
+      return { category: cat, complete, partial, zero, rejected: rejectedInCat, legal: legalInCat, totalClients };
+    });
+  }
+
+  if (mode === 'category') {
+    const GRAY = PDFLib.rgb(0.45, 0.45, 0.45);
+    const categories = buildCategoryBreakdown();
+    categories.forEach(catGroup => {
+      categoryTitle(`${catGroup.category} \u2014 ${catGroup.totalClients} clients`);
+      renderSection('Complete', GREEN, catGroup.complete, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
+      renderSection('Partial', AMBER, catGroup.partial, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
+      renderSection('Zero', GRAY, catGroup.zero, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
+      renderSection('Rejected', RED, catGroup.rejected, 'Container Count', (item) => item.containerCount, null);
+      renderSection('Legal', BLUE, catGroup.legal, 'Container Count', (item) => item.containerCount, null);
+    });
+  } else {
+    const limit = mode === 'summary' ? 10 : null;
+    renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+    renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+    renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
+    renderSection('Legal', BLUE, r.legal, 'Container Count', (item) => item.containerCount, limit);
+  }
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Deed_of_Novation_Report_${mode === 'summary' ? 'Summary' : 'Full'}_${timestampTag()}.pdf`;
+  const modeFileTag = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full' : 'By_Category';
+  a.download = `Deed_of_Novation_Report_${modeFileTag}_${timestampTag()}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
