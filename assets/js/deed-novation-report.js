@@ -146,6 +146,7 @@ function buildReport(rows) {
   const clientMap = new Map();   // name -> { received:Set, rejected:Set, pending:Set, rejectedContainers:Set }
   const identifierMap = new Map(); // identifier -> { clientName, status }
   const categoryMap = new Map(); // clientName -> Client Category (column J), first value seen
+  const emailMap = new Map();    // clientName -> Email Address (column G), first non-blank seen
   let totalReceivedContainers = 0; // raw row count with status="Received" (no dedup) — Copy Report only
 
   for (let i = 1; i < rows.length; i++) {
@@ -156,6 +157,7 @@ function buildReport(rows) {
     const clientNameRaw = row[1];
     const containerNoRaw = row[2];
     const agreementDateRaw = row[3];
+    const emailRaw = row[6];
     const statusRaw = row[7];
     const categoryRaw = row[9];
 
@@ -172,6 +174,10 @@ function buildReport(rows) {
 
     if (!categoryMap.has(clientName)) {
       categoryMap.set(clientName, categoryRaw ? String(categoryRaw).trim() : 'Uncategorized');
+    }
+    const emailVal = emailRaw ? String(emailRaw).trim() : '';
+    if (emailVal && !emailMap.get(clientName)) {
+      emailMap.set(clientName, emailVal);
     }
 
     if (status === 'Received') totalReceivedContainers++;
@@ -245,7 +251,7 @@ function buildReport(rows) {
 
   const report = {
     totalReceived, totalRejected, totalPending, totalLegal, totalDeeds, totalReceivedContainers,
-    completed, pending, rejected, legal, categoryMap
+    completed, pending, rejected, legal, categoryMap, emailMap
   };
 
   return { report, identifierMap };
@@ -542,12 +548,12 @@ function openCategoryModal() {
 
   const container = document.getElementById('categoryModalOptions');
   let html = categoryOrder.map(cat => `
-    <div class="modal-btn" onclick='exportPdf("category", ${JSON.stringify(cat)})'>
+    <div class="modal-btn" onclick='openStatusModal(${JSON.stringify(cat)})'>
       <div class="label">${escapeHtml(cat)}</div>
     </div>
   `).join('');
   html += `
-    <div class="modal-btn" onclick="exportPdf('category', 'all')">
+    <div class="modal-btn" onclick="openStatusModal('all')">
       <div class="label">All</div>
       <div class="hint">Both agents</div>
     </div>
@@ -559,9 +565,36 @@ function closeCategoryModal() {
   document.getElementById('categoryOverlay').classList.remove('show');
 }
 
-async function exportPdf(mode, categoryFilter) {
-  closePdfModal();
+let pendingCategoryAgent = null;
+
+function openStatusModal(agent) {
   closeCategoryModal();
+  pendingCategoryAgent = agent;
+  const subtitle = document.getElementById('statusModalSubtitle');
+  subtitle.textContent = agent === 'all' ? 'Choose status \u2014 All agents' : `Choose status \u2014 ${agent}`;
+
+  const statuses = [
+    ['complete', 'Completed', 'x/y match'],
+    ['partial', 'Partial', 'Some received'],
+    ['zero', 'Zero', '0 received'],
+    ['rejected', 'Rejected', ''],
+    ['legal', 'Legal', '']
+  ];
+  const container = document.getElementById('statusModalOptions');
+  container.innerHTML = statuses.map(([val, label, hint]) => `
+    <div class="modal-btn" onclick="exportCategoryDetailPdf('${val}')">
+      <div class="label">${label}</div>
+      ${hint ? `<div class="hint">${hint}</div>` : ''}
+    </div>
+  `).join('');
+  document.getElementById('statusOverlay').classList.add('show');
+}
+function closeStatusModal() {
+  document.getElementById('statusOverlay').classList.remove('show');
+}
+
+async function exportPdf(mode) {
+  closePdfModal();
   if (!lastReport) return;
   const r = lastReport;
 
@@ -634,8 +667,7 @@ async function exportPdf(mode, categoryFilter) {
   drawLetterhead(page);
 
   const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const modeLabel = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full Report'
-    : (categoryFilter && categoryFilter !== 'all' ? `By Category \u2014 ${categoryFilter}` : 'By Category \u2014 All');
+  const modeLabel = mode === 'summary' ? 'Summary' : 'Full Report';
   page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
   page.drawText(`Generated ${genDate} \u2014 ${modeLabel}`, {
     x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
@@ -754,64 +786,163 @@ async function exportPdf(mode, categoryFilter) {
     }
   }
 
-  function categoryTitle(text) {
-    ensureSpace(30);
-    page.drawRectangle({ x: MARGIN, y: y - 22, width: CONTENT_W, height: 22, color: NAVY });
-    page.drawText(text, { x: MARGIN + 8, y: y - 16, size: 12, font: fontBold, color: WHITE });
-    y -= 30;
-  }
-
-  function buildCategoryBreakdown() {
-    let categoryOrder = [];
-    const seen = new Set();
-    for (const cat of r.categoryMap.values()) {
-      if (!seen.has(cat)) { seen.add(cat); categoryOrder.push(cat); }
-    }
-    if (categoryFilter && categoryFilter !== 'all') {
-      categoryOrder = categoryOrder.filter(cat => cat === categoryFilter);
-    }
-    return categoryOrder.map(cat => {
-      const inCat = (name) => r.categoryMap.get(name) === cat;
-      const complete = r.completed.filter(item => inCat(item.name));
-      const pendingInCat = r.pending.filter(item => inCat(item.name));
-      const partial = pendingInCat.filter(item => item.x > 0);
-      const zero = pendingInCat.filter(item => item.x === 0);
-      const rejectedInCat = r.rejected.filter(item => inCat(item.name));
-      const legalInCat = r.legal.filter(item => inCat(item.name));
-      const totalClients = complete.length + pendingInCat.length + rejectedInCat.length + legalInCat.length;
-      return { category: cat, complete, partial, zero, rejected: rejectedInCat, legal: legalInCat, totalClients };
-    });
-  }
-
-  if (mode === 'category') {
-    const GRAY = PDFLib.rgb(0.45, 0.45, 0.45);
-    const categories = buildCategoryBreakdown();
-    categories.forEach(catGroup => {
-      categoryTitle(`${catGroup.category} \u2014 ${catGroup.totalClients} clients`);
-      renderSection('Complete', GREEN, catGroup.complete, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
-      renderSection('Partial', AMBER, catGroup.partial, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
-      renderSection('Zero', GRAY, catGroup.zero, 'Deed Count', (item) => `${item.x}/${item.y}`, null);
-      renderSection('Rejected', RED, catGroup.rejected, 'Container Count', (item) => item.containerCount, null);
-      renderSection('Legal', BLUE, catGroup.legal, 'Container Count', (item) => item.containerCount, null);
-    });
-  } else {
-    const limit = mode === 'summary' ? 10 : null;
-    renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-    renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-    renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
-    renderSection('Legal', BLUE, r.legal, 'Container Count', (item) => item.containerCount, limit);
-  }
+  const limit = mode === 'summary' ? 10 : null;
+  renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Rejected', RED, r.rejected, 'Container Count', (item) => item.containerCount, limit);
+  renderSection('Legal', BLUE, r.legal, 'Container Count', (item) => item.containerCount, limit);
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const modeFileTag = mode === 'summary' ? 'Summary' : mode === 'full' ? 'Full'
-    : `By_Category_${(categoryFilter && categoryFilter !== 'all') ? categoryFilter.replace(/[^a-z0-9]/gi, '_') : 'All'}`;
+  const modeFileTag = mode === 'summary' ? 'Summary' : 'Full';
   a.download = `Deed_of_Novation_Report_${modeFileTag}_${timestampTag()}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// ── By Category PDF (agent + status, targeted list: Client Name / Deed or
+// Container Count / Email Address) ────────────────────────────────────
+async function exportCategoryDetailPdf(status) {
+  closeStatusModal();
+  if (!lastReport) return;
+  const r = lastReport;
+  const agent = pendingCategoryAgent;
+
+  const NAVY = PDFLib.rgb(0x1B/255, 0x4B/255, 0x7A/255);
+  const WHITE = PDFLib.rgb(1, 1, 1);
+  const GRAY_TXT = PDFLib.rgb(0x55/255, 0x55/255, 0x55/255);
+  const DARK_TXT = PDFLib.rgb(0.15, 0.15, 0.15);
+  const LIGHT_ROW = PDFLib.rgb(0xEA/255, 0xF1/255, 0xF8/255);
+  const STATUS_COLORS = {
+    complete: PDFLib.rgb(0x2E/255, 0x7D/255, 0x32/255),
+    partial: PDFLib.rgb(0xB9/255, 0x8A/255, 0x2E/255),
+    zero: PDFLib.rgb(0.45, 0.45, 0.45),
+    rejected: PDFLib.rgb(0xB0/255, 0x3A/255, 0x2E/255),
+    legal: PDFLib.rgb(0x5B/255, 0x9B/255, 0xD5/255)
+  };
+  const STATUS_LABELS = { complete: 'Completed', partial: 'Partial', zero: 'Zero', rejected: 'Rejected', legal: 'Legal' };
+  const headerColor = STATUS_COLORS[status];
+
+  const inAgent = (name) => agent === 'all' || r.categoryMap.get(name) === agent;
+  let source, valueFn, valueHeader;
+  if (status === 'complete') { source = r.completed; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'partial') { source = r.pending.filter(item => item.x > 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'zero') { source = r.pending.filter(item => item.x === 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => item.containerCount; valueHeader = 'Container Count'; }
+  else { source = r.legal; valueFn = (item) => item.containerCount; valueHeader = 'Container Count'; }
+
+  const list = source.filter(item => inAgent(item.name)).map(item => ({
+    name: item.name,
+    value: valueFn(item),
+    email: r.emailMap.get(item.name) || ''
+  }));
+
+  const pdfDoc = await PDFLib.PDFDocument.create();
+  const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
+
+  const letterheadBytes = await fetchBytes('/assets/lgmu_letterhead.pdf');
+  const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
+  const PAGE_W = letterheadPage.width;
+  const PAGE_H = letterheadPage.height;
+  const MARGIN = 50;
+  const CONTENT_W = PAGE_W - MARGIN * 2;
+  const CONTENT_TOP = PAGE_H - 175;
+
+  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let y = CONTENT_TOP;
+
+  function drawLetterhead(p) { p.drawPage(letterheadPage, { x: 0, y: 0, width: PAGE_W, height: PAGE_H }); }
+  function drawFooter() {
+    const pageNum = pdfDoc.getPageCount();
+    page.drawText('LGMU Container Trading \u2014 Deed of Novation Report', { x: MARGIN, y: 85, size: 7.5, font, color: GRAY_TXT });
+    page.drawText(`Page ${pageNum}`, { x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 85, size: 7.5, font, color: GRAY_TXT });
+  }
+  function newPage() {
+    page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    drawLetterhead(page);
+    y = CONTENT_TOP;
+    page.drawText('Deed of Novation Report (cont\u2019d)', { x: MARGIN, y: y + 6, size: 10, font: fontBold, color: NAVY });
+    y -= 14;
+    drawFooter();
+  }
+
+  drawLetterhead(page);
+  const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const agentLabel = agent === 'all' ? 'All Agents' : agent;
+  page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
+  page.drawText(`Generated ${genDate} \u2014 ${agentLabel} \u2014 ${STATUS_LABELS[status]} (${list.length} clients)`, {
+    x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
+  });
+  y -= 34;
+  drawFooter();
+
+  const nameColW = CONTENT_W * 0.42;
+  const valColW = CONTENT_W * 0.16;
+  const emailColW = CONTENT_W - nameColW - valColW;
+  const rowH = 17;
+
+  function drawHeaderRow() {
+    page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: headerColor });
+    const headers = ['Client Name', valueHeader, 'Email Address'];
+    const widths = [nameColW, valColW, emailColW];
+    let cx = MARGIN;
+    headers.forEach((h, i) => {
+      page.drawText(h, { x: cx + 6, y: y - rowH + 5, size: 8, font: fontBold, color: WHITE });
+      cx += widths[i];
+    });
+    y -= rowH;
+  }
+
+  drawHeaderRow();
+
+  if (list.length === 0) {
+    page.drawText('None.', { x: MARGIN, y: y - 4, size: 9, font, color: GRAY_TXT });
+    y -= 18;
+  }
+
+  list.forEach((item, idx) => {
+    if (y - rowH < 95) {
+      newPage();
+      drawHeaderRow();
+    }
+    if (idx % 2 === 1) {
+      page.drawRectangle({ x: MARGIN, y: y - rowH, width: CONTENT_W, height: rowH, color: LIGHT_ROW });
+    }
+    const cells = [String(item.name), String(item.value), String(item.email)];
+    const widths = [nameColW, valColW, emailColW];
+    let cx = MARGIN;
+    cells.forEach((val, i) => {
+      const w = widths[i];
+      const maxChars = Math.floor(w / 4.6);
+      const clipped = val.length > maxChars ? val.slice(0, maxChars - 1) + '\u2026' : val;
+      page.drawText(clipped, { x: cx + 6, y: y - rowH + 5, size: 8, font, color: DARK_TXT });
+      cx += w;
+    });
+    y -= rowH;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: MARGIN + CONTENT_W, y }, thickness: 0.4, color: PDFLib.rgb(0.86, 0.86, 0.86) });
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const agentTag = agent === 'all' ? 'All' : agent.replace(/[^a-z0-9]/gi, '_');
+  a.download = `Deed_of_Novation_Report_${agentTag}_${STATUS_LABELS[status]}_${timestampTag()}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function fetchBytes(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
+  return new Uint8Array(await res.arrayBuffer());
 }
