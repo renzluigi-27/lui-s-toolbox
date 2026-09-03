@@ -348,8 +348,8 @@ function renderReport(report, changes) {
 
   renderGroupTable('completedTableBody', 'completedEmpty', report.completed, changes, (r) => `<td>${r.x}/${r.y}</td>`);
   renderGroupTable('pendingTableBody', 'pendingEmpty', report.pending, changes, (r) => `<td>${r.x}/${r.y}</td>`);
-  renderGroupTable('rejectedTableBody', 'rejectedEmpty', report.rejected, changes, (r) => `<td>${r.x}/${r.y}</td>`);
-  renderGroupTable('legalTableBody', 'legalEmpty', report.legal, changes, (r) => `<td>${r.x}/${r.y}</td>`);
+  renderGroupTable('rejectedTableBody', 'rejectedEmpty', report.rejected, changes, (r) => `<td>${r.y}</td>`);
+  renderGroupTable('legalTableBody', 'legalEmpty', report.legal, changes, (r) => `<td>${r.y}</td>`);
 }
 
 function statusLabelFor(report, name) {
@@ -495,8 +495,8 @@ function exportExcel() {
 
   writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
   writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Rejected', r.rejected, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Legal', r.legal, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Rejected', r.rejected, 'Deed Count', (item) => item.y);
+  writeGroup('Legal', r.legal, 'Deed Count', (item) => item.y);
 
   // ── RawData sheet — machine-readable snapshot for next-day comparison ──
   const rawWs = wb.addWorksheet('RawData');
@@ -803,8 +803,8 @@ async function exportPdf(mode) {
   const limit = mode === 'summary' ? 10 : null;
   renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
   renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Rejected', RED, r.rejected, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Legal', BLUE, r.legal, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Rejected', RED, r.rejected, 'Deed Count', (item) => item.y, limit);
+  renderSection('Legal', BLUE, r.legal, 'Deed Count', (item) => item.y, limit);
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -847,8 +847,8 @@ async function exportCategoryDetailPdf(status) {
   if (status === 'complete') { source = r.completed; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
   else if (status === 'partial') { source = r.pending.filter(item => item.x > 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
   else if (status === 'zero') { source = r.pending.filter(item => item.x === 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
-  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
-  else { source = r.legal; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => item.y; valueHeader = 'Deed Count'; }
+  else { source = r.legal; valueFn = (item) => item.y; valueHeader = 'Deed Count'; }
 
   const list = source.filter(item => inAgent(item.name)).map(item => ({
     name: item.name,
@@ -1030,8 +1030,8 @@ function exportReportExcel(mode) {
 
   writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
   writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Rejected', r.rejected, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Legal', r.legal, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Rejected', r.rejected, 'Deed Count', (item) => item.y);
+  writeGroup('Legal', r.legal, 'Deed Count', (item) => item.y);
 
   wb.xlsx.writeBuffer().then(buffer => {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -1058,8 +1058,8 @@ function exportCategoryDetailExcel(status) {
   if (status === 'complete') { source = r.completed; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
   else if (status === 'partial') { source = r.pending.filter(item => item.x > 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
   else if (status === 'zero') { source = r.pending.filter(item => item.x === 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
-  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
-  else { source = r.legal; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => item.y; valueHeader = 'Deed Count'; }
+  else { source = r.legal; valueFn = (item) => item.y; valueHeader = 'Deed Count'; }
 
   const list = source.filter(item => inAgent(item.name)).map(item => ({
     name: item.name,
