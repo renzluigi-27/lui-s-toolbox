@@ -91,7 +91,7 @@
     .copy-btn:hover { opacity: 0.85; }
     .copy-btn:active { transform: scale(0.97); }
     .copy-btn.copied { background: #97C459; }
-    #exportExcelBtn, #exportPdfBtn { padding: 0 18px; height: 38px; font-size: 13px; font-weight: 500; cursor: pointer; }
+    #exportExcelBtn, #exportPdfBtn, #exportXlsxBtn { padding: 0 18px; height: 38px; font-size: 13px; font-weight: 500; cursor: pointer; }
 
     footer { margin-top: 3rem; text-align: center; font-size: 13px; color: var(--liq-text-hint); }
 
@@ -166,8 +166,9 @@
               <button class="copy-btn" id="copyBtn" onclick="copyReport()">
                 <span id="copyIcon">📋</span> <span id="copyLabel">Copy Report</span>
               </button>
-              <button class="btn-primary" id="exportExcelBtn" onclick="exportExcel()">&#8595; Export to Excel</button>
-              <button class="btn-primary" id="exportPdfBtn" onclick="openPdfModal()">&#8595; Export to PDF</button>
+              <button class="btn-primary" id="exportExcelBtn" onclick="exportExcel()">&#8595; Export History</button>
+              <button class="btn-primary" id="exportPdfBtn" onclick="openPdfModal('pdf')">&#8595; Export to PDF</button>
+              <button class="btn-primary" id="exportXlsxBtn" onclick="openPdfModal('xlsx')">&#8595; Export to .XLSX</button>
             </div>
           </div>
 
@@ -233,14 +234,14 @@
 
   <div class="overlay" id="pdfOverlay">
     <div class="modal">
-      <h3>Export PDF Report</h3>
+      <h3 id="pdfModalTitle">Export Report</h3>
       <p>Choose the report format</p>
       <div class="modal-options">
-        <div class="modal-btn" onclick="exportPdf('summary')">
+        <div class="modal-btn" onclick="handleReportExport('summary')">
           <div class="label">Summary</div>
           <div class="hint">First 10 per group</div>
         </div>
-        <div class="modal-btn" onclick="exportPdf('full')">
+        <div class="modal-btn" onclick="handleReportExport('full')">
           <div class="label">Full</div>
           <div class="hint">All clients</div>
         </div>

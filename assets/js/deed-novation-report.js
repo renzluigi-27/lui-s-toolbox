@@ -528,12 +528,21 @@ function exportExcel() {
 }
 
 // ── PDF export modal ─────────────────────────────────────────────────
-function openPdfModal() {
+let pendingExportFormat = 'pdf'; // 'pdf' or 'xlsx' — set by whichever export button opened the modal
+
+function openPdfModal(format) {
   if (!lastReport) return;
+  pendingExportFormat = format || 'pdf';
+  document.getElementById('pdfModalTitle').textContent = pendingExportFormat === 'xlsx' ? 'Export to .XLSX' : 'Export to PDF';
   document.getElementById('pdfOverlay').classList.add('show');
 }
 function closePdfModal() {
   document.getElementById('pdfOverlay').classList.remove('show');
+}
+
+function handleReportExport(mode) {
+  if (pendingExportFormat === 'xlsx') exportReportExcel(mode);
+  else exportPdf(mode);
 }
 
 function openCategoryModal() {
@@ -582,7 +591,7 @@ function openStatusModal(agent) {
   ];
   const container = document.getElementById('statusModalOptions');
   container.innerHTML = statuses.map(([val, label, hint]) => `
-    <div class="modal-btn" onclick="exportCategoryDetailPdf('${val}')">
+    <div class="modal-btn" onclick="handleCategoryExport('${val}')">
       <div class="label">${label}</div>
       ${hint ? `<div class="hint">${hint}</div>` : ''}
     </div>
@@ -591,6 +600,11 @@ function openStatusModal(agent) {
 }
 function closeStatusModal() {
   document.getElementById('statusOverlay').classList.remove('show');
+}
+
+function handleCategoryExport(status) {
+  if (pendingExportFormat === 'xlsx') exportCategoryDetailExcel(status);
+  else exportCategoryDetailPdf(status);
 }
 
 async function exportPdf(mode) {
@@ -945,4 +959,168 @@ async function fetchBytes(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+// ── Excel equivalents of the PDF report views (Summary / Full / By Category) ──
+function exportReportExcel(mode) {
+  closePdfModal();
+  if (!lastReport) return;
+  const r = lastReport;
+
+  const wb = new window.ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Deed of Novation Report');
+  ws.columns = [{ width: 42 }, { width: 16 }, { width: 14 }];
+
+  ws.mergeCells('A1:C1');
+  ws.getCell('A1').value = 'Deed of Novation Report';
+  ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true };
+
+  const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const modeLabel = mode === 'summary' ? 'Summary' : 'Full';
+
+  const summaryRows = [
+    ['Received', r.totalReceived],
+    ['Pending', r.totalPending],
+    ['Rejected', r.totalRejected],
+    ['Legal', r.totalLegal],
+    ['Total Deeds', r.totalDeeds],
+    ['Report Type', modeLabel],
+    ['Generated At', generatedAt]
+  ];
+  let row = 3;
+  summaryRows.forEach(([label, val]) => {
+    ws.getCell(`A${row}`).value = label;
+    ws.getCell(`A${row}`).font = { name: 'Arial' };
+    ws.getCell(`B${row}`).value = val;
+    ws.getCell(`B${row}`).font = { name: 'Arial' };
+    row++;
+  });
+
+  const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+  const limit = mode === 'summary' ? 10 : null;
+
+  function writeGroup(title, list, valueLabel, valueFn) {
+    row += 1;
+    ws.getCell(`A${row}`).value = `${title} (${list.length} client${list.length === 1 ? '' : 's'})`;
+    ws.getCell(`A${row}`).font = { name: 'Arial', bold: true };
+    row++;
+    ['Client Name', valueLabel].forEach((h, i) => {
+      const cell = ws.getCell(row, i + 1);
+      cell.value = h;
+      cell.font = { name: 'Arial', bold: true };
+      cell.fill = headerFill;
+      cell.alignment = { horizontal: 'center' };
+    });
+    row++;
+    const items = limit ? list.slice(0, limit) : list;
+    items.forEach(item => {
+      ws.getCell(`A${row}`).value = item.name;
+      ws.getCell(`A${row}`).font = { name: 'Arial' };
+      ws.getCell(`B${row}`).value = valueFn(item);
+      ws.getCell(`B${row}`).font = { name: 'Arial' };
+      ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
+      row++;
+    });
+    if (limit && list.length > limit) {
+      ws.getCell(`A${row}`).value = `... and ${list.length - limit} more (summary truncated)`;
+      ws.getCell(`A${row}`).font = { name: 'Arial', italic: true, color: { argb: 'FF888888' } };
+      row++;
+    }
+  }
+
+  writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Rejected', r.rejected, 'Container Count', (item) => item.containerCount);
+  writeGroup('Legal', r.legal, 'Container Count', (item) => item.containerCount);
+
+  wb.xlsx.writeBuffer().then(buffer => {
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Deed_of_Novation_Report_${modeLabel}_${timestampTag()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+}
+
+function exportCategoryDetailExcel(status) {
+  closeStatusModal();
+  if (!lastReport) return;
+  const r = lastReport;
+  const agent = pendingCategoryAgent;
+
+  const STATUS_LABELS = { complete: 'Completed', partial: 'Partial', zero: 'Zero', rejected: 'Rejected', legal: 'Legal' };
+  const inAgent = (name) => agent === 'all' || r.categoryMap.get(name) === agent;
+  let source, valueFn, valueHeader;
+  if (status === 'complete') { source = r.completed; valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'partial') { source = r.pending.filter(item => item.x > 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'zero') { source = r.pending.filter(item => item.x === 0); valueFn = (item) => `${item.x}/${item.y}`; valueHeader = 'Deed Count'; }
+  else if (status === 'rejected') { source = r.rejected; valueFn = (item) => item.containerCount; valueHeader = 'Container Count'; }
+  else { source = r.legal; valueFn = (item) => item.containerCount; valueHeader = 'Container Count'; }
+
+  const list = source.filter(item => inAgent(item.name)).map(item => ({
+    name: item.name,
+    value: valueFn(item),
+    email: r.emailMap.get(item.name) || ''
+  }));
+
+  const wb = new window.ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Deed of Novation Report');
+  ws.columns = [{ width: 42 }, { width: 16 }, { width: 34 }];
+
+  const agentLabel = agent === 'all' ? 'All Agents' : agent;
+  ws.mergeCells('A1:C1');
+  ws.getCell('A1').value = 'Deed of Novation Report';
+  ws.getCell('A1').font = { name: 'Arial', size: 14, bold: true };
+
+  const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  ws.getCell('A3').value = 'Agent';
+  ws.getCell('B3').value = agentLabel;
+  ws.getCell('A4').value = 'Status';
+  ws.getCell('B4').value = STATUS_LABELS[status];
+  ws.getCell('A5').value = 'Client Count';
+  ws.getCell('B5').value = list.length;
+  ws.getCell('A6').value = 'Generated At';
+  ws.getCell('B6').value = generatedAt;
+  for (let rr = 3; rr <= 6; rr++) {
+    ws.getCell(`A${rr}`).font = { name: 'Arial', bold: true };
+    ws.getCell(`B${rr}`).font = { name: 'Arial' };
+  }
+
+  const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+  let row = 8;
+  ['Client Name', valueHeader, 'Email Address'].forEach((h, i) => {
+    const cell = ws.getCell(row, i + 1);
+    cell.value = h;
+    cell.font = { name: 'Arial', bold: true };
+    cell.fill = headerFill;
+    cell.alignment = { horizontal: 'center' };
+  });
+  row++;
+  list.forEach(item => {
+    ws.getCell(`A${row}`).value = item.name;
+    ws.getCell(`A${row}`).font = { name: 'Arial' };
+    ws.getCell(`B${row}`).value = item.value;
+    ws.getCell(`B${row}`).font = { name: 'Arial' };
+    ws.getCell(`B${row}`).alignment = { horizontal: 'center' };
+    ws.getCell(`C${row}`).value = item.email;
+    ws.getCell(`C${row}`).font = { name: 'Arial' };
+    row++;
+  });
+
+  wb.xlsx.writeBuffer().then(buffer => {
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const agentTag = agent === 'all' ? 'All' : agent.replace(/[^a-z0-9]/gi, '_');
+    a.download = `Deed_of_Novation_Report_${agentTag}_${STATUS_LABELS[status]}_${timestampTag()}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
 }
