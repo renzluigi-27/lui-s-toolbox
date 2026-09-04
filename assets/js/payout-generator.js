@@ -447,7 +447,7 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   }
 
   const y1Date = new Date(firstPayout);
-  const y2Date = subtractOneMonth(addYears(firstPayout, 1)); // 1 month before 2nd anniversary
+  const y2Date = addYears(firstPayout, 1); // 2nd anniversary — matches shared.js / payout-schedule.js
   const y3Date = addYears(firstPayout, 2);                   // on 3rd year anniversary
 
   const items = [];
@@ -469,7 +469,7 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   // Health check (eligible: payReceived <= June 2025)
   if (isHealthCheckEligible) {
     const hc1 = new Date(firstPayout);
-    const hc2 = subtractOneMonth(addYears(firstPayout, 1));
+    const hc2 = addYears(firstPayout, 1);
     const hc3 = addYears(firstPayout, 2);
     const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
 
