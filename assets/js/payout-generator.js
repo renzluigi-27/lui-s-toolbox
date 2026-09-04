@@ -466,12 +466,11 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
 
   const insuranceTotal = items.reduce((s, it) => s + it.amount, 0);
 
-  // Health check (eligible: payReceived <= June 2025)
+  // Health check (eligible: payReceived <= June 2025) — Y2/Y3 only, no HC at Y1
   if (isHealthCheckEligible) {
-    const hc1 = new Date(firstPayout);
     const hc2 = addYears(firstPayout, 1);
     const hc3 = addYears(firstPayout, 2);
-    const hcDueThisCycle = samePayoutMonth(hc1) || samePayoutMonth(hc2) || samePayoutMonth(hc3);
+    const hcDueThisCycle = samePayoutMonth(hc2) || samePayoutMonth(hc3);
 
     if (hcPendingFromRef) {
       items.push({ type: 'HC', amount: 1000, firstPayout, note: 'applied from previous payout' });
