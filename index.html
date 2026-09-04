@@ -284,6 +284,19 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3.3</strong> — IP/HC deduction: Y2 timing + HC Year 1 fix (Payout Generator, IP Deduction, Payout Schedule)<br>
+              <div style="padding-left:1rem;">
+                • Y2 Insurance Premium deduction now correctly falls on the 2nd anniversary of the first payout (Trip 13) — the legacy Payout Generator was previously firing this one month early (Trip 12), out of sync with the AIO Tool and Payout Schedule<br>
+                • Health Check (HC) deduction no longer applies at Year 1 — now Y2/Y3 only, matching Payout Schedule's existing behavior; previously Payout Generator and IP Deduction could deduct HC as early as Year 1<br>
+                • Both fixes standardized across shared.js (used by AIO Payout Generator + IP Deduction) and the legacy standalone Payout Generator, so all three tools now use identical IP/HC deduction timing<br>
+              </div><br>
+
+              <strong>Version 2.3.2</strong> — Payout Schedule: LMC/LGMU letterhead toggle<br>
+              <div style="padding-left:1rem;">
+                • Added a Letterhead selector (LMC / LGMU) to Payout Schedule's PDF export — previously LMC only<br>
+                • LGMU letterhead uses its own title and table positioning (accent line sits lower on the A4 page than the LMC template), so nothing overlaps the letterhead artwork<br>
+              </div><br>
+
               <strong>Version 2.3.1</strong> — IP Deduction: export cleanup, per-container notes<br>
               <div style="padding-left:1rem;">
                 • IBAN and Account Number columns removed from the export — no longer needed there<br>
