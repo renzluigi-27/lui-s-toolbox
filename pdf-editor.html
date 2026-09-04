@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PDF Editor</title>
+  <link rel="stylesheet" href="/assets/css/global.css" />
+  <link rel="stylesheet" href="/assets/css/aio-tool.css" />
+  <link rel="stylesheet" href="/assets/css/liquid.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+</head>
+<body>
+<div class="bg-orbs">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+</div>
+  <div class="page-container">
+    <div class="content">
+
+      <header>
+        <h1>PDF Editor</h1>
+        <p>Merge, split, edit, and convert PDFs &mdash; free, runs entirely in your browser</p>
+      </header>
+
+      <div class="container">
+        <a class="back-link" href="index.html">&#8592; Back to Tools</a>
+
+        <div class="mode-tabs" id="modeTabs">
+          <button class="mode-tab active" data-mode="merge">Merge / Split</button>
+          <button class="mode-tab" data-mode="watermark">Watermark / Pages</button>
+          <button class="mode-tab" data-mode="images">Image &harr; PDF</button>
+          <button class="mode-tab" data-mode="editText">Edit text</button>
+          <button class="mode-tab" data-mode="ocr">OCR</button>
+          <button class="mode-tab" data-mode="docs">Document &harr; PDF</button>
+          <button class="mode-tab" data-mode="compress">Compress</button>
+          <button class="mode-tab" data-mode="password">Password</button>
+        </div>
+
+        <div id="mergeMount"></div>
+        <div id="watermarkMount" style="display:none;"></div>
+        <div id="imagesMount" style="display:none;"></div>
+        <div id="comingSoonMount" style="display:none;">
+          <div class="card">
+            <div class="section-label">Coming soon</div>
+            <p class="card-hint" id="comingSoonText">This tool is not built yet.</p>
+          </div>
+        </div>
+
+      </div><!-- /.container -->
+      <div id="footer"></div>
+    </div><!-- /.content -->
+  </div><!-- /.page-container -->
+
+  <script src="/assets/js/pdf-editor.js"></script>
+  <script src="/assets/js/pdf-editor-tools.js"></script>
+  <script src="/assets/js/security.js"></script>
+
+</body>
+</html>
