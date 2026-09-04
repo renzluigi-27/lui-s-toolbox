@@ -347,7 +347,8 @@ function renderReport(report, changes) {
   }
 
   renderGroupTable('completedTableBody', 'completedEmpty', report.completed, changes, (r) => `<td>${r.x}/${r.y}</td>`);
-  renderGroupTable('pendingTableBody', 'pendingEmpty', report.pending, changes, (r) => `<td>${r.x}/${r.y}</td>`);
+  renderGroupTable('partialTableBody', 'partialEmpty', report.pending.filter(item => item.x > 0), changes, (r) => `<td>${r.x}/${r.y}</td>`);
+  renderGroupTable('zeroTableBody', 'zeroEmpty', report.pending.filter(item => item.x === 0), changes, (r) => `<td>${r.x}/${r.y}</td>`);
   renderGroupTable('rejectedTableBody', 'rejectedEmpty', report.rejected, changes, (r) => `<td>${r.y}</td>`);
   renderGroupTable('legalTableBody', 'legalEmpty', report.legal, changes, (r) => `<td>${r.y}</td>`);
 }
@@ -356,6 +357,8 @@ function statusLabelFor(report, name) {
   if (report.rejected.some(r => r.name === name)) return 'rejected';
   if (report.legal.some(r => r.name === name)) return 'legal';
   if (report.completed.some(r => r.name === name)) return 'completed';
+  const pendingItem = report.pending.find(r => r.name === name);
+  if (pendingItem) return pendingItem.x > 0 ? 'partial' : 'zero';
   return 'pending';
 }
 
@@ -363,6 +366,8 @@ function statusBadge(label) {
   if (label === 'completed') return '<span class="badge badge-completed">Completed</span>';
   if (label === 'rejected') return '<span class="badge badge-rejected">Rejected</span>';
   if (label === 'legal') return '<span class="badge badge-legal">Legal</span>';
+  if (label === 'partial') return '<span class="badge badge-pending">Partial</span>';
+  if (label === 'zero') return '<span class="badge badge-zero">Zero</span>';
   return '<span class="badge badge-pending">Pending</span>';
 }
 
@@ -494,7 +499,8 @@ function exportExcel() {
   }
 
   writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Partial', r.pending.filter(item => item.x > 0), 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Zero', r.pending.filter(item => item.x === 0), 'Deed Count', (item) => `${item.x}/${item.y}`);
   writeGroup('Rejected', r.rejected, 'Deed Count', (item) => item.y);
   writeGroup('Legal', r.legal, 'Deed Count', (item) => item.y);
 

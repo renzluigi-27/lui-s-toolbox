@@ -63,6 +63,7 @@
     .dot.new { background: #8a6fe8; }
     .dot.completed { background: #97C459; }
     .dot.pending { background: #E8B84B; }
+    .dot.zero { background: #8a8a92; }
     .dot.rejected { background: #E8716B; }
     .dot.legal { background: #5B9BD5; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -78,6 +79,7 @@
     }
     .badge-completed { background: rgba(151,196,89,0.18); color: #B7DE8A; }
     .badge-pending { background: rgba(232,184,75,0.18); color: #F0CE86; }
+    .badge-zero { background: rgba(138,138,146,0.18); color: #b8b8c0; }
     .badge-rejected { background: rgba(231,113,107,0.18); color: #F7A9A4; }
     .badge-legal { background: rgba(91,155,213,0.18); color: #9CC7EB; }
 
@@ -194,14 +196,25 @@
           </div>
 
           <div class="card">
-            <div class="section-title"><span class="dot pending"></span>Pending</div>
+            <div class="section-title"><span class="dot pending"></span>Partial</div>
             <div class="table-scroll">
               <table>
                 <thead><tr><th>Client Name</th><th>Deed Count</th></tr></thead>
-                <tbody id="pendingTableBody"></tbody>
+                <tbody id="partialTableBody"></tbody>
               </table>
             </div>
-            <div class="empty-msg" id="pendingEmpty" style="display:none;">No pending clients.</div>
+            <div class="empty-msg" id="partialEmpty" style="display:none;">No partial clients.</div>
+          </div>
+
+          <div class="card">
+            <div class="section-title"><span class="dot zero"></span>Zero</div>
+            <div class="table-scroll">
+              <table>
+                <thead><tr><th>Client Name</th><th>Deed Count</th></tr></thead>
+                <tbody id="zeroTableBody"></tbody>
+              </table>
+            </div>
+            <div class="empty-msg" id="zeroEmpty" style="display:none;">No zero clients.</div>
           </div>
 
           <div class="card">
