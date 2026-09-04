@@ -527,27 +527,14 @@ function exportExcel() {
   });
 }
 
-// ── PDF export modal ─────────────────────────────────────────────────
+// ── Export modal flow: Agent \u2192 Status (or All \u2192 Summary/Full) ──────
 let pendingExportFormat = 'pdf'; // 'pdf' or 'xlsx' — set by whichever export button opened the modal
+let pendingCategoryAgent = null;
 
-function openPdfModal(format) {
+function openCategoryModal(format) {
   if (!lastReport) return;
   pendingExportFormat = format || 'pdf';
-  document.getElementById('pdfModalTitle').textContent = pendingExportFormat === 'xlsx' ? 'Export to .XLSX' : 'Export to PDF';
-  document.getElementById('pdfOverlay').classList.add('show');
-}
-function closePdfModal() {
-  document.getElementById('pdfOverlay').classList.remove('show');
-}
-
-function handleReportExport(mode) {
-  if (pendingExportFormat === 'xlsx') exportReportExcel(mode);
-  else exportPdf(mode);
-}
-
-function openCategoryModal() {
-  if (!lastReport) return;
-  closePdfModal();
+  document.getElementById('categoryModalTitle').textContent = pendingExportFormat === 'xlsx' ? 'Export to .XLSX' : 'Export to PDF';
 
   const categoryOrder = [];
   const seen = new Set();
@@ -574,8 +561,6 @@ function closeCategoryModal() {
   document.getElementById('categoryOverlay').classList.remove('show');
 }
 
-let pendingCategoryAgent = null;
-
 function openStatusModal(agent) {
   closeCategoryModal();
   pendingCategoryAgent = agent;
@@ -587,7 +572,8 @@ function openStatusModal(agent) {
     ['partial', 'Partial', 'Some received'],
     ['zero', 'Zero', '0 received'],
     ['rejected', 'Rejected', ''],
-    ['legal', 'Legal', '']
+    ['legal', 'Legal', ''],
+    ['all', 'All', 'Every status']
   ];
   const container = document.getElementById('statusModalOptions');
   container.innerHTML = statuses.map(([val, label, hint]) => `
@@ -603,17 +589,35 @@ function closeStatusModal() {
 }
 
 function handleCategoryExport(status) {
+  if (status === 'all') {
+    closeStatusModal();
+    const subtitle = document.getElementById('allStatusModalSubtitle');
+    subtitle.textContent = pendingCategoryAgent === 'all' ? 'Choose report length \u2014 All agents' : `Choose report length \u2014 ${pendingCategoryAgent}`;
+    document.getElementById('allStatusOverlay').classList.add('show');
+    return;
+  }
   if (pendingExportFormat === 'xlsx') exportCategoryDetailExcel(status);
   else exportCategoryDetailPdf(status);
 }
+function closeAllStatusModal() {
+  document.getElementById('allStatusOverlay').classList.remove('show');
+}
+function exportAllStatus(mode) {
+  closeAllStatusModal();
+  if (pendingExportFormat === 'xlsx') exportAllStatusExcel(mode);
+  else exportAllStatusPdf(mode);
+}
 
-async function exportPdf(mode) {
-  closePdfModal();
+// ── Full breakdown PDF: Completed / Partial / Zero / Rejected / Legal,
+// filtered by the chosen agent (or all agents), Summary (top 10) or Full ──
+async function exportAllStatusPdf(mode) {
   if (!lastReport) return;
   const r = lastReport;
+  const agent = pendingCategoryAgent || 'all';
 
   const GREEN = PDFLib.rgb(0x2E/255, 0x7D/255, 0x32/255);
   const AMBER = PDFLib.rgb(0xB9/255, 0x8A/255, 0x2E/255);
+  const ZERO_COLOR = PDFLib.rgb(0.45, 0.45, 0.45);
   const RED = PDFLib.rgb(0xB0/255, 0x3A/255, 0x2E/255);
   const BLUE = PDFLib.rgb(0x5B/255, 0x9B/255, 0xD5/255);
   const NAVY = PDFLib.rgb(0x1B/255, 0x4B/255, 0x7A/255);
@@ -622,80 +626,66 @@ async function exportPdf(mode) {
   const GRAY_TXT = PDFLib.rgb(0x55/255, 0x55/255, 0x55/255);
   const DARK_TXT = PDFLib.rgb(0.15, 0.15, 0.15);
 
-  const LETTERHEAD_URL = '/assets/lgmu_letterhead.pdf';
+  const inAgent = (name) => agent === 'all' || r.categoryMap.get(name) === agent;
+  const completedF = r.completed.filter(item => inAgent(item.name));
+  const pendingF = r.pending.filter(item => inAgent(item.name));
+  const partialF = pendingF.filter(item => item.x > 0);
+  const zeroF = pendingF.filter(item => item.x === 0);
+  const rejectedF = r.rejected.filter(item => inAgent(item.name));
+  const legalF = r.legal.filter(item => inAgent(item.name));
 
-  async function fetchBytes(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Could not load ${url} (HTTP ${res.status})`);
-    return new Uint8Array(await res.arrayBuffer());
-  }
+  const totalReceivedF = completedF.reduce((s, i) => s + i.x, 0) + partialF.reduce((s, i) => s + i.x, 0);
+  const totalPendingF = pendingF.reduce((s, i) => s + (i.y - i.x), 0);
 
   const pdfDoc = await PDFLib.PDFDocument.create();
   const font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
 
-  // Real LGMU letterhead PDF as the full-page background template — same
-  // embedPdf/drawPage pattern used by Payout Schedule's LMC letterhead.
-  const letterheadBytes = await fetchBytes(LETTERHEAD_URL);
+  const letterheadBytes = await fetchBytes('/assets/lgmu_letterhead.pdf');
   const [letterheadPage] = await pdfDoc.embedPdf(letterheadBytes, [0]);
   const PAGE_W = letterheadPage.width;
   const PAGE_H = letterheadPage.height;
 
   const MARGIN = 50;
   const CONTENT_W = PAGE_W - MARGIN * 2;
-  const CONTENT_TOP = PAGE_H - 175; // just below the letterhead's logo/accent line
+  const CONTENT_TOP = PAGE_H - 175;
 
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let y = CONTENT_TOP;
 
-  function drawLetterhead(p) {
-    p.drawPage(letterheadPage, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
-  }
-
+  function drawLetterhead(p) { p.drawPage(letterheadPage, { x: 0, y: 0, width: PAGE_W, height: PAGE_H }); }
   function newPage() {
     page = pdfDoc.addPage([PAGE_W, PAGE_H]);
     drawLetterhead(page);
     y = CONTENT_TOP;
-    page.drawText('Deed of Novation Report (cont\u2019d)', {
-      x: MARGIN, y: y + 6, size: 10, font: fontBold, color: NAVY
-    });
+    page.drawText('Deed of Novation Report (cont\u2019d)', { x: MARGIN, y: y + 6, size: 10, font: fontBold, color: NAVY });
     y -= 14;
     drawFooter();
   }
-
   function drawFooter() {
     const pageNum = pdfDoc.getPageCount();
-    page.drawText('LGMU Container Trading \u2014 Deed of Novation Report', {
-      x: MARGIN, y: 85, size: 7.5, font, color: GRAY_TXT
-    });
-    page.drawText(`Page ${pageNum}`, {
-      x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 85, size: 7.5, font, color: GRAY_TXT
-    });
+    page.drawText('LGMU Container Trading \u2014 Deed of Novation Report', { x: MARGIN, y: 85, size: 7.5, font, color: GRAY_TXT });
+    page.drawText(`Page ${pageNum}`, { x: PAGE_W - MARGIN - font.widthOfTextAtSize(`Page ${pageNum}`, 7.5), y: 85, size: 7.5, font, color: GRAY_TXT });
   }
+  function ensureSpace(neededHeight) { if (y - neededHeight < 95) newPage(); }
 
-  function ensureSpace(neededHeight) {
-    if (y - neededHeight < 95) newPage();
-  }
-
-  // ── page 1: letterhead + title + stat boxes ──
   drawLetterhead(page);
 
   const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const modeLabel = mode === 'summary' ? 'Summary' : 'Full Report';
+  const agentLabel = agent === 'all' ? 'All Agents' : agent;
   page.drawText('Deed of Novation Report', { x: MARGIN, y: y - 4, size: 16, font: fontBold, color: NAVY });
-  page.drawText(`Generated ${genDate} \u2014 ${modeLabel}`, {
-    x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT
-  });
+  page.drawText(`Generated ${genDate} \u2014 ${agentLabel} \u2014 ${modeLabel}`, { x: MARGIN, y: y - 20, size: 9, font, color: GRAY_TXT });
   y -= 42;
 
   const boxW = (CONTENT_W - 30) / 4;
   const boxH = 40;
   const teal = PDFLib.rgb(0x5B/255, 0xA7/255, 0x9A/255);
   const stats = [
-    ['RECEIVED', r.totalReceived, teal],
-    ['PENDING', r.totalPending, AMBER],
-    ['REJECTED', r.totalRejected, RED],
-    ['LEGAL', r.totalLegal, BLUE]
+    ['RECEIVED', totalReceivedF, teal],
+    ['PENDING', totalPendingF, AMBER],
+    ['REJECTED', rejectedF.length, RED],
+    ['LEGAL', legalF.length, BLUE]
   ];
   stats.forEach(([label, val, color], i) => {
     const bx = MARGIN + i * (boxW + 10);
@@ -705,11 +695,10 @@ async function exportPdf(mode) {
     page.drawText(label, { x: bx + boxW/2 - font.widthOfTextAtSize(label, 7.5)/2, y: y - 33, size: 7.5, font, color: WHITE });
   });
   y -= (boxH + 22);
-
   drawFooter();
 
   function sectionHeader(title, color) {
-    ensureSpace(28 + 17 + 17); // header line + table header row + at least 1 data row — avoids an orphaned header at the bottom of a page
+    ensureSpace(28 + 17 + 17);
     page.drawCircle({ x: MARGIN + 4, y: y - 4, size: 4, color });
     page.drawText(title, { x: MARGIN + 14, y: y - 8, size: 11.5, font: fontBold, color: DARK_TXT });
     y -= 20;
@@ -772,20 +761,12 @@ async function exportPdf(mode) {
   function renderSection(title, color, list, valueHeader, valueFn, limit) {
     const items = limit ? list.slice(0, limit) : list;
     const willTruncate = limit && list.length > limit;
-
-    // In summary mode (limit set), reserve room for the WHOLE block —
-    // header + up to `limit` rows + the "and X more" caption — so the
-    // section never splits across pages. Full mode (no limit) keeps the
-    // normal per-row pagination since a section can legitimately span
-    // many pages there.
     if (limit) {
       const rowH = 17;
       const bodyHeight = items.length > 0 ? (17 + items.length * rowH) : 14;
       const captionHeight = willTruncate ? 16 : 0;
-      const totalNeeded = 20 + bodyHeight + captionHeight; // section title advance + table (header row + rows, or "None.") + caption
-      ensureSpace(totalNeeded);
+      ensureSpace(20 + bodyHeight + captionHeight);
     }
-
     sectionHeader(`${title} (${list.length} client${list.length === 1 ? '' : 's'})`, color);
     if (items.length === 0) {
       page.drawText('None.', { x: MARGIN, y: y - 4, size: 9, font, color: GRAY_TXT });
@@ -801,10 +782,11 @@ async function exportPdf(mode) {
   }
 
   const limit = mode === 'summary' ? 10 : null;
-  renderSection('Completed', GREEN, r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Pending', AMBER, r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
-  renderSection('Rejected', RED, r.rejected, 'Deed Count', (item) => item.y, limit);
-  renderSection('Legal', BLUE, r.legal, 'Deed Count', (item) => item.y, limit);
+  renderSection('Completed', GREEN, completedF, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Partial', AMBER, partialF, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Zero', ZERO_COLOR, zeroF, 'Deed Count', (item) => `${item.x}/${item.y}`, limit);
+  renderSection('Rejected', RED, rejectedF, 'Deed Count', (item) => item.y, limit);
+  renderSection('Legal', BLUE, legalF, 'Deed Count', (item) => item.y, limit);
 
   const pdfBytes = await pdfDoc.save();
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -812,7 +794,8 @@ async function exportPdf(mode) {
   const a = document.createElement('a');
   a.href = url;
   const modeFileTag = mode === 'summary' ? 'Summary' : 'Full';
-  a.download = `Deed_of_Novation_Report_${modeFileTag}_${timestampTag()}.pdf`;
+  const agentTag = agent === 'all' ? 'All' : agent.replace(/[^a-z0-9]/gi, '_');
+  a.download = `Deed_of_Novation_Report_${agentTag}_${modeFileTag}_${timestampTag()}.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -962,10 +945,21 @@ async function fetchBytes(url) {
 }
 
 // ── Excel equivalents of the PDF report views (Summary / Full / By Category) ──
-function exportReportExcel(mode) {
-  closePdfModal();
+function exportAllStatusExcel(mode) {
   if (!lastReport) return;
   const r = lastReport;
+  const agent = pendingCategoryAgent || 'all';
+
+  const inAgent = (name) => agent === 'all' || r.categoryMap.get(name) === agent;
+  const completedF = r.completed.filter(item => inAgent(item.name));
+  const pendingF = r.pending.filter(item => inAgent(item.name));
+  const partialF = pendingF.filter(item => item.x > 0);
+  const zeroF = pendingF.filter(item => item.x === 0);
+  const rejectedF = r.rejected.filter(item => inAgent(item.name));
+  const legalF = r.legal.filter(item => inAgent(item.name));
+
+  const totalReceivedF = completedF.reduce((s, i) => s + i.x, 0) + partialF.reduce((s, i) => s + i.x, 0);
+  const totalPendingF = pendingF.reduce((s, i) => s + (i.y - i.x), 0);
 
   const wb = new window.ExcelJS.Workbook();
   const ws = wb.addWorksheet('Deed of Novation Report');
@@ -977,13 +971,14 @@ function exportReportExcel(mode) {
 
   const generatedAt = new Date().toISOString().slice(0, 16).replace('T', ' ');
   const modeLabel = mode === 'summary' ? 'Summary' : 'Full';
+  const agentLabel = agent === 'all' ? 'All Agents' : agent;
 
   const summaryRows = [
-    ['Received', r.totalReceived],
-    ['Pending', r.totalPending],
-    ['Rejected', r.totalRejected],
-    ['Legal', r.totalLegal],
-    ['Total Deeds', r.totalDeeds],
+    ['Agent', agentLabel],
+    ['Received', totalReceivedF],
+    ['Pending', totalPendingF],
+    ['Rejected', rejectedF.length],
+    ['Legal', legalF.length],
     ['Report Type', modeLabel],
     ['Generated At', generatedAt]
   ];
@@ -1028,17 +1023,19 @@ function exportReportExcel(mode) {
     }
   }
 
-  writeGroup('Completed', r.completed, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Pending', r.pending, 'Deed Count', (item) => `${item.x}/${item.y}`);
-  writeGroup('Rejected', r.rejected, 'Deed Count', (item) => item.y);
-  writeGroup('Legal', r.legal, 'Deed Count', (item) => item.y);
+  writeGroup('Completed', completedF, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Partial', partialF, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Zero', zeroF, 'Deed Count', (item) => `${item.x}/${item.y}`);
+  writeGroup('Rejected', rejectedF, 'Deed Count', (item) => item.y);
+  writeGroup('Legal', legalF, 'Deed Count', (item) => item.y);
 
   wb.xlsx.writeBuffer().then(buffer => {
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Deed_of_Novation_Report_${modeLabel}_${timestampTag()}.xlsx`;
+    const agentTag = agent === 'all' ? 'All' : agent.replace(/[^a-z0-9]/gi, '_');
+    a.download = `Deed_of_Novation_Report_${agentTag}_${modeLabel}_${timestampTag()}.xlsx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

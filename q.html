@@ -167,8 +167,8 @@
                 <span id="copyIcon">📋</span> <span id="copyLabel">Copy Report</span>
               </button>
               <button class="btn-primary" id="exportExcelBtn" onclick="exportExcel()">&#8595; Export History</button>
-              <button class="btn-primary" id="exportPdfBtn" onclick="openPdfModal('pdf')">&#8595; Export to PDF</button>
-              <button class="btn-primary" id="exportXlsxBtn" onclick="openPdfModal('xlsx')">&#8595; Export to .XLSX</button>
+              <button class="btn-primary" id="exportPdfBtn" onclick="openCategoryModal('pdf')">&#8595; Export to PDF</button>
+              <button class="btn-primary" id="exportXlsxBtn" onclick="openCategoryModal('xlsx')">&#8595; Export to .XLSX</button>
             </div>
           </div>
 
@@ -232,31 +232,9 @@
     </div>
   </div>
 
-  <div class="overlay" id="pdfOverlay">
-    <div class="modal">
-      <h3 id="pdfModalTitle">Export Report</h3>
-      <p>Choose the report format</p>
-      <div class="modal-options">
-        <div class="modal-btn" onclick="handleReportExport('summary')">
-          <div class="label">Summary</div>
-          <div class="hint">First 10 per group</div>
-        </div>
-        <div class="modal-btn" onclick="handleReportExport('full')">
-          <div class="label">Full</div>
-          <div class="hint">All clients</div>
-        </div>
-        <div class="modal-btn" onclick="openCategoryModal()">
-          <div class="label">By Category</div>
-          <div class="hint">Per agent, Complete/Partial/Zero</div>
-        </div>
-      </div>
-      <button class="modal-cancel" onclick="closePdfModal()">Cancel</button>
-    </div>
-  </div>
-
   <div class="overlay" id="categoryOverlay">
     <div class="modal">
-      <h3>By Category</h3>
+      <h3 id="categoryModalTitle">Export Report</h3>
       <p>Choose which agent</p>
       <div class="modal-options" id="categoryModalOptions"></div>
       <button class="modal-cancel" onclick="closeCategoryModal()">Cancel</button>
@@ -269,6 +247,24 @@
       <p id="statusModalSubtitle">Choose status</p>
       <div class="modal-options" id="statusModalOptions" style="flex-wrap:wrap;"></div>
       <button class="modal-cancel" onclick="closeStatusModal()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="allStatusOverlay">
+    <div class="modal">
+      <h3>Export Report</h3>
+      <p id="allStatusModalSubtitle">Choose report length</p>
+      <div class="modal-options">
+        <div class="modal-btn" onclick="exportAllStatus('summary')">
+          <div class="label">Summary</div>
+          <div class="hint">First 10 per group</div>
+        </div>
+        <div class="modal-btn" onclick="exportAllStatus('full')">
+          <div class="label">Full</div>
+          <div class="hint">All clients</div>
+        </div>
+      </div>
+      <button class="modal-cancel" onclick="closeAllStatusModal()">Cancel</button>
     </div>
   </div>
 
