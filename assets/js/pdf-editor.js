@@ -1,18 +1,15 @@
 // ─────────────────────────────────────────────────────────────────
 // PDF EDITOR — pdf-editor.js
 // Top-level controller: tab switching, footer, lazy module init.
-// Tool logic lives in pdf-editor-tools.js (PdfMerge, PdfWatermark, PdfImages).
+// Tool logic lives in:
+//   pdf-editor-tools.js  — PdfMerge, PdfWatermark, PdfImages
+//   eml-to-pdf.js         — EmlToPdf
+//   pdf-editor-phase2.js  — PdfEditText, PdfOcr
+//   pdf-editor-phase3.js  — PdfDocs, PdfCompress
 // Depends on: pdf-lib (PDFLib), pdf.js (pdfjsLib), JSZip
 // ─────────────────────────────────────────────────────────────────
 
 let peActiveMode = 'merge';
-const PE_COMING_SOON = {
-  editText: 'Edit text (whiteout + replace) — coming in Phase 2.',
-  ocr: 'OCR (Tesseract.js) — coming in Phase 2.',
-  docs: 'Document \u2194 PDF (basic, text/tables only) — coming in Phase 3.',
-  compress: 'Compress — coming in Phase 3.',
-  password: 'Password protect / remove — coming in Phase 3 (limited support).',
-};
 
 document.addEventListener('DOMContentLoaded', () => {
   if (window.pdfjsLib) {
@@ -41,16 +38,20 @@ function peUpdateTabUI() {
   const mergeMount     = document.getElementById('mergeMount');
   const watermarkMount = document.getElementById('watermarkMount');
   const imagesMount    = document.getElementById('imagesMount');
-  const comingSoonMount = document.getElementById('comingSoonMount');
-  const comingSoonText  = document.getElementById('comingSoonText');
+  const emlToPdfMount  = document.getElementById('emlToPdfMount');
+  const editTextMount  = document.getElementById('editTextMount');
+  const ocrMount       = document.getElementById('ocrMount');
+  const docsMount      = document.getElementById('docsMount');
+  const compressMount  = document.getElementById('compressMount');
 
   mergeMount.style.display     = peActiveMode === 'merge' ? '' : 'none';
   watermarkMount.style.display = peActiveMode === 'watermark' ? '' : 'none';
   imagesMount.style.display    = peActiveMode === 'images' ? '' : 'none';
-
-  const isComingSoon = Object.prototype.hasOwnProperty.call(PE_COMING_SOON, peActiveMode);
-  comingSoonMount.style.display = isComingSoon ? '' : 'none';
-  if (isComingSoon) comingSoonText.textContent = PE_COMING_SOON[peActiveMode];
+  emlToPdfMount.style.display  = peActiveMode === 'emlToPdf' ? '' : 'none';
+  editTextMount.style.display  = peActiveMode === 'editText' ? '' : 'none';
+  ocrMount.style.display       = peActiveMode === 'ocr' ? '' : 'none';
+  docsMount.style.display      = peActiveMode === 'docs' ? '' : 'none';
+  compressMount.style.display  = peActiveMode === 'compress' ? '' : 'none';
 
   if (peActiveMode === 'watermark' && window.PdfWatermark && !watermarkMount.dataset.inited) {
     PdfWatermark.init('watermarkMount');
@@ -59,5 +60,25 @@ function peUpdateTabUI() {
   if (peActiveMode === 'images' && window.PdfImages && !imagesMount.dataset.inited) {
     PdfImages.init('imagesMount');
     imagesMount.dataset.inited = '1';
+  }
+  if (peActiveMode === 'emlToPdf' && window.EmlToPdf && !emlToPdfMount.dataset.inited) {
+    EmlToPdf.init('emlToPdfMount');
+    emlToPdfMount.dataset.inited = '1';
+  }
+  if (peActiveMode === 'editText' && window.PdfEditText && !editTextMount.dataset.inited) {
+    PdfEditText.init('editTextMount');
+    editTextMount.dataset.inited = '1';
+  }
+  if (peActiveMode === 'ocr' && window.PdfOcr && !ocrMount.dataset.inited) {
+    PdfOcr.init('ocrMount');
+    ocrMount.dataset.inited = '1';
+  }
+  if (peActiveMode === 'docs' && window.PdfDocs && !docsMount.dataset.inited) {
+    PdfDocs.init('docsMount');
+    docsMount.dataset.inited = '1';
+  }
+  if (peActiveMode === 'compress' && window.PdfCompress && !compressMount.dataset.inited) {
+    PdfCompress.init('compressMount');
+    compressMount.dataset.inited = '1';
   }
 }
