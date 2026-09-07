@@ -18,7 +18,7 @@ function buildYearLabel(yearMap) {
     .filter(([, amt]) => amt.ip > 0 || amt.hc > 0)
     .map(([year, amt]) => {
       const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
-      return year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
+      return `${year} ${kind}`;
     });
   return parts.join(' + ') || 'IP & HC';
 }
