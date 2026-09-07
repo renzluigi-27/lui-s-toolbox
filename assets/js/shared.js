@@ -255,15 +255,23 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   const items = [];
 
   const insAmt = isRerouted ? 1500 : insuranceAmount(containerType, firstPayout);
-  if (insuranceYearsCovered < 1 && samePayoutMonth(y1Date)) items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
-  if (insuranceYearsCovered < 2 && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
-  if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
+  // Non-rerouted: y1/y2/y3 dates fall in different months, so "< N" is safe
+  // (only one can match a given cycle). Rerouted: y2Date/y3Date are the SAME
+  // date (both = the reroute-adjusted target), so "< N" would let two years
+  // match at once — use an exact year match instead.
+  const y1Due = isRerouted ? insuranceYearsCovered === 0 : insuranceYearsCovered < 1;
+  const y2Due = isRerouted ? insuranceYearsCovered === 1 : insuranceYearsCovered < 2;
+  const y3Due = isRerouted ? insuranceYearsCovered === 2 : insuranceYearsCovered < 3;
+
+  if (y1Due && samePayoutMonth(y1Date)) items.push({ type: 'Y1 Insurance', amount: insAmt, firstPayout });
+  if (y2Due && samePayoutMonth(y2Date)) items.push({ type: 'Y2 Insurance', amount: insAmt, firstPayout });
+  if (y3Due && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
 
   if (isHealthCheckEligible) {
     const hc2 = isRerouted ? new Date(firstPayout) : addMonths(firstPayout, 11);
     const hc3 = isRerouted ? new Date(firstPayout) : addMonths(firstPayout, 23);
-    if (samePayoutMonth(hc2)) items.push({ type: 'HC', year: 'Y2', amount: 1000, firstPayout });
-    else if (samePayoutMonth(hc3)) items.push({ type: 'HC', year: 'Y3', amount: 1000, firstPayout });
+    if (y2Due && samePayoutMonth(hc2)) items.push({ type: 'HC', year: 'Y2', amount: 1000, firstPayout });
+    else if (y3Due && samePayoutMonth(hc3)) items.push({ type: 'HC', year: 'Y3', amount: 1000, firstPayout });
   }
 
   return { amount: items.reduce((s, it) => s + it.amount, 0), items };

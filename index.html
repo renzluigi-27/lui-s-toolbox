@@ -296,6 +296,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3.6</strong> — IP/HC deduction: reroute Y2+Y3 double-fire fix (shared.js)<br>
+              <div style="padding-left:1rem;">
+                • Rerouted clients could get BOTH Y2 and Y3 IP+HC deducted in the same cycle on the same container — a side effect of the v2.3.5 fix, since y2Date and y3Date now share the same reroute-adjusted date, and the old "insuranceYearsCovered &lt; N" checks let both branches match at once<br>
+                • Rerouted rows now check for an exact year match (insuranceYearsCovered === 0/1/2) instead of "less than", so only the one year actually due fires<br>
+                • Non-rerouted clients unaffected — their y1/y2/y3 dates fall in different months already<br>
+              </div><br>
+
               <strong>Version 2.3.5</strong> — IP/HC deduction: reroute anchor double-shift fix (shared.js)<br>
               <div style="padding-left:1rem;">
                 • Rerouted (war-disruption-paused) clients were getting their Y2/Y3 IP+HC deduction shifted almost a year too late — rerouteAnniversaryBasis() already computes the correct target month, but calcDeduction() was adding another +11/+23 months on top of it<br>
