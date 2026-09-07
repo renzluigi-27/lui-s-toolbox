@@ -513,6 +513,30 @@
     return bestScore >= 88 ? best : null;
   }
 
+  /* ── For a client with multiple bank accounts, matching by name alone
+     grabs whichever PI record happens to be indexed first — which may be
+     an unrelated account with nothing due this cycle. Match by IBAN/
+     account number first (within same-name candidates), so each Gen
+     sub-account is compared against its own PI record. ── */
+  function findMatchByAccount(g, index) {
+    var gIban = g.iban ? normIBAN(g.iban) : '';
+    var gAcct = g.account ? String(g.account).trim() : '';
+    var gName = normName(g.name);
+    var pool = index.flat.filter(function (p) {
+      return tokenSortRatio(gName, p._norm) >= 88;
+    });
+    if (!pool.length) pool = index.flat;
+    if (gIban) {
+      var byIban = pool.filter(function (p) { return p.iban && normIBAN(p.iban) === gIban; });
+      if (byIban.length) return byIban[0];
+    }
+    if (gAcct) {
+      var byAcct = pool.filter(function (p) { return p.account && String(p.account).trim() === gAcct; });
+      if (byAcct.length) return byAcct[0];
+    }
+    return findMatch(g, index);
+  }
+
   /* ── Local / International classification — prefer which Accounts sheet
      the payee was found on (sheet name itself carries the answer), fall
      back to the Gen file's Client Type column. ── */
@@ -815,6 +839,8 @@
               clientType: gens[0].clientType,
               notes: [], _multiAccount: []
             };
+            var piMatched = [];
+            var piRentalSum = 0;
             gens.forEach(function (g) {
               mergedG.rent += toNum(g.rent);
               mergedG.deduction += toNum(g.deduction);
@@ -826,7 +852,18 @@
                 });
               }
               mergedG._multiAccount.push({ account: g.account, iban: g.iban, bankName: g.bankName, rent: g.rent });
+
+              // Match this specific sub-account against its own PI record
+              // (by IBAN/account) rather than relying on a single name
+              // lookup for the whole merged client — avoids summing 0 from
+              // an unrelated account that just happened to be indexed first.
+              var pMatch = findMatchByAccount(g, piIndex);
+              if (pMatch && piMatched.indexOf(pMatch) === -1) {
+                piMatched.push(pMatch);
+                piRentalSum += toNum(pMatch.rental);
+              }
             });
+            mergedG._piRentalSum = piRentalSum;
             // If every account came out to zero, there's no real split to
             // explain — it's just the client's whole file being terminated
             // across the board, so the account-by-account breakdown (and
@@ -845,7 +882,9 @@
           }
         }
 
-        var p = findMatch(gens[0], piIndex);
+        var p = (isMultiAccount && mergedG._piRentalSum != null)
+          ? { rental: mergedG._piRentalSum }
+          : findMatch(gens[0], piIndex);
         var vrow = valueRow(mergedG, a, p);
         if (isMultiAccount) vrow.isMultiAccount = true;
         values.push(vrow);
