@@ -62,23 +62,32 @@ function runIPDeduction(yr, mo, cycle) {
   renderMoreRows(results.length);
 }
 
-function exportIPDeduction() {
-  const yr  = parseInt(document.getElementById('selYear').value);
-  const mo  = parseInt(document.getElementById('selMonth').value);
-
+function buildIPDeductionSheet(rowsArr) {
   const headers = ['CLIENT NAME', 'UNITS','DEDUCTION (AED)','NOTES'];
-  const rows = results.map(r => [
+  const rows = rowsArr.map(r => [
     r.clientName,
     new Set(r.deductionItems.map(it => it.container)).size,
     r.totalDeduction, r.note || '',
   ]);
 
-  const totDeduct = results.reduce((s,r) => s + r.totalDeduction, 0);
+  const totDeduct = rowsArr.reduce((s,r) => s + r.totalDeduction, 0);
   rows.push(['TOTAL','',totDeduct,'']);
 
-  const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   ws['!cols'] = [{wch:45},{wch:12},{wch:16},{wch:60}];
-  XLSX.utils.book_append_sheet(wb, ws, `${MONTHS[mo-1]} ${yr} IP Deduction`.substring(0, 31));
+  return ws;
+}
+
+function exportIPDeduction() {
+  const yr  = parseInt(document.getElementById('selYear').value);
+  const mo  = parseInt(document.getElementById('selMonth').value);
+
+  // Same "Local vs everything else" split as payout.js (classifyLocalIntl in payout.js)
+  const localRows = results.filter(r => classifyLocalIntl(r.clientType) === 'Local');
+  const intlRows  = results.filter(r => classifyLocalIntl(r.clientType) !== 'Local');
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildIPDeductionSheet(localRows), 'Local');
+  XLSX.utils.book_append_sheet(wb, buildIPDeductionSheet(intlRows), 'International');
   XLSX.writeFile(wb, getExpectedOutputFilename());
 }

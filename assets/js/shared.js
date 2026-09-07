@@ -246,8 +246,8 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   }
 
   const y1Date = new Date(firstPayout);
-  const y2Date = addYears(firstPayout, 1);
-  const y3Date = addYears(firstPayout, 2);
+  const y2Date = addMonths(firstPayout, 11); // 12th month, counting first-payout month as month 1
+  const y3Date = addMonths(firstPayout, 23); // 24th month, same counting
 
   const items = [];
 
@@ -257,8 +257,8 @@ function calcDeduction(payoutDate, firstPayout, insuranceYearsCovered, isHealthC
   if (insuranceYearsCovered < 3 && samePayoutMonth(y3Date)) items.push({ type: 'Y3 Insurance', amount: insAmt, firstPayout });
 
   if (isHealthCheckEligible) {
-    const hc2 = addYears(firstPayout, 1);
-    const hc3 = addYears(firstPayout, 2);
+    const hc2 = addMonths(firstPayout, 11);
+    const hc3 = addMonths(firstPayout, 23);
     if (samePayoutMonth(hc2)) items.push({ type: 'HC', year: 'Y2', amount: 1000, firstPayout });
     else if (samePayoutMonth(hc3)) items.push({ type: 'HC', year: 'Y3', amount: 1000, firstPayout });
   }
