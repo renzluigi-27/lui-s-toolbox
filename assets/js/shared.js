@@ -658,7 +658,7 @@ function calcPayeeDeductions(filteredRows, yr, mo, payoutDate) {
       Object.entries(years).forEach(([year, amt]) => {
         if (amt.ip <= 0 && amt.hc <= 0) return;
         const kind = amt.ip > 0 && amt.hc > 0 ? 'IP & HC' : (amt.hc > 0 ? 'HC' : 'IP');
-        const label = year === 'Y1' ? 'IP' : `${year} ${kind}`; // Y1 stays plain "IP"
+        const label = `${year} ${kind}`;
         const amount = Math.round(amt.ip + amt.hc);
         const key = `${label}|${amount}`;
         if (!labelGroups[key]) labelGroups[key] = { label, amount, containers: [] };
