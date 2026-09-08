@@ -785,6 +785,9 @@
       // same summed-comparison behavior as before, just now only used
       // when there's genuinely no distinct account to match on. ──
       unmatchedGens.forEach(function (g) {
+        var isZeroValue = toNum(g.rent) === 0 && toNum(g.deduction) === 0 &&
+          toNum(g.addition) === 0 && toNum(g.rentalDue) === 0;
+        if (isZeroValue) return; // nothing due — terminated/placeholder row, nothing to reconcile
         var a = findMatch(g, accIndex);
         if (!a) {
           mineNotInAcc.push({ name: g.name, class: classify(g, null) });
