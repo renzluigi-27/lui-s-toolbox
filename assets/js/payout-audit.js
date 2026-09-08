@@ -884,7 +884,7 @@
 
         var p = (isMultiAccount && mergedG._piRentalSum != null)
           ? { rental: mergedG._piRentalSum }
-          : findMatch(gens[0], piIndex);
+          : findMatchByAccount(mergedG, piIndex);
         var vrow = valueRow(mergedG, a, p);
         if (isMultiAccount) vrow.isMultiAccount = true;
         values.push(vrow);
