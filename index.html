@@ -296,6 +296,13 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3.7</strong> — Payout Generator: deduction note wording fix (notes.js)<br>
+              <div style="padding-left:1rem;">
+                • consolidatedDeduction() note said "X AED deduction for..." but X was always the per-container amount, not the total across listed containers — misleading when a note grouped multiple containers (e.g. Shannon Anthony Fleming: note showed "1,500 AED deduction" for 3 containers while the actual Deduction column correctly totaled 4,500)<br>
+                • Wording changed to "X AED each for..." to match dedNoteEach()'s phrasing (used by the IP Deduction tool)<br>
+                • Deduction amounts themselves were never wrong — only the note text<br>
+              </div><br>
+
               <strong>Version 2.3.6</strong> — IP/HC deduction: reroute Y2+Y3 double-fire fix (shared.js)<br>
               <div style="padding-left:1rem;">
                 • Rerouted clients could get BOTH Y2 and Y3 IP+HC deducted in the same cycle on the same container — a side effect of the v2.3.5 fix, since y2Date and y3Date now share the same reroute-adjusted date, and the old "insuranceYearsCovered &lt; N" checks let both branches match at once<br>

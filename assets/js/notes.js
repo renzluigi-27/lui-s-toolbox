@@ -47,7 +47,7 @@ const Notes = {
     `${pay.toLocaleString()} AED deducted for ${label} -${container} (${installmentLabel}) — ${remaining.toLocaleString()} AED remaining`,
 
   consolidatedDeduction: (amount, label, containers) =>
-    `${amount.toLocaleString()} AED deduction for ${label} | ${containers.join(', ')}`,
+    `${amount.toLocaleString()} AED each for ${label} | ${containers.join(', ')}`,
 
   rentalInUSD: () =>
     '⚑ Rental amount is in USD',
