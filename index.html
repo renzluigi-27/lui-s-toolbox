@@ -296,6 +296,12 @@
             <div class="tool-name">Version History</div>
             <div class="tool-desc">
 			
+              <strong>Version 2.3.8</strong> — Y1 deduction label now shows "Y1 IP" (shared.js)<br>
+              <div style="padding-left:1rem;">
+                • buildYearLabel() and calcPayeeDeductions()'s label — both previously showed Y1 as plain "IP" with no year number; now shows "Y1 IP" consistently with Y2/Y3<br>
+                • This was previously a manual edit Renz applied himself — now baked into the maintained file so it doesn't get lost on future updates<br>
+              </div><br>
+
               <strong>Version 2.3.7</strong> — Payout Generator: deduction note wording fix (notes.js)<br>
               <div style="padding-left:1rem;">
                 • consolidatedDeduction() note said "X AED deduction for..." but X was always the per-container amount, not the total across listed containers — misleading when a note grouped multiple containers (e.g. Shannon Anthony Fleming: note showed "1,500 AED deduction" for 3 containers while the actual Deduction column correctly totaled 4,500)<br>
